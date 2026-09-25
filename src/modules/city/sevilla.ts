@@ -1,0 +1,95 @@
+import { JURISDICTIONS } from "@/modules/regulatory/registry";
+import type { CityProfile, Microzone } from "./types";
+
+const SAMPLE = 0; // demo microzones never claim a real sample size
+
+function mz(
+  id: string,
+  name: string,
+  district: string,
+  lat: number,
+  lng: number,
+  radiusM: number,
+  aliases: string[],
+  historicCentre: boolean,
+  m: [number, number, number, number, number, number, Microzone["demoMarket"]["liquidity"], Microzone["demoMarket"]["demand"]],
+  demoZoning: string,
+): Microzone {
+  return {
+    id,
+    name,
+    district,
+    centroid: { lat, lng },
+    radiusM,
+    aliases,
+    historicCentre,
+    demoMarket: {
+      residentialRenovatedPerM2: m[0],
+      residentialUnrenovatedPerM2: m[1],
+      commercialPerM2: m[2],
+      rentResidentialPerM2Month: m[3],
+      rentCommercialPerM2Month: m[4],
+      daysToSell: m[5],
+      liquidity: m[6],
+      demand: m[7],
+      sampleSize: SAMPLE,
+    },
+    demoZoning,
+  };
+}
+
+/**
+ * Sevilla — City Zero. Microzone statistics are DEMO placeholders that the
+ * City Brain replaces with measured data (with sample size and confidence).
+ */
+export const SEVILLA_MICROZONES: Microzone[] = [
+  mz("sev-santa-cruz", "Santa Cruz", "Casco Antiguo", 37.3856, -5.9906, 450, ["santa cruz", "judería", "mateos gago", "alfalfa"], true, [4800, 3700, 2600, 16, 16, 45, "high", "high"], "CH"),
+  mz("sev-centro", "Centro / Encarnación", "Casco Antiguo", 37.391, -5.994, 600, ["centro", "encarnación", "campana", "sierpes", "plaza nueva", "laraña", "san pedro", "puerta de jerez"], true, [4300, 3300, 2500, 15, 18, 50, "high", "high"], "CH"),
+  mz("sev-alameda", "Alameda / San Lorenzo / Feria", "Casco Antiguo", 37.3985, -5.996, 550, ["alameda", "san lorenzo", "feria", "san vicente", "regina", "calatrava"], true, [4100, 3150, 2200, 15, 14, 55, "high", "high"], "CH"),
+  mz("sev-san-bernardo", "San Bernardo / Puerta Carmona", "Nervión", 37.382, -5.984, 450, ["san bernardo", "puerta carmona", "menéndez pelayo", "menendez pelayo", "ramón y cajal"], false, [3600, 2750, 2000, 14, 12, 60, "medium", "high"], "MC"),
+  mz("sev-triana", "Triana", "Triana", 37.3839, -6.0055, 700, ["triana", "betis", "pureza", "san jacinto", "castilla", "pagés del corro", "pages del corro", "alfarería", "rodrigo de triana"], true, [3900, 3000, 2100, 14, 13, 55, "high", "high"], "CH"),
+  mz("sev-remedios", "Los Remedios", "Los Remedios", 37.3745, -6.008, 650, ["los remedios", "remedios", "asunción", "asuncion", "república argentina", "republica argentina", "virgen de luján", "virgen de lujan"], false, [3800, 2950, 2000, 13, 12, 60, "medium", "high"], "MC"),
+  mz("sev-nervion", "Nervión", "Nervión", 37.383, -5.974, 700, ["nervión", "nervion", "luis montoto", "eduardo dato", "gran plaza", "san francisco javier", "marqués de nervión", "marques de nervion"], false, [3700, 2850, 2100, 13, 13, 55, "high", "high"], "MC"),
+  mz("sev-porvenir", "El Porvenir / Prado", "Sur", 37.372, -5.983, 550, ["porvenir", "prado", "felipe ii", "juan sebastián elcano", "elcano", "manuel siurot"], false, [3500, 2700, 1900, 13, 11, 65, "medium", "medium"], "SB"),
+  mz("sev-heliopolis", "Heliópolis / Reina Mercedes", "Bellavista-La Palmera", 37.356, -5.978, 600, ["heliópolis", "heliopolis", "reina mercedes", "palmera", "tabladilla"], false, [3300, 2600, 1700, 12, 10, 70, "medium", "medium"], "SB"),
+  mz("sev-macarena", "Macarena", "Macarena", 37.403, -5.988, 800, ["macarena", "resolana", "san julián", "san julian", "doctor fedriani", "fedriani", "león xiii", "leon xiii", "hermandades"], false, [2600, 1950, 1400, 12, 9, 75, "medium", "medium"], "SB"),
+  mz("sev-ciudad-jardin", "Ciudad Jardín / La Buhaira", "Nervión", 37.38, -5.965, 550, ["ciudad jardín", "ciudad jardin", "buhaira", "marqués de pickman", "pickman", "la calzada"], false, [2800, 2150, 1500, 12, 9, 70, "medium", "medium"], "EA"),
+  mz("sev-san-pablo", "San Pablo / Santa Justa", "San Pablo-Santa Justa", 37.396, -5.956, 800, ["san pablo", "santa justa", "kansas city", "el greco", "huerta de santa teresa"], false, [2200, 1650, 1200, 11, 8, 85, "low", "medium"], "EA"),
+  mz("sev-cerro-amate", "Cerro-Amate", "Cerro-Amate", 37.377, -5.952, 900, ["cerro", "amate", "rochelambert", "juan xxiii", "los pájaros", "la plata"], false, [1900, 1400, 1000, 10, 7, 95, "low", "medium"], "EA"),
+  mz("sev-este", "Sevilla Este", "Este-Alcosa-Torreblanca", 37.402, -5.926, 1200, ["sevilla este", "alcosa", "torreblanca", "emilio lemos", "flota de indias", "cortijo de las casillas"], false, [2300, 1800, 1200, 11, 8, 80, "medium", "medium"], "EA"),
+  mz("sev-pino-montano", "Pino Montano", "Norte", 37.423, -5.97, 900, ["pino montano", "valdezorras", "san diego", "aeropuerto viejo"], false, [1900, 1450, 950, 10, 7, 95, "low", "low"], "EA"),
+  mz("sev-bellavista", "Bellavista", "Bellavista-La Palmera", 37.338, -5.975, 800, ["bellavista", "jardines de hércules", "jardines de hercules", "guadaíra"], false, [2200, 1700, 1100, 10, 7, 90, "low", "low"], "SB"),
+];
+
+export const SEVILLA: CityProfile = {
+  id: "sevilla",
+  name: "Sevilla",
+  country: "ES",
+  region: "ES-AN",
+  province: "ES-SE",
+  municipalityCode: "41091",
+  locale: "es-ES",
+  currency: "EUR",
+  timezone: "Europe/Madrid",
+  unitSystem: "metric",
+  centroid: { lat: 37.3891, lng: -5.9845 },
+  bbox: [-6.05, 37.31, -5.88, 37.45],
+  taxJurisdiction: { country: "ES", region: "AND", municipalityCode: "41091" },
+  regulatoryChain: [JURISDICTIONS.EU, JURISDICTIONS.ES, JURISDICTIONS.AND, JURISDICTIONS.SE_PROV, JURISDICTIONS.SEVILLA],
+  urbanism: {
+    planningInstrument: "Texto Refundido del PGOU de Sevilla (2006) y modificaciones",
+    planningRegulationId: "reg.es.sevilla.pgou-2006",
+    authority: "Gerencia de Urbanismo y Medio Ambiente del Ayuntamiento de Sevilla",
+    authorityUrl: "https://www.urbanismosevilla.org/",
+    zoningCatalogue: {
+      CH: { label: "Centro Histórico", maxFloors: 3, groundFloorResidential: "conditioned", notes: "Sujeto a Planes Especiales de Protección por sector y catálogo. Cambios de uso condicionados a protección y a la compatibilidad de la ordenanza." },
+      MC: { label: "Manzana Cerrada", maxFloors: 5, groundFloorResidential: "conditioned", notes: "Ordenanza de ensanche; la vivienda en planta baja suele requerir patio/ventilación y cumplimiento de habitabilidad." },
+      SB: { label: "Suburbana", maxFloors: 2, groundFloorResidential: "allowed", notes: "Tipología de casa unifamiliar o entre medianeras; división de viviendas limitada por superficie mínima." },
+      EA: { label: "Edificación Abierta", maxFloors: 8, groundFloorResidential: "forbidden", notes: "Bloques abiertos; los locales en planta baja suelen mantener uso terciario según ordenanza." },
+      IND: { label: "Industrial", maxFloors: 2, groundFloorResidential: "forbidden", notes: "Uso residencial incompatible salvo modificación de planeamiento." },
+    },
+  },
+  microzones: SEVILLA_MICROZONES,
+  adapters: { catastro: "catastro", urbanism: "urbanismo-sevilla", market: "market-demo", financing: "financing-demo" },
+  demo: true,
+};

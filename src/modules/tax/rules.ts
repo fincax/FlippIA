@@ -35,10 +35,10 @@ export const TAX_RULES_ES_AND_SEVILLA_2025: TaxRuleSet = {
   label: "España · Andalucía · Sevilla (vigente 2025)",
   jurisdiction: { country: "ES", region: "AND", municipalityCode: "41091" },
   effectiveFrom: "2025-01-01",
-  regulationRefs: ["reg.es.and.tributos-cedidos.dl1-2018", "reg.es.irpf.ley35-2006", "reg.es.sevilla.ordenanza-icio", "reg.es.itp-ajd.rdl1-1993"],
+  regulationRefs: ["reg.es.and.tributos-cedidos.ley5-2021", "reg.es.irpf.ley35-2006", "reg.es.iva.ley37-1992", "reg.es.haciendas-locales.rdl2-2004", "reg.es.sevilla.ordenanza-icio", "reg.es.itp-ajd.rdl1-1993"],
   status: "INFERRED",
   notes: [
-    "ITP general en Andalucía: 7 % desde la reforma del Decreto-ley 1/2018 (texto refundido de tributos cedidos). Tipos reducidos (jóvenes, VPO, familias numerosas) no se aplican automáticamente.",
+    "ITP general en Andalucía: 7 % conforme a la Ley 5/2021 de Tributos Cedidos. Tipos reducidos (jóvenes, VPO, familias numerosas) no se aplican automáticamente.",
     "AJD general en Andalucía: 1,2 %.",
     "IVA en vivienda nueva 10 %; en locales y obra nueva no residencial 21 %.",
     "Los aranceles notariales y registrales se estiman sobre la escala base; la factura final incluye copias, IVA y conceptos adicionales.",
