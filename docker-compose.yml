@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: flippia-db
+    environment:
+      POSTGRES_USER: flippia
+      POSTGRES_PASSWORD: flippia
+      POSTGRES_DB: flippia
+    ports:
+      - "5432:5432"
+    volumes:
+      - flippia-db:/var/lib/postgresql/data
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flippia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  flippia-db:
