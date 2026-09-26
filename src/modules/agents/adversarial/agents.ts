@@ -1,3 +1,4 @@
+import { labelRisk } from "@/lib/labels";
 import type {
   AdversarialFinding,
   MarketAssessment,
@@ -379,7 +380,7 @@ export const riskSynthesisAgent: AgentDefinition<RiskAssessment> = {
       stressByStrategy,
       findings,
       overall,
-      summary: `${findings.length} hallazgos (${critical} críticos, ${high} altos). Riesgo global ${overall}.`,
+      summary: `${findings.length} hallazgos (${critical} críticos, ${high} altos). Riesgo global ${labelRisk(overall)}.`,
     };
   },
 };

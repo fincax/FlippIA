@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import type { InvestorDNA } from "@/modules/investor/types";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { labelRisk } from "@/lib/labels";
 
 /**
  * Investment Orchestrator → ranking. Explainable score: each component is a
@@ -191,12 +192,22 @@ export function computeOpportunityDNA(params: {
     {
       key: "urbanism",
       label: "Urbanismo",
+      // Pending verifications and unknown planning data cost points: a 100 must mean "nothing left to check".
       score: pct(
         1 -
           urbanism.requiredChecks.filter((c) => c.blocking).length * 0.2 -
-          (urbanism.planning.protectionLevel === "A" || urbanism.planning.protectionLevel === "B" ? 0.3 : 0),
+          urbanism.requiredChecks.filter((c) => !c.blocking).length * 0.05 -
+          (urbanism.planning.protectionLevel === "A" || urbanism.planning.protectionLevel === "B" ? 0.3 : 0) -
+          (urbanism.planning.protectionLevel === "unknown" && urbanism.planning.inHistoricCentre ? 0.25 : 0) -
+          (urbanism.planning.status === "UNKNOWN"
+            ? 0.5
+            : urbanism.planning.status === "INFERRED" || urbanism.planning.status === "REVIEW_REQUIRED"
+              ? 0.1
+              : 0),
       ),
-      explanation: urbanism.summary,
+      explanation: urbanism.requiredChecks.length
+        ? `${urbanism.summary} ${urbanism.requiredChecks.length} comprobaciones pendientes.`
+        : urbanism.summary,
     },
     {
       key: "architecture",
@@ -305,7 +316,7 @@ export function templateSynthesis(params: {
       );
     thesisParts.push(`Mercado: ${market.askingVsValue.note} ${gap.summary}`);
     thesisParts.push(
-      `Riesgo ${risk.overall}: ${
+      `Riesgo ${labelRisk(risk.overall)}: ${
         risk.findings
           .filter((f) => f.severity === "high" || f.severity === "critical")
           .map((f) => f.title)

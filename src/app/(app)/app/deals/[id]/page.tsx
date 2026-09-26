@@ -14,6 +14,7 @@ import { MagicPanel } from "@/components/flippia/magic-panel";
 import { StrategyCard } from "@/components/flippia/strategy-card";
 import { WatchButton } from "@/components/flippia/watch-button";
 import { formatMoney } from "@/lib/format";
+import { labelRisk } from "@/lib/labels";
 import { loadDeal, topStrategy } from "@/server/deal-page";
 
 export default async function DealOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -143,7 +144,10 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
             <p className="mt-3 text-[11px] text-fg-3">
               Compuesto = {analysis.dna.composite.formula}. Pesos:{" "}
               {Object.entries(analysis.dna.composite.weights)
-                .map(([k, v]) => `${k} ${Math.round(v * 100)} %`)
+                .map(
+                  ([k, v]) =>
+                    `${analysis.dna.dimensions.find((d) => d.key === k)?.label ?? k} ${Math.round(v * 100)} %`,
+                )
                 .join(", ")}
               . {analysis.dna.composite.uncertainty} El score es orientativo; las dimensiones importan más.
             </p>
@@ -175,7 +179,7 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
                         : "success"
                   }
                 >
-                  {analysis.risk.overall}
+                  {labelRisk(analysis.risk.overall)}
                 </Badge>
               </li>
             </ul>
