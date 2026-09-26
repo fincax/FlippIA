@@ -20,10 +20,22 @@ export interface SessionInfo {
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export async function createSession(d: Database, params: { userId: string; organizationId: string; userAgent?: string }): Promise<{ token: string; expiresAt: Date }> {
+export async function createSession(
+  d: Database,
+  params: { userId: string; organizationId: string; userAgent?: string },
+): Promise<{ token: string; expiresAt: Date }> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await d.insert(sessions).values({ id: newId("ses"), userId: params.userId, organizationId: params.organizationId, tokenHash: hashToken(token), expiresAt, userAgent: params.userAgent?.slice(0, 200) });
+  await d
+    .insert(sessions)
+    .values({
+      id: newId("ses"),
+      userId: params.userId,
+      organizationId: params.organizationId,
+      tokenHash: hashToken(token),
+      expiresAt,
+      userAgent: params.userAgent?.slice(0, 200),
+    });
   return { token, expiresAt };
 }
 
@@ -34,7 +46,10 @@ export async function resolveSession(d: Database, token: string | undefined): Pr
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .innerJoin(organizations, eq(organizations.id, sessions.organizationId))
-    .innerJoin(memberships, and(eq(memberships.userId, sessions.userId), eq(memberships.organizationId, sessions.organizationId)))
+    .innerJoin(
+      memberships,
+      and(eq(memberships.userId, sessions.userId), eq(memberships.organizationId, sessions.organizationId)),
+    )
     .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())))
     .limit(1);
   const row = rows[0];
@@ -59,7 +74,11 @@ export function csrfTokenFor(sessionId: string, secret = process.env.APP_SECRET 
   return createHmac("sha256", secret).update(`csrf:${sessionId}`).digest("base64url");
 }
 
-export function verifyCsrf(sessionId: string, provided: string | null | undefined, secret = process.env.APP_SECRET ?? "dev-secret"): boolean {
+export function verifyCsrf(
+  sessionId: string,
+  provided: string | null | undefined,
+  secret = process.env.APP_SECRET ?? "dev-secret",
+): boolean {
   if (!provided) return false;
   const expected = Buffer.from(csrfTokenFor(sessionId, secret));
   const actual = Buffer.from(provided);

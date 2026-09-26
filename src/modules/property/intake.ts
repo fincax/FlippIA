@@ -52,7 +52,8 @@ const ROOMS_RE = /(\d)\s*(?:habitaciones|hab\b|dormitorios)/i;
 const BATH_RE = /(\d)\s*(?:baños|baño)/i;
 const FLOOR_RE = /\b(\d)\s*[ºo°ª](?:\s*(?:planta|piso))?|\b(\d)\s*(?:planta|piso)\b|\bplanta\s+(\d)\b/i;
 const ROE_RE = /(\d{1,2})\s*%\s*(?:de\s+)?(?:roe|rentabilidad|retorno)/i;
-const STREET_RE = /\b(?:calle|c\/|avenida|avda\.?|av\.?|plaza|pza\.?|paseo|ronda|travesía|travesia|camino|carretera|glorieta|barriada|bda\.?)\s+[^,.;\d]{2,60}(?:,?\s*(?:n[ºo°.]?\s*)?\d{1,4}(?:\s*[a-z]\b)?)?/i;
+const STREET_RE =
+  /\b(?:calle|c\/|avenida|avda\.?|av\.?|plaza|pza\.?|paseo|ronda|travesía|travesia|camino|carretera|glorieta|barriada|bda\.?)\s+[^,.;\d]{2,60}(?:,?\s*(?:n[ºo°.]?\s*)?\d{1,4}(?:\s*[a-z]\b)?)?/i;
 
 const TYPOLOGY_KEYWORDS: Array<[RegExp, PropertyTypology, AssetUse]> = [
   [/\blocal(?:es)?\b/, "premises", "commercial"],
@@ -90,7 +91,13 @@ export function parseIntake(text: string): IntakeRequest {
   const t = normalizeText(raw);
   const req: IntakeRequest = { intent: "unknown", rawText: raw, notes: [] };
 
-  const cadastral = raw.match(CADASTRAL_FULL_RE)?.[0] ?? (raw.match(CADASTRAL_RE)?.[0]?.length === 14 && /[A-Z]/i.test(raw.match(CADASTRAL_RE)![0]) && /\d/.test(raw.match(CADASTRAL_RE)![0]) ? raw.match(CADASTRAL_RE)![0] : undefined);
+  const cadastral =
+    raw.match(CADASTRAL_FULL_RE)?.[0] ??
+    (raw.match(CADASTRAL_RE)?.[0]?.length === 14 &&
+    /[A-Z]/i.test(raw.match(CADASTRAL_RE)![0]) &&
+    /\d/.test(raw.match(CADASTRAL_RE)![0])
+      ? raw.match(CADASTRAL_RE)![0]
+      : undefined);
   const url = raw.match(URL_RE)?.[0];
   const coord = raw.match(COORD_RE);
   const street = raw.match(STREET_RE)?.[0]?.trim();
@@ -114,14 +121,17 @@ export function parseIntake(text: string): IntakeRequest {
   }
 
   const hasPropertyRef = Boolean(cadastral || url || coord || street);
-  const mentionsCapital = /\btengo\b|\bdispongo\b|\bcapital\b|\bpresupuesto\b|\bquiero invertir\b|\binvertir\b/.test(t);
-  const mentionsSearch = /\bencuentra\b|\bbusca\b|\bbuscar\b|\boportunidad(?:es)?\b|\bque\s+puedo\s+comprar\b|\bradar\b/.test(t);
+  const mentionsCapital =
+    /\btengo\b|\bdispongo\b|\bcapital\b|\bpresupuesto\b|\bquiero invertir\b|\binvertir\b/.test(t);
+  const mentionsSearch =
+    /\bencuentra\b|\bbusca\b|\bbuscar\b|\boportunidad(?:es)?\b|\bque\s+puedo\s+comprar\b|\bradar\b/.test(t);
   const mentionsOptimize = /\boptimiza\b|\bmejora\b|\bmejorar\b|\bhaz magia\b/.test(t);
   const mentionsWhatIf = /\bque pasa si\b|\by si\b|\bque pasaria\b|\bsi vendo\b|\bsi pago\b/.test(t);
   const isQuestion = /\?$/.test(raw) || /^(?:que|cual|cuanto|cuanta|como|por que|donde|hasta)\b/.test(t);
 
   if (mentionsWhatIf) req.intent = "what_if";
-  else if (hasPropertyRef || (typology && (/\banaliza\b|\bestudia\b|\bvalora\b/.test(t) || money.length > 0))) req.intent = "analyze_property";
+  else if (hasPropertyRef || (typology && (/\banaliza\b|\bestudia\b|\bvalora\b/.test(t) || money.length > 0)))
+    req.intent = "analyze_property";
   else if (mentionsCapital || (money.length > 0 && mentionsSearch)) req.intent = "capital_available";
   else if (mentionsSearch) req.intent = "find_opportunity";
   else if (mentionsOptimize) req.intent = "optimize_investment";
@@ -140,7 +150,11 @@ export function parseIntake(text: string): IntakeRequest {
       bedrooms: rooms ? Number(rooms[1]) : undefined,
       bathrooms: baths ? Number(baths[1]) : undefined,
       floor: floor ? Number(floor[1] ?? floor[2] ?? floor[3]) : undefined,
-      condition: /\bpara reformar\b|\ba reformar\b|\breformar\b/.test(t) ? "to_renovate" : /\breformado\b/.test(t) ? "renovated" : undefined,
+      condition: /\bpara reformar\b|\ba reformar\b|\breformar\b/.test(t)
+        ? "to_renovate"
+        : /\breformado\b/.test(t)
+          ? "renovated"
+          : undefined,
     };
     if (!street && !cadastral && !url && !coord) {
       // Free text like "local de Triana": keep the neighbourhood hint as address.
@@ -150,7 +164,9 @@ export function parseIntake(text: string): IntakeRequest {
   }
 
   if (req.intent === "analyze_property") {
-    const priceMatch = raw.match(/(?:por|precio|piden|a)\s+(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i);
+    const priceMatch = raw.match(
+      /(?:por|precio|piden|a)\s+(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i,
+    );
     if (priceMatch) {
       const p = parseMoney(priceMatch[0]);
       req.price = p[0] ?? undefined;
@@ -160,11 +176,17 @@ export function parseIntake(text: string): IntakeRequest {
 
   if (req.intent === "capital_available" || req.intent === "find_opportunity" || mentionsCapital) {
     const investor: NonNullable<IntakeRequest["investor"]> = {};
-    const capitalMatch = raw.match(/(?:tengo|dispongo de|capital de|capital)\s+(?:unos\s+)?(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i);
+    const capitalMatch = raw.match(
+      /(?:tengo|dispongo de|capital de|capital)\s+(?:unos\s+)?(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i,
+    );
     if (capitalMatch) investor.capital = parseMoney(capitalMatch[0])[0];
-    const equityMatch = raw.match(/(?:aportar|aportación|aportacion|entrada|equity)\s+(?:máximo|maximo|de|hasta)?\s*(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i);
+    const equityMatch = raw.match(
+      /(?:aportar|aportación|aportacion|entrada|equity)\s+(?:máximo|maximo|de|hasta)?\s*(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?/i,
+    );
     if (equityMatch) investor.maxEquity = parseMoney(equityMatch[0])[0];
-    const profitMatch = raw.match(/(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?\s+de\s+(?:potencial|beneficio|margen)/i);
+    const profitMatch = raw.match(
+      /(\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?:k|mil|€|eur|euros)?\s+de\s+(?:potencial|beneficio|margen)/i,
+    );
     if (profitMatch) investor.targetProfit = parseMoney(profitMatch[0])[0];
     if (!investor.capital && money.length > 0) investor.capital = Math.max(...money);
     if (months) investor.horizonMonths = Number(months[1]);

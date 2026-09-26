@@ -10,7 +10,13 @@ import { UrbanismoSevillaOfficialConnector } from "./urbanismo-sevilla/official"
 describe("demo adapters are deterministic and labelled", () => {
   it("catastro demo returns the same fixture for the same address", async () => {
     const a = new CatastroDemoAdapter();
-    const q = { kind: "address" as const, municipality: "SEVILLA", province: "SEVILLA", street: "Pureza", number: "45" };
+    const q = {
+      kind: "address" as const,
+      municipality: "SEVILLA",
+      province: "SEVILLA",
+      street: "Pureza",
+      number: "45",
+    };
     const r1 = await a.query(q);
     const r2 = await a.query(q);
     expect(r1.ok && r2.ok && r1.value.data.builtAreaM2).toBe(r2.ok && r2.value.data.builtAreaM2);
@@ -30,13 +36,24 @@ describe("demo adapters are deterministic and labelled", () => {
     expect(!r.ok && r.error.code).toBe("SOURCE_NOT_CONFIGURED");
   });
   it("market demo produces comparables and stats with a demo flag", async () => {
-    const r = await new MarketDemoAdapter().query({ microzoneId: "sev-nervion", assetUse: "residential", areaM2: 90, analysisDate: "2026-01-15" });
+    const r = await new MarketDemoAdapter().query({
+      microzoneId: "sev-nervion",
+      assetUse: "residential",
+      areaM2: 90,
+      analysisDate: "2026-01-15",
+    });
     expect(r.ok && r.value.data.comparablesSale.length).toBe(9);
     expect(r.ok && r.value.data.demo).toBe(true);
     expect(r.ok && r.value.data.stats.sampleSize).toBe(0);
   });
   it("financing demo returns indicative offers", async () => {
-    const r = await new FinancingDemoAdapter().query({ purchasePrice: 200_000, totalCost: 270_000, durationMonths: 9, investorProfile: "private", assetUse: "residential" });
+    const r = await new FinancingDemoAdapter().query({
+      purchasePrice: 200_000,
+      totalCost: 270_000,
+      durationMonths: 9,
+      investorProfile: "private",
+      assetUse: "residential",
+    });
     expect(r.ok && r.value.data.every((o) => o.indicative && o.demo)).toBe(true);
   });
   it("demo listings include mispriced opportunities", () => {
@@ -53,7 +70,13 @@ describe("OVC parser", () => {
         bico: {
           bi: {
             idbi: { rc: { pc1: "4123456", pc2: "TG3442S", car: "0003", cc1: "X", cc2: "Y" } },
-            dt: { np: "SEVILLA", nm: "SEVILLA", locs: { lous: { lourb: { dir: { tv: "CL", nv: "PUREZA", pnp: "45" }, loint: { pt: "03", pu: "A" } } } } },
+            dt: {
+              np: "SEVILLA",
+              nm: "SEVILLA",
+              locs: {
+                lous: { lourb: { dir: { tv: "CL", nv: "PUREZA", pnp: "45" }, loint: { pt: "03", pu: "A" } } },
+              },
+            },
             debi: { luso: "Residencial", sfc: "95", ant: "1930" },
           },
         },

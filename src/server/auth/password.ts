@@ -1,7 +1,9 @@
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "node:crypto";
 
 const scrypt = (password: string, salt: Buffer, keylen: number, options: ScryptOptions) =>
-  new Promise<Buffer>((resolve, reject) => scryptCb(password, salt, keylen, options, (err, key) => (err ? reject(err) : resolve(key))));
+  new Promise<Buffer>((resolve, reject) =>
+    scryptCb(password, salt, keylen, options, (err, key) => (err ? reject(err) : resolve(key))),
+  );
 const KEYLEN = 64;
 const PARAMS = { N: 16384, r: 8, p: 1 };
 
@@ -26,6 +28,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 export function validatePasswordStrength(password: string): string | null {
   if (password.length < 10) return "La contraseña debe tener al menos 10 caracteres.";
-  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password) && !/[^a-zA-Z0-9]/.test(password)) return "Combina letras con números o símbolos.";
+  if (!/[a-zA-Z]/.test(password) || (!/[0-9]/.test(password) && !/[^a-zA-Z0-9]/.test(password)))
+    return "Combina letras con números o símbolos.";
   return null;
 }

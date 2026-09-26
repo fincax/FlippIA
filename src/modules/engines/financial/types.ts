@@ -51,7 +51,8 @@ export interface FinancingInstrument {
   kind: Exclude<FinancingKind, "equity">;
   label: string;
   /** Sizing: absolute amount or ratio over purchase price (LTV) / over total cost (LTC). */
-  sizing: { type: "amount"; amount: number } | { type: "ltv"; ratio: number } | { type: "ltc"; ratio: number };
+  sizing:
+    { type: "amount"; amount: number } | { type: "ltv"; ratio: number } | { type: "ltc"; ratio: number };
   annualRate: number;
   /** Amortization term. Interest-only instruments ignore it except for the bullet at exit. */
   termMonths: number;

@@ -13,7 +13,15 @@ export interface MarketSnapshot {
   microzoneId: string;
   microzoneName: string;
   comparablesSale: Comparable[];
-  comparablesRent: Array<{ id: string; monthlyRent: number; areaM2: number; date: string; distanceM: number; type: "asking" | "transaction"; demo: boolean }>;
+  comparablesRent: Array<{
+    id: string;
+    monthlyRent: number;
+    areaM2: number;
+    date: string;
+    distanceM: number;
+    type: "asking" | "transaction";
+    demo: boolean;
+  }>;
   stats: {
     renovatedPerM2: number;
     unrenovatedPerM2: number;

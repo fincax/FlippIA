@@ -57,7 +57,9 @@ export class AnthropicProvider implements AIProvider {
       model: this.model,
       max_tokens: req.maxTokens ?? this.defaultMaxTokens,
       temperature: req.temperature ?? 0.2,
-      system: req.json ? `${req.system}\n\nResponde únicamente con un objeto JSON válido, sin texto adicional.` : req.system,
+      system: req.json
+        ? `${req.system}\n\nResponde únicamente con un objeto JSON válido, sin texto adicional.`
+        : req.system,
       messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
     });
     const text = res.content

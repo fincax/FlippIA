@@ -34,25 +34,100 @@ export interface StressReport {
   survivalRate: number;
 }
 
-const scaleSale = (f: number) => (i: FinancialInputs): FinancialInputs =>
-  i.exit.kind === "sale" ? { ...i, exit: { ...i.exit, salePrice: round0(i.exit.salePrice * f) } } : { ...i, exit: { ...i.exit, terminalValue: round0(i.exit.terminalValue * f) } };
-const scaleReno = (f: number) => (i: FinancialInputs): FinancialInputs => ({ ...i, transformation: { ...i.transformation, renovationBudget: round0(i.transformation.renovationBudget * f) } });
-const delay = (months: number) => (i: FinancialInputs): FinancialInputs => ({ ...i, holding: { ...i.holding, durationMonths: i.holding.durationMonths + months } });
-const dearerDebt = (bps: number) => (i: FinancialInputs): FinancialInputs => ({ ...i, financing: i.financing.map((f) => ({ ...f, annualRate: f.annualRate + bps / 10_000 })) });
-const lowerRent = (f: number) => (i: FinancialInputs): FinancialInputs => (i.exit.kind === "rent" ? { ...i, exit: { ...i.exit, monthlyRent: round0(i.exit.monthlyRent * f) } } : i);
-const compose = (...fns: Array<(i: FinancialInputs) => FinancialInputs>) => (i: FinancialInputs) => fns.reduce((acc, fn) => fn(acc), i);
+const scaleSale =
+  (f: number) =>
+  (i: FinancialInputs): FinancialInputs =>
+    i.exit.kind === "sale"
+      ? { ...i, exit: { ...i.exit, salePrice: round0(i.exit.salePrice * f) } }
+      : { ...i, exit: { ...i.exit, terminalValue: round0(i.exit.terminalValue * f) } };
+const scaleReno =
+  (f: number) =>
+  (i: FinancialInputs): FinancialInputs => ({
+    ...i,
+    transformation: { ...i.transformation, renovationBudget: round0(i.transformation.renovationBudget * f) },
+  });
+const delay =
+  (months: number) =>
+  (i: FinancialInputs): FinancialInputs => ({
+    ...i,
+    holding: { ...i.holding, durationMonths: i.holding.durationMonths + months },
+  });
+const dearerDebt =
+  (bps: number) =>
+  (i: FinancialInputs): FinancialInputs => ({
+    ...i,
+    financing: i.financing.map((f) => ({ ...f, annualRate: f.annualRate + bps / 10_000 })),
+  });
+const lowerRent =
+  (f: number) =>
+  (i: FinancialInputs): FinancialInputs =>
+    i.exit.kind === "rent" ? { ...i, exit: { ...i.exit, monthlyRent: round0(i.exit.monthlyRent * f) } } : i;
+const compose =
+  (...fns: Array<(i: FinancialInputs) => FinancialInputs>) =>
+  (i: FinancialInputs) =>
+    fns.reduce((acc, fn) => fn(acc), i);
 
 export const STANDARD_STRESS_SCENARIOS: StressScenarioDef[] = [
-  { key: "sale-5", label: "Venta −5 %", description: "El precio de salida cae un 5 %.", apply: scaleSale(0.95) },
-  { key: "sale-10", label: "Venta −10 %", description: "El precio de salida cae un 10 %.", apply: scaleSale(0.9) },
-  { key: "reno+10", label: "Reforma +10 %", description: "El presupuesto de obra sube un 10 %.", apply: scaleReno(1.1) },
-  { key: "reno+20", label: "Reforma +20 %", description: "El presupuesto de obra sube un 20 %.", apply: scaleReno(1.2) },
-  { key: "debt+150", label: "Financiación +150 pb", description: "Todos los instrumentos de deuda 1,5 puntos más caros.", apply: dearerDebt(150) },
-  { key: "delay+90", label: "Retraso +90 días", description: "Tres meses adicionales de tenencia y financiación.", apply: delay(3) },
-  { key: "delay+180", label: "Retraso +180 días", description: "Seis meses adicionales de tenencia y financiación.", apply: delay(6) },
-  { key: "rent-10", label: "Alquiler −10 %", description: "La renta mensual es un 10 % inferior.", apply: lowerRent(0.9) },
-  { key: "combined-moderate", label: "Combinado moderado", description: "Venta −5 %, reforma +10 %, retraso +90 días.", apply: compose(scaleSale(0.95), scaleReno(1.1), delay(3)) },
-  { key: "combined-severe", label: "Combinado severo", description: "Venta −10 %, reforma +20 %, retraso +180 días, deuda +150 pb.", apply: compose(scaleSale(0.9), scaleReno(1.2), delay(6), dearerDebt(150)) },
+  {
+    key: "sale-5",
+    label: "Venta −5 %",
+    description: "El precio de salida cae un 5 %.",
+    apply: scaleSale(0.95),
+  },
+  {
+    key: "sale-10",
+    label: "Venta −10 %",
+    description: "El precio de salida cae un 10 %.",
+    apply: scaleSale(0.9),
+  },
+  {
+    key: "reno+10",
+    label: "Reforma +10 %",
+    description: "El presupuesto de obra sube un 10 %.",
+    apply: scaleReno(1.1),
+  },
+  {
+    key: "reno+20",
+    label: "Reforma +20 %",
+    description: "El presupuesto de obra sube un 20 %.",
+    apply: scaleReno(1.2),
+  },
+  {
+    key: "debt+150",
+    label: "Financiación +150 pb",
+    description: "Todos los instrumentos de deuda 1,5 puntos más caros.",
+    apply: dearerDebt(150),
+  },
+  {
+    key: "delay+90",
+    label: "Retraso +90 días",
+    description: "Tres meses adicionales de tenencia y financiación.",
+    apply: delay(3),
+  },
+  {
+    key: "delay+180",
+    label: "Retraso +180 días",
+    description: "Seis meses adicionales de tenencia y financiación.",
+    apply: delay(6),
+  },
+  {
+    key: "rent-10",
+    label: "Alquiler −10 %",
+    description: "La renta mensual es un 10 % inferior.",
+    apply: lowerRent(0.9),
+  },
+  {
+    key: "combined-moderate",
+    label: "Combinado moderado",
+    description: "Venta −5 %, reforma +10 %, retraso +90 días.",
+    apply: compose(scaleSale(0.95), scaleReno(1.1), delay(3)),
+  },
+  {
+    key: "combined-severe",
+    label: "Combinado severo",
+    description: "Venta −10 %, reforma +20 %, retraso +180 días, deuda +150 pb.",
+    apply: compose(scaleSale(0.9), scaleReno(1.2), delay(6), dearerDebt(150)),
+  },
 ];
 
 function solve(
@@ -105,8 +180,12 @@ export function runStressTest(
     };
   });
 
-  const profitAtPrice = (p: number) => computeFinancials({ ...base, acquisition: { ...base.acquisition, purchasePrice: p } }).metrics.netProfit.value ?? 0;
-  const profitAtReno = (b: number) => computeFinancials({ ...base, transformation: { ...base.transformation, renovationBudget: b } }).metrics.netProfit.value ?? 0;
+  const profitAtPrice = (p: number) =>
+    computeFinancials({ ...base, acquisition: { ...base.acquisition, purchasePrice: p } }).metrics.netProfit
+      .value ?? 0;
+  const profitAtReno = (b: number) =>
+    computeFinancials({ ...base, transformation: { ...base.transformation, renovationBudget: b } }).metrics
+      .netProfit.value ?? 0;
   const profitAtSale = (s: number) => computeFinancials(scaleSaleTo(base, s)).metrics.netProfit.value ?? 0;
 
   const salePrice = base.exit.kind === "sale" ? base.exit.salePrice : base.exit.terminalValue;
@@ -114,14 +193,24 @@ export function runStressTest(
   const maximumRenovation = solve(profitAtReno, minProfit, 0, Math.max(salePrice * 2, 1), false);
   const minimumExitPrice = solve(profitAtSale, minProfit, 0, Math.max(salePrice * 3, 1), true);
   const breakEvenPrice = baseResult.metrics.breakEvenPrice.value;
-  const marginOfSafety = breakEvenPrice !== null && salePrice > 0 ? round4((salePrice - breakEvenPrice) / salePrice) : null;
+  const marginOfSafety =
+    breakEvenPrice !== null && salePrice > 0 ? round4((salePrice - breakEvenPrice) / salePrice) : null;
 
-  const worst = outcomes.reduce<StressOutcome | null>((w, o) => (w === null || o.netProfit < w.netProfit ? o : w), null);
+  const worst = outcomes.reduce<StressOutcome | null>(
+    (w, o) => (w === null || o.netProfit < w.netProfit ? o : w),
+    null,
+  );
   const capitalAtRisk = worst ? round0(Math.max(0, -worst.netProfit)) : 0;
-  const survivalRate = outcomes.length ? round4(outcomes.filter((o) => o.survives).length / outcomes.length) : 1;
+  const survivalRate = outcomes.length
+    ? round4(outcomes.filter((o) => o.survives).length / outcomes.length)
+    : 1;
 
   return {
-    base: { netProfit: baseProfit, roe: baseResult.metrics.roe.value, equityRequired: baseResult.metrics.equityRequired.value ?? 0 },
+    base: {
+      netProfit: baseProfit,
+      roe: baseResult.metrics.roe.value,
+      equityRequired: baseResult.metrics.equityRequired.value ?? 0,
+    },
     outcomes,
     breakEvenPrice,
     marginOfSafety,
@@ -135,12 +224,15 @@ export function runStressTest(
 }
 
 function scaleSaleTo(i: FinancialInputs, price: number): FinancialInputs {
-  return i.exit.kind === "sale" ? { ...i, exit: { ...i.exit, salePrice: price } } : { ...i, exit: { ...i.exit, terminalValue: price } };
+  return i.exit.kind === "sale"
+    ? { ...i, exit: { ...i.exit, salePrice: price } }
+    : { ...i, exit: { ...i.exit, terminalValue: price } };
 }
 
 export function summarizeStress(report: StressReport): string {
   const failed = report.outcomes.filter((o) => !o.survives);
-  if (failed.length === 0) return "La operación mantiene beneficio positivo en todos los escenarios de estrés estándar.";
+  if (failed.length === 0)
+    return "La operación mantiene beneficio positivo en todos los escenarios de estrés estándar.";
   return `La operación deja de ser rentable en ${failed.length} de ${report.outcomes.length} escenarios: ${failed.map((f) => f.label).join(", ")}.`;
 }
 

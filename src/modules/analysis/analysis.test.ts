@@ -6,8 +6,16 @@ import { runAnalysis } from "./run-analysis";
 describe("runAnalysis — vertical slice", () => {
   it("turns a Triana address into an investment thesis with multiple futures", async () => {
     const events: AnalysisEvent[] = [];
-    const intake = parseIntake("Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 285.000 €");
-    const result = await runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15", emit: (e) => events.push(e) });
+    const intake = parseIntake(
+      "Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 285.000 €",
+    );
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+      emit: (e) => events.push(e),
+    });
     expect(result.failedAgents).toEqual([]);
     expect(result.property.microzone.id).toBe("sev-triana");
     expect(result.property.askingPrice).toBe(285_000);
@@ -29,7 +37,12 @@ describe("runAnalysis — vertical slice", () => {
 
   it("handles a commercial premises with a conditional change-of-use future", async () => {
     const intake = parseIntake("Analiza este local de Triana de 110 m2 por 185.000 €");
-    const result = await runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" });
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+    });
     expect(result.property.property.assetUse).toBe("commercial");
     const cou = result.strategies.find((s) => s.id === "change_of_use");
     expect(cou).toBeDefined();
@@ -41,7 +54,12 @@ describe("runAnalysis — vertical slice", () => {
 
   it("works with an address only (no price) and flags missing data", async () => {
     const intake = parseIntake("Calle Asunción 20, Los Remedios");
-    const result = await runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" });
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+    });
     expect(result.property.askingPriceSource).toBe("estimated");
     expect(result.synthesis.missingData).toContain("Precio de compra real.");
     expect(result.risk.findings.some((f) => f.title === "Sin precio de compra")).toBe(true);

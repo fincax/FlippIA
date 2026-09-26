@@ -19,17 +19,42 @@ const base = () => ({
   logger: createLogger({ test: true }),
 });
 
-const agent = (type: string, deps: string[], run: AgentDefinition["run"], extra: Partial<AgentDefinition> = {}): AgentDefinition => ({ type, label: type, domain: "core", description: type, dependsOn: deps, run, ...extra });
+const agent = (
+  type: string,
+  deps: string[],
+  run: AgentDefinition["run"],
+  extra: Partial<AgentDefinition> = {},
+): AgentDefinition => ({
+  type,
+  label: type,
+  domain: "core",
+  description: type,
+  dependsOn: deps,
+  run,
+  ...extra,
+});
 
 describe("executePlan", () => {
   it("runs agents in dependency order and in parallel where possible", async () => {
     const order: string[] = [];
     const plan = {
       agents: [
-        agent("a", [], async () => { order.push("a"); return { v: 1 }; }),
-        agent("b", ["a"], async (ctx) => { order.push("b"); return { v: (ctx.outputs.get("a") as { v: number }).v + 1 }; }),
-        agent("c", ["a"], async () => { order.push("c"); return { v: 3 }; }),
-        agent("d", ["b", "c"], async () => { order.push("d"); return { v: 4 }; }),
+        agent("a", [], async () => {
+          order.push("a");
+          return { v: 1 };
+        }),
+        agent("b", ["a"], async (ctx) => {
+          order.push("b");
+          return { v: (ctx.outputs.get("a") as { v: number }).v + 1 };
+        }),
+        agent("c", ["a"], async () => {
+          order.push("c");
+          return { v: 3 };
+        }),
+        agent("d", ["b", "c"], async () => {
+          order.push("d");
+          return { v: 4 };
+        }),
       ],
     };
     const events: AnalysisEvent[] = [];
@@ -45,7 +70,9 @@ describe("executePlan", () => {
     const plan = {
       agents: [
         agent("ok", [], async () => ({ ok: true })),
-        agent("boom", [], async () => { throw new Error("nope"); }),
+        agent("boom", [], async () => {
+          throw new Error("nope");
+        }),
         agent("child", ["boom"], async () => ({})),
       ],
     };
@@ -58,23 +85,47 @@ describe("executePlan", () => {
   });
   it("retries once then fails; records attempts", async () => {
     let calls = 0;
-    const plan = { agents: [agent("flaky", [], async () => { calls++; if (calls < 2) throw new Error("first"); return { calls }; })] };
+    const plan = {
+      agents: [
+        agent("flaky", [], async () => {
+          calls++;
+          if (calls < 2) throw new Error("first");
+          return { calls };
+        }),
+      ],
+    };
     const out = await executePlan(plan, base(), { emit: () => {} });
     expect(out.failed).toEqual([]);
     expect(out.records[0]?.attempts).toBe(2);
   });
   it("times out a slow agent", async () => {
-    const plan = { agents: [agent("slow", [], () => new Promise((r) => setTimeout(() => r({}), 200)), { timeoutMs: 20 })] };
+    const plan = {
+      agents: [agent("slow", [], () => new Promise((r) => setTimeout(() => r({}), 200)), { timeoutMs: 20 })],
+    };
     const out = await executePlan(plan, base(), { emit: () => {}, budget: { maxRetries: 0 } });
     expect(out.records[0]?.status).toBe("timeout");
   });
   it("aborts the run when a critical agent fails", async () => {
-    const plan = { agents: [agent("crit", [], async () => { throw new Error("x"); }, { critical: true }), agent("after", ["crit"], async () => ({}))] };
+    const plan = {
+      agents: [
+        agent(
+          "crit",
+          [],
+          async () => {
+            throw new Error("x");
+          },
+          { critical: true },
+        ),
+        agent("after", ["crit"], async () => ({})),
+      ],
+    };
     const out = await executePlan(plan, base(), { emit: () => {}, budget: { maxRetries: 0 } });
     expect(out.aborted).toBe(true);
   });
   it("rejects cycles and unknown dependencies", () => {
-    expect(() => validatePlan({ agents: [agent("a", ["b"], async () => ({})), agent("b", ["a"], async () => ({}))] })).toThrow(/Cycle/);
+    expect(() =>
+      validatePlan({ agents: [agent("a", ["b"], async () => ({})), agent("b", ["a"], async () => ({}))] }),
+    ).toThrow(/Cycle/);
     expect(() => validatePlan({ agents: [agent("a", ["zzz"], async () => ({}))] })).toThrow(/unknown/);
   });
   it("an agent skipped by predicate does not block its dependants", async () => {
@@ -90,7 +141,9 @@ describe("executePlan", () => {
     expect((out.outputs.get("final") as { sawOptional: boolean }).sawOptional).toBe(false);
   });
   it("records tool calls", async () => {
-    const plan = { agents: [agent("t", [], async (ctx) => ctx.tool("adapter.demo", { q: 1 }, async () => ({ r: 1 })))] };
+    const plan = {
+      agents: [agent("t", [], async (ctx) => ctx.tool("adapter.demo", { q: 1 }, async () => ({ r: 1 })))],
+    };
     const out = await executePlan(plan, base(), { emit: () => {} });
     expect(out.records[0]?.toolCalls[0]?.tool).toBe("adapter.demo");
     expect(out.records[0]?.toolCalls[0]?.ok).toBe(true);

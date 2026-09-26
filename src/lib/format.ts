@@ -11,7 +11,10 @@ export interface FormatOptions {
 
 const defaults: Required<FormatOptions> = { locale: "es-ES", currency: "EUR" };
 
-export function formatMoney(value: number, opts: FormatOptions & { signed?: boolean; compact?: boolean } = {}): string {
+export function formatMoney(
+  value: number,
+  opts: FormatOptions & { signed?: boolean; compact?: boolean } = {},
+): string {
   const { locale, currency } = { ...defaults, ...opts };
   const abs = Math.abs(value);
   const fmt = new Intl.NumberFormat(locale, {
@@ -19,6 +22,7 @@ export function formatMoney(value: number, opts: FormatOptions & { signed?: bool
     currency,
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
+    useGrouping: "always",
     ...(opts.compact && abs >= 1_000_000 ? { notation: "compact", maximumFractionDigits: 1 } : {}),
   });
   const text = fmt.format(abs);
@@ -27,10 +31,17 @@ export function formatMoney(value: number, opts: FormatOptions & { signed?: bool
   return text;
 }
 
-export function formatPercent(ratio: number, opts: FormatOptions & { decimals?: number; signed?: boolean } = {}): string {
+export function formatPercent(
+  ratio: number,
+  opts: FormatOptions & { decimals?: number; signed?: boolean } = {},
+): string {
   const { locale } = { ...defaults, ...opts };
   const decimals = opts.decimals ?? 1;
-  const fmt = new Intl.NumberFormat(locale, { style: "percent", minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const fmt = new Intl.NumberFormat(locale, {
+    style: "percent",
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
   const text = fmt.format(Math.abs(ratio));
   if (ratio < 0) return `−${text}`;
   if (opts.signed && ratio > 0) return `+${text}`;
@@ -39,7 +50,10 @@ export function formatPercent(ratio: number, opts: FormatOptions & { decimals?: 
 
 export function formatNumber(value: number, opts: FormatOptions & { decimals?: number } = {}): string {
   const { locale } = { ...defaults, ...opts };
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: opts.decimals ?? 0 }).format(value);
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits: opts.decimals ?? 0,
+    useGrouping: "always",
+  }).format(value);
 }
 
 export function formatArea(m2: number, opts: FormatOptions = {}): string {

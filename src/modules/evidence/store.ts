@@ -12,7 +12,11 @@ export class EvidenceCollector {
   private items = new Map<string, Evidence>();
 
   add(input: NewEvidence): Evidence {
-    const ev: Evidence = { ...input, id: newId("ev"), retrievedAt: input.retrievedAt ?? new Date().toISOString() };
+    const ev: Evidence = {
+      ...input,
+      id: newId("ev"),
+      retrievedAt: input.retrievedAt ?? new Date().toISOString(),
+    };
     this.items.set(ev.id, ev);
     return ev;
   }

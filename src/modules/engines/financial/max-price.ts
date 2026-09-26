@@ -15,7 +15,12 @@ export interface MaxPriceResult {
   maximumPrice: number;
   bindingConstraint: keyof AcquisitionConstraints | "none";
   /** Result of every constraint at the maximum price. */
-  checks: Array<{ constraint: keyof AcquisitionConstraints; limit: number; valueAtMax: number | null; satisfied: boolean }>;
+  checks: Array<{
+    constraint: keyof AcquisitionConstraints;
+    limit: number;
+    valueAtMax: number | null;
+    satisfied: boolean;
+  }>;
   iterations: number;
   askingPrice: number;
   /** Positive: room below asking. Negative: asking is above the maximum. */
@@ -26,7 +31,12 @@ function constraintsSatisfied(inputs: FinancialInputs, c: AcquisitionConstraints
   const r = computeFinancials(inputs);
   const m = r.metrics;
   const checks: MaxPriceResult["checks"] = [];
-  const add = (constraint: keyof AcquisitionConstraints, limit: number | undefined, value: number | null, ok: (v: number) => boolean) => {
+  const add = (
+    constraint: keyof AcquisitionConstraints,
+    limit: number | undefined,
+    value: number | null,
+    ok: (v: number) => boolean,
+  ) => {
     if (limit === undefined) return;
     checks.push({ constraint, limit, valueAtMax: value, satisfied: value === null ? false : ok(value) });
   };
@@ -35,7 +45,12 @@ function constraintsSatisfied(inputs: FinancialInputs, c: AcquisitionConstraints
   add("minimumMargin", c.minimumMargin, m.margin.value, (v) => v >= (c.minimumMargin ?? 0));
   add("maximumCapital", c.maximumCapital, m.equityRequired.value, (v) => v <= (c.maximumCapital ?? Infinity));
   add("maximumLtc", c.maximumLtc, m.ltc.value ?? 0, (v) => v <= (c.maximumLtc ?? Infinity));
-  add("maximumDuration", c.maximumDuration, m.durationMonths.value, (v) => v <= (c.maximumDuration ?? Infinity));
+  add(
+    "maximumDuration",
+    c.maximumDuration,
+    m.durationMonths.value,
+    (v) => v <= (c.maximumDuration ?? Infinity),
+  );
   return { checks, all: checks.every((k) => k.satisfied) };
 }
 
@@ -45,9 +60,15 @@ function constraintsSatisfied(inputs: FinancialInputs, c: AcquisitionConstraints
  * (higher price → lower ROE/profit/margin, higher capital/LTC), so the feasible
  * set is an interval [0, max].
  */
-export function computeMaximumAcquisitionPrice(base: FinancialInputs, constraints: AcquisitionConstraints): MaxPriceResult {
+export function computeMaximumAcquisitionPrice(
+  base: FinancialInputs,
+  constraints: AcquisitionConstraints,
+): MaxPriceResult {
   const asking = base.acquisition.purchasePrice;
-  const withPrice = (p: number): FinancialInputs => ({ ...base, acquisition: { ...base.acquisition, purchasePrice: p } });
+  const withPrice = (p: number): FinancialInputs => ({
+    ...base,
+    acquisition: { ...base.acquisition, purchasePrice: p },
+  });
 
   const hi0 = Math.max(asking * 3, 100_000);
   let lo = 0;
@@ -57,10 +78,24 @@ export function computeMaximumAcquisitionPrice(base: FinancialInputs, constraint
   if (!atZero.all) {
     // Even free, the deal fails a constraint (e.g. duration). Report.
     const failing = atZero.checks.find((c) => !c.satisfied);
-    return { maximumPrice: 0, bindingConstraint: failing?.constraint ?? "none", checks: atZero.checks, iterations: 1, askingPrice: asking, headroom: -asking };
+    return {
+      maximumPrice: 0,
+      bindingConstraint: failing?.constraint ?? "none",
+      checks: atZero.checks,
+      iterations: 1,
+      askingPrice: asking,
+      headroom: -asking,
+    };
   }
   if (constraintsSatisfied(withPrice(hi), constraints).all) {
-    return { maximumPrice: hi, bindingConstraint: "none", checks: constraintsSatisfied(withPrice(hi), constraints).checks, iterations: 2, askingPrice: asking, headroom: hi - asking };
+    return {
+      maximumPrice: hi,
+      bindingConstraint: "none",
+      checks: constraintsSatisfied(withPrice(hi), constraints).checks,
+      iterations: 2,
+      askingPrice: asking,
+      headroom: hi - asking,
+    };
   }
   while (hi - lo > 50 && iterations < 60) {
     const mid = (lo + hi) / 2;
@@ -72,5 +107,12 @@ export function computeMaximumAcquisitionPrice(base: FinancialInputs, constraint
   const final = constraintsSatisfied(withPrice(maximumPrice), constraints);
   const justAbove = constraintsSatisfied(withPrice(maximumPrice + 500), constraints);
   const binding = justAbove.checks.find((c) => !c.satisfied)?.constraint ?? "none";
-  return { maximumPrice, bindingConstraint: binding, checks: final.checks, iterations, askingPrice: asking, headroom: round0(maximumPrice - asking) };
+  return {
+    maximumPrice,
+    bindingConstraint: binding,
+    checks: final.checks,
+    iterations,
+    askingPrice: asking,
+    headroom: round0(maximumPrice - asking),
+  };
 }

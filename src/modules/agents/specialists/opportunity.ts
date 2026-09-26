@@ -27,16 +27,26 @@ export function intakeAgent(intake: IntakeRequest): AgentDefinition<IntakeResolu
       const city = ctx.city ?? defaultCity();
       const p = intake.property ?? {};
       const text = [p.address, intake.rawText].filter(Boolean).join(" ");
-      const zone = (p.coordinates && microzoneFromPoint(city, p.coordinates)) || microzoneFromText(city, text) || city.microzones.find((m) => m.id === "sev-centro")!;
+      const zone =
+        (p.coordinates && microzoneFromPoint(city, p.coordinates)) ||
+        microzoneFromText(city, text) ||
+        city.microzones.find((m) => m.id === "sev-centro")!;
       ctx.progress(`Zona: ${zone.name}`);
       const typology: PropertyTypology = p.typology ?? "flat";
-      const assetUse = p.assetUse ?? (typology === "premises" ? "commercial" : typology === "office" ? "office" : "residential");
+      const assetUse =
+        p.assetUse ??
+        (typology === "premises" ? "commercial" : typology === "office" ? "office" : "residential");
       const now = new Date().toISOString();
       const draft: Property = {
         id: newId("prop"),
         cityId: city.id,
         microzoneId: zone.id,
-        address: { raw: p.address ?? zone.name, neighborhood: zone.name, municipality: city.name, municipalityCode: city.municipalityCode },
+        address: {
+          raw: p.address ?? zone.name,
+          neighborhood: zone.name,
+          municipality: city.name,
+          municipalityCode: city.municipalityCode,
+        },
         cadastralRef: p.cadastralRef,
         coordinates: p.coordinates,
         assetUse,
@@ -65,13 +75,29 @@ export function intakeAgent(intake: IntakeRequest): AgentDefinition<IntakeResolu
         verificationStatus: "INFERRED",
         demo: false,
       });
-      return { intake, draft, summary: `${labelTypology(typology)} en ${zone.name}${intake.price ? ` por ${intake.price.toLocaleString("es-ES")} €` : ""}` };
+      return {
+        intake,
+        draft,
+        summary: `${labelTypology(typology)} en ${zone.name}${intake.price ? ` por ${intake.price.toLocaleString("es-ES")} €` : ""}`,
+      };
     },
   };
 }
 
 export function labelTypology(t: PropertyTypology): string {
-  return { flat: "Piso", ground_floor_flat: "Bajo", penthouse: "Ático", house: "Casa", premises: "Local", office: "Oficina", building: "Edificio", plot: "Solar", warehouse: "Nave", garage: "Garaje", other: "Inmueble" }[t];
+  return {
+    flat: "Piso",
+    ground_floor_flat: "Bajo",
+    penthouse: "Ático",
+    house: "Casa",
+    premises: "Local",
+    office: "Oficina",
+    building: "Edificio",
+    plot: "Solar",
+    warehouse: "Nave",
+    garage: "Garaje",
+    other: "Inmueble",
+  }[t];
 }
 
 export const _propertyProfileType: PropertyProfile | null = null;

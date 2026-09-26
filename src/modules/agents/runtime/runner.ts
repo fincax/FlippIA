@@ -1,5 +1,12 @@
 import { newId } from "@/modules/core/ids";
-import type { AgentContext, AgentDefinition, AgentRunRecord, AnalysisEvent, Budget, ToolCallRecord } from "./types";
+import type {
+  AgentContext,
+  AgentDefinition,
+  AgentRunRecord,
+  AnalysisEvent,
+  Budget,
+  ToolCallRecord,
+} from "./types";
 import { DEFAULT_BUDGET } from "./types";
 
 export interface RunPlan {
@@ -30,7 +37,11 @@ class DependencyError extends Error {}
  * - Enforces budgets: agent count, per-agent timeout, total time, retries.
  * - Records AgentRuns and emits observable events. No unbounded loops.
  */
-export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "outputs" | "progress" | "tool" | "signal">, opts: RunOptions): Promise<RunOutcome> {
+export async function executePlan(
+  plan: RunPlan,
+  baseCtx: Omit<AgentContext, "outputs" | "progress" | "tool" | "signal">,
+  opts: RunOptions,
+): Promise<RunOutcome> {
   const budget: Budget = { ...DEFAULT_BUDGET, ...opts.budget };
   const started = Date.now();
   const outputs = new Map<string, unknown>();
@@ -43,15 +54,29 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
   const orchestratorRunId = newId("run");
 
   validatePlan(plan);
-  if (plan.agents.length > budget.maxAgents) throw new Error(`Plan exceeds agent budget (${plan.agents.length} > ${budget.maxAgents})`);
+  if (plan.agents.length > budget.maxAgents)
+    throw new Error(`Plan exceeds agent budget (${plan.agents.length} > ${budget.maxAgents})`);
 
   const at = () => new Date().toISOString();
-  opts.emit({ type: "run.started", analysisId: baseCtx.analysisId, at: at(), plan: plan.agents.map((a) => ({ type: a.type, label: a.label, domain: a.domain, dependsOn: a.dependsOn })) });
+  opts.emit({
+    type: "run.started",
+    analysisId: baseCtx.analysisId,
+    at: at(),
+    plan: plan.agents.map((a) => ({
+      type: a.type,
+      label: a.label,
+      domain: a.domain,
+      dependsOn: a.dependsOn,
+    })),
+  });
 
   const pending = new Map(plan.agents.map((a) => [a.type, a]));
   const done = new Set<string>();
   const running = new Map<string, Promise<void>>();
-  const totalTimer = setTimeout(() => controller.abort(new Error("Total time budget exceeded")), budget.maxTotalMs);
+  const totalTimer = setTimeout(
+    () => controller.abort(new Error("Total time budget exceeded")),
+    budget.maxTotalMs,
+  );
 
   const runAgent = async (agent: AgentDefinition): Promise<void> => {
     const deps = agent.dependsOn;
@@ -60,7 +85,14 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
       ...baseCtx,
       outputs,
       signal: controller.signal,
-      progress: (message) => opts.emit({ type: "task.progress", analysisId: baseCtx.analysisId, at: at(), task: agent.type, message }),
+      progress: (message) =>
+        opts.emit({
+          type: "task.progress",
+          analysisId: baseCtx.analysisId,
+          at: at(),
+          task: agent.type,
+          message,
+        }),
       tool: async (name, input, fn) => {
         const t0 = Date.now();
         try {
@@ -68,7 +100,13 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
           currentTools.push({ tool: name, input, ok: true, durationMs: Date.now() - t0 });
           return r;
         } catch (e) {
-          currentTools.push({ tool: name, input, ok: false, durationMs: Date.now() - t0, note: e instanceof Error ? e.message : String(e) });
+          currentTools.push({
+            tool: name,
+            input,
+            ok: false,
+            durationMs: Date.now() - t0,
+            note: e instanceof Error ? e.message : String(e),
+          });
           throw e;
         }
       },
@@ -76,13 +114,27 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
     const currentTools: ToolCallRecord[] = [];
     if (missingDep) {
       skipped.push(agent.type);
-      opts.emit({ type: "task.skipped", analysisId: baseCtx.analysisId, at: at(), task: agent.type, label: agent.label, reason: `Depende de ${missingDep}, que no se completó.` });
+      opts.emit({
+        type: "task.skipped",
+        analysisId: baseCtx.analysisId,
+        at: at(),
+        task: agent.type,
+        label: agent.label,
+        reason: `Depende de ${missingDep}, que no se completó.`,
+      });
       return;
     }
     if (agent.when && !agent.when(ctx)) {
       skipped.push(agent.type);
       notNeeded.add(agent.type);
-      opts.emit({ type: "task.skipped", analysisId: baseCtx.analysisId, at: at(), task: agent.type, label: agent.label, reason: "No necesario para este activo." });
+      opts.emit({
+        type: "task.skipped",
+        analysisId: baseCtx.analysisId,
+        at: at(),
+        task: agent.type,
+        label: agent.label,
+        reason: "No necesario para este activo.",
+      });
       return;
     }
 
@@ -105,7 +157,14 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
       startedAt: at(),
       attempts: 0,
     };
-    opts.emit({ type: "task.started", analysisId: baseCtx.analysisId, at: record.startedAt, task: agent.type, label: agent.label, domain: agent.domain });
+    opts.emit({
+      type: "task.started",
+      analysisId: baseCtx.analysisId,
+      at: record.startedAt,
+      task: agent.type,
+      label: agent.label,
+      domain: agent.domain,
+    });
     const evidenceBefore = new Set(baseCtx.evidence.all().map((e) => e.id));
     const t0 = Date.now();
     let lastError: unknown;
@@ -113,21 +172,42 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
       record.attempts = attempt;
       if (controller.signal.aborted) break;
       try {
-        const result = await withTimeout(agent.run(ctx), agent.timeoutMs ?? budget.maxAgentMs, controller.signal);
+        const result = await withTimeout(
+          agent.run(ctx),
+          agent.timeoutMs ?? budget.maxAgentMs,
+          controller.signal,
+        );
         const parsed = agent.outputSchema ? agent.outputSchema.parse(result) : result;
         outputs.set(agent.type, parsed);
         record.structuredOutput = parsed;
         record.status = "completed";
         record.completedAt = at();
         record.latencyMs = Date.now() - t0;
-        record.evidenceIds = baseCtx.evidence.all().filter((e) => !evidenceBefore.has(e.id)).map((e) => e.id);
+        record.evidenceIds = baseCtx.evidence
+          .all()
+          .filter((e) => !evidenceBefore.has(e.id))
+          .map((e) => e.id);
         const summary = summarize(parsed);
-        opts.emit({ type: "task.completed", analysisId: baseCtx.analysisId, at: record.completedAt, task: agent.type, label: agent.label, domain: agent.domain, latencyMs: record.latencyMs, summary, partial: parsed });
+        opts.emit({
+          type: "task.completed",
+          analysisId: baseCtx.analysisId,
+          at: record.completedAt,
+          task: agent.type,
+          label: agent.label,
+          domain: agent.domain,
+          latencyMs: record.latencyMs,
+          summary,
+          partial: parsed,
+        });
         lastError = undefined;
         break;
       } catch (e) {
         lastError = e;
-        baseCtx.logger.warn("agent.failed", { agent: agent.type, attempt, error: e instanceof Error ? e.message : String(e) });
+        baseCtx.logger.warn("agent.failed", {
+          agent: agent.type,
+          attempt,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
     if (lastError !== undefined) {
@@ -136,7 +216,16 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
       record.completedAt = at();
       record.latencyMs = Date.now() - t0;
       failed.push(agent.type);
-      opts.emit({ type: "task.failed", analysisId: baseCtx.analysisId, at: record.completedAt, task: agent.type, label: agent.label, domain: agent.domain, error: record.error, fatal: Boolean(agent.critical) });
+      opts.emit({
+        type: "task.failed",
+        analysisId: baseCtx.analysisId,
+        at: record.completedAt,
+        task: agent.type,
+        label: agent.label,
+        domain: agent.domain,
+        error: record.error,
+        fatal: Boolean(agent.critical),
+      });
       if (agent.critical) controller.abort(new Error(`Critical agent failed: ${agent.type}`));
     }
     records.push(record);
@@ -163,7 +252,17 @@ export async function executePlan(plan: RunPlan, baseCtx: Omit<AgentContext, "ou
   }
   const aborted = controller.signal.aborted;
   const durationMs = Date.now() - started;
-  if (aborted) opts.emit({ type: "run.failed", analysisId: baseCtx.analysisId, at: at(), error: String(controller.signal.reason instanceof Error ? controller.signal.reason.message : controller.signal.reason) });
+  if (aborted)
+    opts.emit({
+      type: "run.failed",
+      analysisId: baseCtx.analysisId,
+      at: at(),
+      error: String(
+        controller.signal.reason instanceof Error
+          ? controller.signal.reason.message
+          : controller.signal.reason,
+      ),
+    });
   else opts.emit({ type: "run.completed", analysisId: baseCtx.analysisId, at: at(), durationMs });
   return { outputs, records, failed, skipped, durationMs, aborted };
 }
@@ -196,7 +295,9 @@ function withTimeout<T>(p: Promise<T>, ms: number, signal: AbortSignal): Promise
 export function validatePlan(plan: RunPlan) {
   const types = new Set(plan.agents.map((a) => a.type));
   if (types.size !== plan.agents.length) throw new Error("Duplicate agent types in plan");
-  for (const a of plan.agents) for (const d of a.dependsOn) if (!types.has(d)) throw new Error(`Agent ${a.type} depends on unknown ${d}`);
+  for (const a of plan.agents)
+    for (const d of a.dependsOn)
+      if (!types.has(d)) throw new Error(`Agent ${a.type} depends on unknown ${d}`);
   // cycle detection (Kahn)
   const indeg = new Map<string, number>();
   for (const a of plan.agents) indeg.set(a.type, a.dependsOn.length);
@@ -205,16 +306,18 @@ export function validatePlan(plan: RunPlan) {
   while (queue.length) {
     const t = queue.shift()!;
     visited++;
-    for (const a of plan.agents) if (a.dependsOn.includes(t)) {
-      const n = (indeg.get(a.type) ?? 0) - 1;
-      indeg.set(a.type, n);
-      if (n === 0) queue.push(a.type);
-    }
+    for (const a of plan.agents)
+      if (a.dependsOn.includes(t)) {
+        const n = (indeg.get(a.type) ?? 0) - 1;
+        indeg.set(a.type, n);
+        if (n === 0) queue.push(a.type);
+      }
   }
   if (visited !== plan.agents.length) throw new Error("Cycle detected in agent plan");
 }
 
 function summarize(v: unknown): string | undefined {
-  if (v && typeof v === "object" && "summary" in v && typeof (v as { summary: unknown }).summary === "string") return (v as { summary: string }).summary;
+  if (v && typeof v === "object" && "summary" in v && typeof (v as { summary: unknown }).summary === "string")
+    return (v as { summary: string }).summary;
   return undefined;
 }

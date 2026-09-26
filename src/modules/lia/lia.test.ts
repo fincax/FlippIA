@@ -13,7 +13,9 @@ describe("LIA router", () => {
 });
 
 describe("Ask this property", () => {
-  const intake = parseIntake("Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 285.000 €");
+  const intake = parseIntake(
+    "Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 285.000 €",
+  );
   const analysisP = runAnalysis({ intake, organizationId: "o", userId: "u", analysisDate: "2026-01-15" });
 
   it("answers the worst-case question from risk data", async () => {
@@ -48,7 +50,11 @@ describe("Ask this property", () => {
   it("parses what-if variants", async () => {
     const t = (await analysisP).strategies[0]!;
     expect(parseWhatIf("¿Y si vendo seis meses después?", t)).toBeNull(); // words not digits: not parsed, by design
-    expect(parseWhatIf("¿Y si vendo 6 meses después?", t)?.overrides["holding.durationMonths"]).toBe(t.scenarioSet.base.holding.durationMonths + 6);
-    expect(parseWhatIf("¿Qué pasa si pago 20.000 € más?", t)?.overrides["acquisition.purchasePrice"]).toBe(t.scenarioSet.base.acquisition.purchasePrice + 20_000);
+    expect(parseWhatIf("¿Y si vendo 6 meses después?", t)?.overrides["holding.durationMonths"]).toBe(
+      t.scenarioSet.base.holding.durationMonths + 6,
+    );
+    expect(parseWhatIf("¿Qué pasa si pago 20.000 € más?", t)?.overrides["acquisition.purchasePrice"]).toBe(
+      t.scenarioSet.base.acquisition.purchasePrice + 20_000,
+    );
   });
 });

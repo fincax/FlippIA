@@ -5,22 +5,24 @@ import type { FinancialInputs, FinancingInstrument } from "./types";
  * explicit inputs; nothing here is a hidden assumption — every value is later
  * visible to the user as an Assumption.
  */
-export function baseSaleInputs(overrides: Partial<{
-  purchasePrice: number;
-  renovationBudget: number;
-  salePrice: number;
-  durationMonths: number;
-  worksMonths: number;
-  assetUse: FinancialInputs["acquisition"]["assetUse"];
-  transferTaxMode: FinancialInputs["acquisition"]["transferTaxMode"];
-  financing: FinancingInstrument[];
-  professionalFees: number;
-  annualPropertyTax: number;
-  monthlyCommunityFees: number;
-  agencyRate: number;
-  sellerProfile: "individual" | "company";
-  analysisDate: string;
-}> = {}): FinancialInputs {
+export function baseSaleInputs(
+  overrides: Partial<{
+    purchasePrice: number;
+    renovationBudget: number;
+    salePrice: number;
+    durationMonths: number;
+    worksMonths: number;
+    assetUse: FinancialInputs["acquisition"]["assetUse"];
+    transferTaxMode: FinancialInputs["acquisition"]["transferTaxMode"];
+    financing: FinancingInstrument[];
+    professionalFees: number;
+    annualPropertyTax: number;
+    monthlyCommunityFees: number;
+    agencyRate: number;
+    sellerProfile: "individual" | "company";
+    analysisDate: string;
+  }> = {},
+): FinancialInputs {
   const purchasePrice = overrides.purchasePrice ?? 200_000;
   const renovationBudget = overrides.renovationBudget ?? 40_000;
   return {

@@ -22,7 +22,12 @@ describe("ARV estimation", () => {
       areaM2: 90,
       targetCondition: "renovated",
       analysisDate: "2026-01-15",
-      comparables: [comp({ id: "a", price: 280_000 }), comp({ id: "b", price: 300_000 }), comp({ id: "c", price: 330_000 }), comp({ id: "d", price: 310_000, type: "asking" })],
+      comparables: [
+        comp({ id: "a", price: 280_000 }),
+        comp({ id: "b", price: 300_000 }),
+        comp({ id: "c", price: 330_000 }),
+        comp({ id: "d", price: 310_000, type: "asking" }),
+      ],
     });
     expect(r.pricePerM2.low).toBeLessThanOrEqual(r.pricePerM2.point);
     expect(r.pricePerM2.point).toBeLessThanOrEqual(r.pricePerM2.high);
@@ -34,7 +39,10 @@ describe("ARV estimation", () => {
       areaM2: 100,
       targetCondition: "renovated",
       analysisDate: "2026-01-15",
-      comparables: [comp({ id: "ask", type: "asking", price: 300_000 }), comp({ id: "unren", condition: "unrenovated", price: 240_000 })],
+      comparables: [
+        comp({ id: "ask", type: "asking", price: 300_000 }),
+        comp({ id: "unren", condition: "unrenovated", price: 240_000 }),
+      ],
     });
     const ask = r.comparablesUsed.find((c) => c.id === "ask")!;
     const unren = r.comparablesUsed.find((c) => c.id === "unren")!;
@@ -46,18 +54,32 @@ describe("ARV estimation", () => {
       areaM2: 100,
       targetCondition: "renovated",
       analysisDate: "2026-01-15",
-      comparables: [comp({ id: "far", distanceM: 5_000 }), comp({ id: "old", date: "2023-01-01" }), comp({ id: "ok" })],
+      comparables: [
+        comp({ id: "far", distanceM: 5_000 }),
+        comp({ id: "old", date: "2023-01-01" }),
+        comp({ id: "ok" }),
+      ],
     });
     expect(r.comparablesRejected.map((x) => x.id).sort()).toEqual(["far", "old"]);
     expect(r.comparablesUsed).toHaveLength(1);
   });
   it("returns UNKNOWN with zero confidence when nothing usable", () => {
-    const r = estimateValue({ areaM2: 100, targetCondition: "renovated", analysisDate: "2026-01-15", comparables: [] });
+    const r = estimateValue({
+      areaM2: 100,
+      targetCondition: "renovated",
+      analysisDate: "2026-01-15",
+      comparables: [],
+    });
     expect(r.status).toBe("UNKNOWN");
     expect(r.confidence.score).toBe(0);
   });
   it("confidence explains its factors", () => {
-    const r = estimateValue({ areaM2: 100, targetCondition: "renovated", analysisDate: "2026-01-15", comparables: [comp({ id: "a" }), comp({ id: "b" })] });
+    const r = estimateValue({
+      areaM2: 100,
+      targetCondition: "renovated",
+      analysisDate: "2026-01-15",
+      comparables: [comp({ id: "a" }), comp({ id: "b" })],
+    });
     expect(r.confidence.factors.length).toBeGreaterThanOrEqual(4);
     expect(r.confidence.explanation).toContain("Mediana");
   });

@@ -12,14 +12,27 @@ export class DemoListingsSource implements SourceAdapter {
     return true;
   }
 
-  async listings(filter: { microzoneIds?: string[]; maxPrice?: number; assetUse?: OpportunityListing["assetUse"] } = {}) {
+  async listings(
+    filter: { microzoneIds?: string[]; maxPrice?: number; assetUse?: OpportunityListing["assetUse"] } = {},
+  ) {
     const all = generateDemoListings();
-    return all.filter((l) => (!filter.microzoneIds || filter.microzoneIds.includes(l.microzoneId ?? "")) && (!filter.maxPrice || l.askingPrice <= filter.maxPrice) && (!filter.assetUse || l.assetUse === filter.assetUse));
+    return all.filter(
+      (l) =>
+        (!filter.microzoneIds || filter.microzoneIds.includes(l.microzoneId ?? "")) &&
+        (!filter.maxPrice || l.askingPrice <= filter.maxPrice) &&
+        (!filter.assetUse || l.assetUse === filter.assetUse),
+    );
   }
 }
 
 const STREETS: Record<string, string[]> = {
-  "sev-triana": ["Calle Pureza", "Calle Betis", "Calle Castilla", "Calle Alfarería", "Calle Rodrigo de Triana"],
+  "sev-triana": [
+    "Calle Pureza",
+    "Calle Betis",
+    "Calle Castilla",
+    "Calle Alfarería",
+    "Calle Rodrigo de Triana",
+  ],
   "sev-centro": ["Calle Regina", "Calle Feria", "Calle San Luis", "Calle Amor de Dios"],
   "sev-nervion": ["Calle Luis Montoto", "Avenida Eduardo Dato", "Calle Marqués de Nervión"],
   "sev-remedios": ["Calle Asunción", "Calle Virgen de Luján", "Calle Fernando IV"],
@@ -48,14 +61,20 @@ export function generateDemoListings(): OpportunityListing[] {
     const streets = STREETS[zoneId]!;
     const street = streets[Math.floor(u("street") * streets.length)]!;
     const number = Math.floor(2 + u("num") * 80);
-    const perM2 = isPremises ? zone.demoMarket.commercialPerM2 : toRenovate ? zone.demoMarket.residentialUnrenovatedPerM2 : zone.demoMarket.residentialRenovatedPerM2;
+    const perM2 = isPremises
+      ? zone.demoMarket.commercialPerM2
+      : toRenovate
+        ? zone.demoMarket.residentialUnrenovatedPerM2
+        : zone.demoMarket.residentialRenovatedPerM2;
     // Some listings are mispriced (value discrepancy): that is what the Radar hunts.
     const discrepancy = u("disc") < 0.3 ? 0.74 : u("disc") < 0.6 ? 0.88 : 1.05;
     const price = Math.round((perM2 * area * discrepancy) / 1000) * 1000;
     const daysAgo = Math.floor(u("days") * 120);
     const published = new Date("2026-01-15");
     published.setDate(published.getDate() - daysAgo);
-    const history: OpportunityListing["priceHistory"] = [{ date: published.toISOString().slice(0, 10), price: Math.round(price * (u("hist") < 0.4 ? 1.06 : 1)) }];
+    const history: OpportunityListing["priceHistory"] = [
+      { date: published.toISOString().slice(0, 10), price: Math.round(price * (u("hist") < 0.4 ? 1.06 : 1)) },
+    ];
     if (history[0]!.price !== price) {
       const d = new Date(published.getTime());
       d.setDate(d.getDate() + Math.floor(daysAgo * 0.6));

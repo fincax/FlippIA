@@ -23,6 +23,11 @@ export class UrbanismoSevillaOfficialConnector implements DataSourceAdapter<Urba
   }
 
   async query(_input: UrbanismQuery) {
-    return err(appError("SOURCE_NOT_CONFIGURED", "El conector oficial de Urbanismo Sevilla no está configurado (URBANISMO_SEVILLA_ENDPOINT)."));
+    return err(
+      appError(
+        "SOURCE_NOT_CONFIGURED",
+        "El conector oficial de Urbanismo Sevilla no está configurado (URBANISMO_SEVILLA_ENDPOINT).",
+      ),
+    );
   }
 }

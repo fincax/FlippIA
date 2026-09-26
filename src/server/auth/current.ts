@@ -18,7 +18,10 @@ export async function requireSession(): Promise<SessionInfo> {
 
 export async function tenantContext(): Promise<{ ctx: TenantContext; session: SessionInfo }> {
   const session = await requireSession();
-  return { ctx: { organizationId: session.organizationId, userId: session.userId, role: session.role, db: db() }, session };
+  return {
+    ctx: { organizationId: session.organizationId, userId: session.userId, role: session.role, db: db() },
+    session,
+  };
 }
 
 /** For mutating route handlers: session + CSRF header check. */

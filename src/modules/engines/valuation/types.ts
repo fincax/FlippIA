@@ -1,6 +1,7 @@
 import type { Confidence, EvidenceStatus } from "@/modules/core/evidence-status";
 
-export type ComparableType = "asking" | "transaction" | "internal" | "verified" | "professional" | "manual" | "partner";
+export type ComparableType =
+  "asking" | "transaction" | "internal" | "verified" | "professional" | "manual" | "partner";
 
 export interface Comparable {
   id: string;

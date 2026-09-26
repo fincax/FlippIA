@@ -51,12 +51,31 @@ export function computeAcquisitionTaxes(
   const registry = applyFeeScale(price, rules.acquisition.registryScale);
   if (mode === "ITP") {
     const transferTax = round2(price * rules.acquisition.itpRate);
-    return { mode, transferTax, ajd: 0, notary, registry, total: round2(transferTax + notary + registry), ruleSetId: rules.id };
+    return {
+      mode,
+      transferTax,
+      ajd: 0,
+      notary,
+      registry,
+      total: round2(transferTax + notary + registry),
+      ruleSetId: rules.id,
+    };
   }
-  const ivaRate = opts.assetUse === "commercial" || opts.assetUse === "other" ? rules.acquisition.ivaCommercial : rules.acquisition.ivaResidentialNew;
+  const ivaRate =
+    opts.assetUse === "commercial" || opts.assetUse === "other"
+      ? rules.acquisition.ivaCommercial
+      : rules.acquisition.ivaResidentialNew;
   const transferTax = round2(price * ivaRate);
   const ajd = round2(price * rules.acquisition.ajdRate);
-  return { mode, transferTax, ajd, notary, registry, total: round2(transferTax + ajd + notary + registry), ruleSetId: rules.id };
+  return {
+    mode,
+    transferTax,
+    ajd,
+    notary,
+    registry,
+    total: round2(transferTax + ajd + notary + registry),
+    ruleSetId: rules.id,
+  };
 }
 
 export interface ExitTaxResult {
@@ -89,7 +108,10 @@ export function computeExitTaxes(
   };
 }
 
-export function computeWorksTaxes(materialBudget: number, rules: TaxRuleSet): { icio: number; licenceFee: number; total: number } {
+export function computeWorksTaxes(
+  materialBudget: number,
+  rules: TaxRuleSet,
+): { icio: number; licenceFee: number; total: number } {
   const icio = round2(materialBudget * rules.works.icioRate);
   const licenceFee = round2(materialBudget * rules.works.licenceFeeRate);
   return { icio, licenceFee, total: round2(icio + licenceFee) };

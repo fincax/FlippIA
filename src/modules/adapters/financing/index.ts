@@ -6,6 +6,8 @@ export * from "./types";
 export { FinancingDemoAdapter };
 export type FinancingProviderAdapter = DataSourceAdapter<FinancingQuery, FinancingOffer[]>;
 
-export function createFinancingAdapter(_mode = process.env.FINANCING_PROVIDER_MODE ?? "demo"): FinancingProviderAdapter {
+export function createFinancingAdapter(
+  _mode = process.env.FINANCING_PROVIDER_MODE ?? "demo",
+): FinancingProviderAdapter {
   return new FinancingDemoAdapter();
 }

@@ -40,7 +40,11 @@ export function sizeInstrument(
  * Build the month-by-month schedule of an instrument between its draw and the
  * exit month. Whatever balance remains at exit is repaid as a bullet.
  */
-export function buildSchedule(instrument: FinancingInstrument, principal: number, exitMonth: number): InstrumentSchedule {
+export function buildSchedule(
+  instrument: FinancingInstrument,
+  principal: number,
+  exitMonth: number,
+): InstrumentSchedule {
   const r = instrument.annualRate / 12;
   const arrangementFee = round2(principal * instrument.arrangementFeeRate);
   const months: ScheduleMonth[] = [];

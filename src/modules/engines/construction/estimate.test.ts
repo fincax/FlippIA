@@ -28,7 +28,13 @@ describe("construction estimate", () => {
   });
   it("scope switches add lines", () => {
     const base = quantitiesFor({ areaM2: 80, level: "medium", bathrooms: 1, bedrooms: 2 });
-    const withScope = quantitiesFor({ areaM2: 80, level: "medium", bathrooms: 1, bedrooms: 2, scope: { accessibility: true, fireSafety: true } });
+    const withScope = quantitiesFor({
+      areaM2: 80,
+      level: "medium",
+      bathrooms: 1,
+      bedrooms: 2,
+      scope: { accessibility: true, fireSafety: true },
+    });
     expect(withScope.length).toBe(base.length + 2);
   });
 });

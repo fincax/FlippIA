@@ -14,10 +14,29 @@ export const exitAgent: AgentDefinition<ExitAssessment> = {
     const { property } = output<PropertyProfile>(ctx, "data.catastro");
     const residential = property.assetUse === "residential";
     const options = [
-      { kind: "sale_retail", label: "Venta a particular", note: `~${market.liquidity.daysToSell} días de comercialización en la microzona (demanda ${market.liquidity.demand}).` },
-      { kind: "sale_investor", label: "Venta a inversor con renta", note: residential ? "Activo alquilado: descuento habitual del 5–10 % sobre valor libre." : "Local con operador: valoración por rentabilidad (cap rate)." },
-      { kind: "refinance", label: "Refinanciación y mantenimiento", note: "Recuperar capital vía hipoteca sobre valor reformado y conservar el activo." },
+      {
+        kind: "sale_retail",
+        label: "Venta a particular",
+        note: `~${market.liquidity.daysToSell} días de comercialización en la microzona (demanda ${market.liquidity.demand}).`,
+      },
+      {
+        kind: "sale_investor",
+        label: "Venta a inversor con renta",
+        note: residential
+          ? "Activo alquilado: descuento habitual del 5–10 % sobre valor libre."
+          : "Local con operador: valoración por rentabilidad (cap rate).",
+      },
+      {
+        kind: "refinance",
+        label: "Refinanciación y mantenimiento",
+        note: "Recuperar capital vía hipoteca sobre valor reformado y conservar el activo.",
+      },
     ];
-    return { daysToSell: market.liquidity.daysToSell, liquidity: market.liquidity.level, options, summary: `Liquidez ${market.liquidity.level}; ${market.liquidity.daysToSell} días de venta estimados.` };
+    return {
+      daysToSell: market.liquidity.daysToSell,
+      liquidity: market.liquidity.level,
+      options,
+      summary: `Liquidez ${market.liquidity.level}; ${market.liquidity.daysToSell} días de venta estimados.`,
+    };
   },
 };

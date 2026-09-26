@@ -39,7 +39,9 @@ export const regulationVersions = pgTable(
 export const partners = pgTable("partners", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),
-  kind: text("kind").$type<"architect" | "broker" | "agent" | "contractor" | "lawyer" | "lender" | "other">().notNull(),
+  kind: text("kind")
+    .$type<"architect" | "broker" | "agent" | "contractor" | "lawyer" | "lender" | "other">()
+    .notNull(),
   name: text("name").notNull(),
   contact: jsonb("contact").$type<Record<string, string>>().notNull().default({}),
   attribution: jsonb("attribution").$type<Record<string, unknown>>().notNull().default({}),
@@ -50,7 +52,10 @@ export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),
   dealId: text("deal_id").notNull(),
-  status: text("status").$type<"planning" | "licensing" | "works" | "commercialization" | "completed">().notNull().default("planning"),
+  status: text("status")
+    .$type<"planning" | "licensing" | "works" | "commercialization" | "completed">()
+    .notNull()
+    .default("planning"),
   data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -59,7 +64,9 @@ export const projects = pgTable("projects", {
 export const milestones = pgTable("milestones", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),
-  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   plannedAt: text("planned_at"),
   completedAt: text("completed_at"),

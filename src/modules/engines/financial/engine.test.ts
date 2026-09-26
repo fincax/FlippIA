@@ -30,7 +30,7 @@ describe("financing schedule", () => {
     const s = buildSchedule(bridgeLoan(0.5), 100_000, 6);
     expect(s.months).toHaveLength(6);
     expect(s.outstandingAtExit).toBe(100_000);
-    expect(s.interestTotal).toBeCloseTo(100_000 * 0.09 / 12 * 6, 0);
+    expect(s.interestTotal).toBeCloseTo(((100_000 * 0.09) / 12) * 6, 0);
   });
   it("amortizing mortgage reduces balance", () => {
     const s = buildSchedule(mortgage(0.7), 140_000, 12);
@@ -51,7 +51,10 @@ describe("computeFinancials — flip without debt", () => {
   });
   it("totals are consistent", () => {
     const t = r.totals;
-    expect(t.totalProjectCost).toBeCloseTo(t.purchase + t.acquisitionCosts + t.transformation + t.holding + t.financing, 2);
+    expect(t.totalProjectCost).toBeCloseTo(
+      t.purchase + t.acquisitionCosts + t.transformation + t.holding + t.financing,
+      2,
+    );
     expect(t.financing).toBe(0);
   });
   it("equity required equals total cost (minus the closing month's holding) when there is no debt", () => {
@@ -75,7 +78,10 @@ describe("computeFinancials — flip without debt", () => {
   });
   it("break-even price makes net profit zero", () => {
     const be = r.metrics.breakEvenPrice.value ?? 0;
-    const atBe = computeFinancials({ ...inputs, exit: { ...inputs.exit, kind: "sale", salePrice: be } as FinancialInputs["exit"] });
+    const atBe = computeFinancials({
+      ...inputs,
+      exit: { ...inputs.exit, kind: "sale", salePrice: be } as FinancialInputs["exit"],
+    });
     expect(atBe.metrics.netProfit.value).toBeCloseTo(0, 0);
   });
   it("flags unknown plusvalía as a review item", () => {
@@ -94,7 +100,9 @@ describe("computeFinancials — leverage", () => {
   const levered = computeFinancials(baseSaleInputs({ financing: [mortgage(0.7)] }));
 
   it("debt reduces equity required and increases ROE", () => {
-    expect(levered.metrics.equityRequired.value ?? 0).toBeLessThan(unlevered.metrics.equityRequired.value ?? 0);
+    expect(levered.metrics.equityRequired.value ?? 0).toBeLessThan(
+      unlevered.metrics.equityRequired.value ?? 0,
+    );
     expect(levered.metrics.roe.value ?? 0).toBeGreaterThan(unlevered.metrics.roe.value ?? 0);
   });
   it("interest and fees reduce net profit", () => {
@@ -117,7 +125,15 @@ describe("computeFinancials — rent exit", () => {
   const base = baseSaleInputs({ durationMonths: 60, worksMonths: 3 });
   const inputs: FinancialInputs = {
     ...base,
-    exit: { kind: "rent", monthlyRent: 1_100, vacancyRate: 0.05, opexRate: 0.1, terminalValue: 300_000, terminalAgencyRate: 0.03, sellerProfile: "individual" },
+    exit: {
+      kind: "rent",
+      monthlyRent: 1_100,
+      vacancyRate: 0.05,
+      opexRate: 0.1,
+      terminalValue: 300_000,
+      terminalAgencyRate: 0.03,
+      sellerProfile: "individual",
+    },
   };
   const r = computeFinancials(inputs);
   it("computes yields and cap rate", () => {
@@ -137,7 +153,9 @@ describe("validation", () => {
     expect(() => computeFinancials(baseSaleInputs({ purchasePrice: -1 }))).toThrow(FinancialEngineError);
   });
   it("rejects unknown jurisdiction", () => {
-    expect(() => computeFinancials({ ...baseSaleInputs(), jurisdiction: { country: "XX" } })).toThrow(/No tax rule set/);
+    expect(() => computeFinancials({ ...baseSaleInputs(), jurisdiction: { country: "XX" } })).toThrow(
+      /No tax rule set/,
+    );
   });
 });
 
@@ -148,15 +166,23 @@ describe("maximum acquisition price", () => {
     expect(res.maximumPrice).toBeLessThan(250_000);
     expect(res.headroom).toBeLessThan(0);
     expect(res.bindingConstraint).toBe("minimumProfit");
-    const check = computeFinancials({ ...inputs, acquisition: { ...inputs.acquisition, purchasePrice: res.maximumPrice } });
+    const check = computeFinancials({
+      ...inputs,
+      acquisition: { ...inputs.acquisition, purchasePrice: res.maximumPrice },
+    });
     expect(check.metrics.netProfit.value ?? 0).toBeGreaterThanOrEqual(30_000 - 1);
   });
   it("reports headroom when asking is below the maximum", () => {
-    const res = computeMaximumAcquisitionPrice(baseSaleInputs({ purchasePrice: 150_000 }), { minimumRoe: 0.1 });
+    const res = computeMaximumAcquisitionPrice(baseSaleInputs({ purchasePrice: 150_000 }), {
+      minimumRoe: 0.1,
+    });
     expect(res.headroom).toBeGreaterThan(0);
   });
   it("capital constraint binds when equity is limited", () => {
-    const res = computeMaximumAcquisitionPrice(baseSaleInputs({ financing: [mortgage(0.7)] }), { maximumCapital: 60_000, minimumRoe: 0 });
+    const res = computeMaximumAcquisitionPrice(baseSaleInputs({ financing: [mortgage(0.7)] }), {
+      maximumCapital: 60_000,
+      minimumRoe: 0,
+    });
     expect(res.bindingConstraint).toBe("maximumCapital");
     expect(res.checks.find((c) => c.constraint === "maximumCapital")?.satisfied).toBe(true);
   });

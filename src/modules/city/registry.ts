@@ -16,12 +16,7 @@ export function defaultCity(): CityProfile {
 }
 
 export function normalizeText(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
 }
 
 /** Map free text (address, neighbourhood) to a microzone by alias matching. */
@@ -57,7 +52,10 @@ export function microzoneFromPoint(city: CityProfile, p: LatLng): Microzone | un
 }
 
 /** Whether a city can serve a given municipality code or name. */
-export function cityForLocation(input: { municipalityCode?: string; text?: string }): CityProfile | undefined {
+export function cityForLocation(input: {
+  municipalityCode?: string;
+  text?: string;
+}): CityProfile | undefined {
   if (input.municipalityCode) return CITIES.find((c) => c.municipalityCode === input.municipalityCode);
   if (input.text) {
     const t = normalizeText(input.text);

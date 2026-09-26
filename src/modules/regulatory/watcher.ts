@@ -45,16 +45,40 @@ export interface WatcherReport {
 export function assessRegulatoryChange(change: RegulatoryChange, analyses: WatchedAnalysis[]): WatcherReport {
   const impacts: ImpactAssessment[] = analyses.map((a) => {
     const inChain = a.snapshot.jurisdictionChain.some((j) => j.code === change.jurisdiction.code);
-    if (!inChain) return { dealId: a.dealId, dealLabel: a.dealLabel, level: "unaffected", reasons: ["Fuera del ámbito territorial del análisis."], affectedStrategies: [] };
+    if (!inChain)
+      return {
+        dealId: a.dealId,
+        dealLabel: a.dealLabel,
+        level: "unaffected",
+        reasons: ["Fuera del ámbito territorial del análisis."],
+        affectedStrategies: [],
+      };
     const topicOverlap = change.topics.filter((t) => a.snapshot.topics.includes(t));
-    if (topicOverlap.length === 0) return { dealId: a.dealId, dealLabel: a.dealLabel, level: "unaffected", reasons: ["Sin materias en común con el análisis."], affectedStrategies: [] };
-    const affectedStrategies = a.strategies.filter((s) => s.topics.some((t) => change.topics.includes(t))).map((s) => s.label);
+    if (topicOverlap.length === 0)
+      return {
+        dealId: a.dealId,
+        dealLabel: a.dealLabel,
+        level: "unaffected",
+        reasons: ["Sin materias en común con el análisis."],
+        affectedStrategies: [],
+      };
+    const affectedStrategies = a.strategies
+      .filter((s) => s.topics.some((t) => change.topics.includes(t)))
+      .map((s) => s.label);
     const usedBefore = a.snapshot.entries.some((e) => e.regulationId === change.regulationId);
-    const engineTopics: RegulatoryTopic[] = ["tax.acquisition", "tax.exit", "tax.local", "tax.works", "building_parameters"];
+    const engineTopics: RegulatoryTopic[] = [
+      "tax.acquisition",
+      "tax.exit",
+      "tax.local",
+      "tax.works",
+      "building_parameters",
+    ];
     const engineImpact = change.topics.some((t) => engineTopics.includes(t));
     const level: ImpactLevel = engineImpact ? "recalculate" : "review";
     const reasons = [
-      usedBefore ? `El análisis utilizó ${change.shortName}; existe una versión nueva (${change.newVersion.version}, vigente desde ${change.newVersion.effectiveFrom}).` : `Nueva norma en materias del análisis: ${topicOverlap.join(", ")}.`,
+      usedBefore
+        ? `El análisis utilizó ${change.shortName}; existe una versión nueva (${change.newVersion.version}, vigente desde ${change.newVersion.effectiveFrom}).`
+        : `Nueva norma en materias del análisis: ${topicOverlap.join(", ")}.`,
       ...(engineImpact ? ["Afecta a reglas que consumen los motores de cálculo."] : []),
     ];
     return { dealId: a.dealId, dealLabel: a.dealLabel, level, reasons, affectedStrategies };

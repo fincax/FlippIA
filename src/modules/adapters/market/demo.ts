@@ -43,7 +43,8 @@ export class MarketDemoAdapter implements DataSourceAdapter<MarketQuery, MarketS
     for (let i = 0; i < n; i++) {
       const u = (salt: string) => seededUnit(seed, `${i}:${salt}`);
       const renovated = u("cond") < 0.55;
-      const type: Comparable["type"] = u("type") < 0.4 ? "transaction" : u("type") < 0.5 ? "internal" : "asking";
+      const type: Comparable["type"] =
+        u("type") < 0.4 ? "transaction" : u("type") < 0.5 ? "internal" : "asking";
       const base = renovated ? renovatedBase : unrenovatedBase;
       const noise = 1 + (u("noise") - 0.5) * 0.24;
       const askPremium = type === "asking" ? 1.05 : 1;
@@ -94,7 +95,8 @@ export class MarketDemoAdapter implements DataSourceAdapter<MarketQuery, MarketS
         liquidity: m.liquidity,
         demand: m.demand,
         sampleSize: m.sampleSize,
-        confidenceNote: "DEMO: estadísticas sintéticas sin muestra real. El City Brain sustituirá estos valores por datos medidos con tamaño de muestra y confianza.",
+        confidenceNote:
+          "DEMO: estadísticas sintéticas sin muestra real. El City Brain sustituirá estos valores por datos medidos con tamaño de muestra y confianza.",
       },
       demo: true,
     };
@@ -122,13 +124,25 @@ export class MarketDemoAdapter implements DataSourceAdapter<MarketQuery, MarketS
         sourcePublishedAt: c.date,
         geographicScope: { level: "point", label: c.label ?? zone.name },
         excerpt: `DEMO comparable ${c.type}: ${c.price.toLocaleString("es-ES")} € · ${c.areaM2} m² · ${c.condition} · ${c.distanceM} m`,
-        structuredData: { comparableId: c.id, price: c.price, areaM2: c.areaM2, type: c.type, condition: c.condition },
+        structuredData: {
+          comparableId: c.id,
+          price: c.price,
+          areaM2: c.areaM2,
+          type: c.type,
+          condition: c.condition,
+        },
         confidence: c.type === "transaction" ? 0.5 : 0.3,
         verificationStatus: "INFERRED",
         demo: true,
       })),
     ];
-    const response: AdapterResponse<MarketSnapshot> = { data, evidence, retrievedAt, freshness: q.analysisDate, mode: "demo" };
+    const response: AdapterResponse<MarketSnapshot> = {
+      data,
+      evidence,
+      retrievedAt,
+      freshness: q.analysisDate,
+      mode: "demo",
+    };
     return ok(response);
   }
 }

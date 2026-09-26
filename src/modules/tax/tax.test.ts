@@ -40,12 +40,16 @@ describe("acquisition taxes", () => {
     expect(r.total).toBe(14_000 + r.notary + r.registry);
   });
   it("IVA + AJD for new residential", () => {
-    const r = computeAcquisitionTaxes(200_000, "IVA_AJD", TAX_RULES_ES_AND_SEVILLA_2025, { assetUse: "residential" });
+    const r = computeAcquisitionTaxes(200_000, "IVA_AJD", TAX_RULES_ES_AND_SEVILLA_2025, {
+      assetUse: "residential",
+    });
     expect(r.transferTax).toBe(20_000);
     expect(r.ajd).toBe(2_400);
   });
   it("IVA 21 % for commercial", () => {
-    const r = computeAcquisitionTaxes(100_000, "IVA_AJD", TAX_RULES_ES_AND_SEVILLA_2025, { assetUse: "commercial" });
+    const r = computeAcquisitionTaxes(100_000, "IVA_AJD", TAX_RULES_ES_AND_SEVILLA_2025, {
+      assetUse: "commercial",
+    });
     expect(r.transferTax).toBe(21_000);
   });
 });

@@ -19,14 +19,55 @@ export const reviewSchema = z.object({
 export async function recordReview(ctx: TenantContext, input: z.infer<typeof reviewSchema>) {
   requireRole(ctx, "analyst");
   const parsed = reviewSchema.parse(input);
-  const previous = await ctx.db.select({ version: humanReviews.version }).from(humanReviews).where(and(eq(humanReviews.organizationId, ctx.organizationId), eq(humanReviews.dealId, parsed.dealId), eq(humanReviews.role, parsed.role))).orderBy(desc(humanReviews.version)).limit(1);
+  const previous = await ctx.db
+    .select({ version: humanReviews.version })
+    .from(humanReviews)
+    .where(
+      and(
+        eq(humanReviews.organizationId, ctx.organizationId),
+        eq(humanReviews.dealId, parsed.dealId),
+        eq(humanReviews.role, parsed.role),
+      ),
+    )
+    .orderBy(desc(humanReviews.version))
+    .limit(1);
   const version = (previous[0]?.version ?? 0) + 1;
-  const [row] = await ctx.db.insert(humanReviews).values({ id: newId("rev"), organizationId: ctx.organizationId, dealId: parsed.dealId, analysisId: parsed.analysisId ?? null, reviewerUserId: ctx.userId, role: parsed.role, scope: parsed.scope, version, status: parsed.status, professionalId: parsed.professionalId ?? null, comments: parsed.comments }).returning();
-  await logActivity(ctx, parsed.dealId, "review.recorded", `Revisión ${parsed.role}: ${parsed.status}`, { version, scope: parsed.scope });
-  await eventBus().emit({ id: newId("evt"), name: "HumanReviewRecorded", occurredAt: new Date().toISOString(), organizationId: ctx.organizationId, actorId: ctx.userId, dealId: parsed.dealId, payload: { role: parsed.role, status: parsed.status } });
+  const [row] = await ctx.db
+    .insert(humanReviews)
+    .values({
+      id: newId("rev"),
+      organizationId: ctx.organizationId,
+      dealId: parsed.dealId,
+      analysisId: parsed.analysisId ?? null,
+      reviewerUserId: ctx.userId,
+      role: parsed.role,
+      scope: parsed.scope,
+      version,
+      status: parsed.status,
+      professionalId: parsed.professionalId ?? null,
+      comments: parsed.comments,
+    })
+    .returning();
+  await logActivity(ctx, parsed.dealId, "review.recorded", `Revisión ${parsed.role}: ${parsed.status}`, {
+    version,
+    scope: parsed.scope,
+  });
+  await eventBus().emit({
+    id: newId("evt"),
+    name: "HumanReviewRecorded",
+    occurredAt: new Date().toISOString(),
+    organizationId: ctx.organizationId,
+    actorId: ctx.userId,
+    dealId: parsed.dealId,
+    payload: { role: parsed.role, status: parsed.status },
+  });
   return row!;
 }
 
 export async function listReviews(ctx: TenantContext, dealId: string) {
-  return ctx.db.select().from(humanReviews).where(and(eq(humanReviews.organizationId, ctx.organizationId), eq(humanReviews.dealId, dealId))).orderBy(desc(humanReviews.createdAt));
+  return ctx.db
+    .select()
+    .from(humanReviews)
+    .where(and(eq(humanReviews.organizationId, ctx.organizationId), eq(humanReviews.dealId, dealId)))
+    .orderBy(desc(humanReviews.createdAt));
 }

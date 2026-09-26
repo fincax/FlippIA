@@ -23,18 +23,43 @@ export class UrbanismoSevillaDemoAdapter implements DataSourceAdapter<UrbanismQu
 
   async query(input: UrbanismQuery) {
     const city = defaultCity();
-    const zone = (input.microzoneId && city.microzones.find((m) => m.id === input.microzoneId)) || (input.point && microzoneFromPoint(city, input.point)) || (input.address && microzoneFromText(city, input.address)) || city.microzones[1]!;
-    const seed = input.cadastralRef ?? input.address ?? (input.point ? `${input.point.lat},${input.point.lng}` : zone.id);
+    const zone =
+      (input.microzoneId && city.microzones.find((m) => m.id === input.microzoneId)) ||
+      (input.point && microzoneFromPoint(city, input.point)) ||
+      (input.address && microzoneFromText(city, input.address)) ||
+      city.microzones[1]!;
+    const seed =
+      input.cadastralRef ??
+      input.address ??
+      (input.point ? `${input.point.lat},${input.point.lng}` : zone.id);
     const zoning = city.urbanism.zoningCatalogue[zone.demoZoning] ?? city.urbanism.zoningCatalogue.MC!;
-    const protection: ProtectionLevel = zone.historicCentre ? pickProtection(seededUnit(seed, "prot")) : "none";
-    const allowed = ["Residencial (plurifamiliar)", "Terciario: oficinas", "Terciario: comercio en planta baja"];
+    const protection: ProtectionLevel = zone.historicCentre
+      ? pickProtection(seededUnit(seed, "prot"))
+      : "none";
+    const allowed = [
+      "Residencial (plurifamiliar)",
+      "Terciario: oficinas",
+      "Terciario: comercio en planta baja",
+    ];
     const conditioned: string[] = [];
     const forbidden: string[] = ["Industrial"];
-    if (zoning.groundFloorResidential === "conditioned") conditioned.push("Residencial en planta baja (condiciones de habitabilidad, patio y acceso)");
+    if (zoning.groundFloorResidential === "conditioned")
+      conditioned.push("Residencial en planta baja (condiciones de habitabilidad, patio y acceso)");
     if (zoning.groundFloorResidential === "forbidden") forbidden.push("Residencial en planta baja");
-    if (zone.historicCentre) conditioned.push("Vivienda de uso turístico (saturación por barrio y autorización de comunidad)");
+    if (zone.historicCentre)
+      conditioned.push("Vivienda de uso turístico (saturación por barrio y autorización de comunidad)");
     else conditioned.push("Vivienda de uso turístico (regulación municipal en tramitación)");
-    const knownFiles = seededUnit(seed, "file") > 0.7 ? [{ type: "Licencia de obras", reference: `DEMO-${Math.floor(seededUnit(seed, "fileno") * 90000 + 10000)}`, status: "Concedida", date: `20${Math.floor(15 + seededUnit(seed, "fy") * 10)}-0${Math.floor(1 + seededUnit(seed, "fm") * 8)}-1${Math.floor(seededUnit(seed, "fd") * 9)}` }] : [];
+    const knownFiles =
+      seededUnit(seed, "file") > 0.7
+        ? [
+            {
+              type: "Licencia de obras",
+              reference: `DEMO-${Math.floor(seededUnit(seed, "fileno") * 90000 + 10000)}`,
+              status: "Concedida",
+              date: `20${Math.floor(15 + seededUnit(seed, "fy") * 10)}-0${Math.floor(1 + seededUnit(seed, "fm") * 8)}-1${Math.floor(seededUnit(seed, "fd") * 9)}`,
+            },
+          ]
+        : [];
     const data: PlanningInfo = {
       planningInstrument: city.urbanism.planningInstrument,
       zoningCode: zone.demoZoning,
@@ -49,7 +74,10 @@ export class UrbanismoSevillaDemoAdapter implements DataSourceAdapter<UrbanismQu
       catalogued: protection !== "none",
       inHistoricCentre: zone.historicCentre,
       knownFiles,
-      notes: [zoning.notes, "DEMO: la calificación y el nivel de protección son sintéticos; deben verificarse en la Gerencia de Urbanismo o en IDE Sevilla."],
+      notes: [
+        zoning.notes,
+        "DEMO: la calificación y el nivel de protección son sintéticos; deben verificarse en la Gerencia de Urbanismo o en IDE Sevilla.",
+      ],
       status: "INFERRED",
       freshness: "2026-01-10",
     };
@@ -63,15 +91,29 @@ export class UrbanismoSevillaDemoAdapter implements DataSourceAdapter<UrbanismQu
         sourceUrl: city.urbanism.authorityUrl,
         retrievedAt,
         sourcePublishedAt: "2026-01-10",
-        geographicScope: { level: "parcel", label: `${zone.name} — ${input.address ?? input.cadastralRef ?? "punto"}` },
+        geographicScope: {
+          level: "parcel",
+          label: `${zone.name} — ${input.address ?? input.cadastralRef ?? "punto"}`,
+        },
         excerpt: `DEMO — Zona de ordenanza ${zone.demoZoning} (${zoning.label}); protección ${protection}; residencial en planta baja: ${zoning.groundFloorResidential}.`,
-        structuredData: { zoningCode: zone.demoZoning, protectionLevel: protection, maxFloors: zoning.maxFloors, groundFloorResidential: zoning.groundFloorResidential },
+        structuredData: {
+          zoningCode: zone.demoZoning,
+          protectionLevel: protection,
+          maxFloors: zoning.maxFloors,
+          groundFloorResidential: zoning.groundFloorResidential,
+        },
         confidence: 0.35,
         verificationStatus: "INFERRED",
         demo: true,
       },
     ];
-    const response: AdapterResponse<PlanningInfo> = { data, evidence, retrievedAt, freshness: "2026-01-10", mode: "demo" };
+    const response: AdapterResponse<PlanningInfo> = {
+      data,
+      evidence,
+      retrievedAt,
+      freshness: "2026-01-10",
+      mode: "demo",
+    };
     return ok(response);
   }
 }

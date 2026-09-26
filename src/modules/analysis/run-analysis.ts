@@ -1,6 +1,13 @@
 import { adapters as defaultAdapters, sourceStatuses, type AdapterSet } from "@/modules/adapters";
 import { aiProvider, type AIProvider } from "@/modules/ai/provider";
-import { devilsAdvocateAgent, regulatoryConflictAgent, dataIntegrityAgent, assumptionChallengerAgent, anomalyAgent, riskSynthesisAgent } from "@/modules/agents/adversarial/agents";
+import {
+  devilsAdvocateAgent,
+  regulatoryConflictAgent,
+  dataIntegrityAgent,
+  assumptionChallengerAgent,
+  anomalyAgent,
+  riskSynthesisAgent,
+} from "@/modules/agents/adversarial/agents";
 import { executePlan } from "@/modules/agents/runtime/runner";
 import type { AgentDefinition, AgentRunRecord, AnalysisEvent, Budget } from "@/modules/agents/runtime/types";
 import { alternativesAgent, existingLayoutAgent } from "@/modules/agents/specialists/architecture";
@@ -11,7 +18,15 @@ import { strategiesAgent } from "@/modules/agents/specialists/investment";
 import { comparablesAgent, valuationAgent } from "@/modules/agents/specialists/market";
 import { intakeAgent } from "@/modules/agents/specialists/opportunity";
 import { regulatorySnapshotAgent } from "@/modules/agents/specialists/regulatory";
-import { changeOfUseAgent, licenceAgent, planningAgent, protectionAgent, tourismAgent, urbanismSynthesisAgent, zoningAgent } from "@/modules/agents/specialists/urbanism";
+import {
+  changeOfUseAgent,
+  licenceAgent,
+  planningAgent,
+  protectionAgent,
+  tourismAgent,
+  urbanismSynthesisAgent,
+  zoningAgent,
+} from "@/modules/agents/specialists/urbanism";
 import { defaultCity } from "@/modules/city/registry";
 import type { CityProfile } from "@/modules/city/types";
 import { newId } from "@/modules/core/ids";
@@ -22,7 +37,17 @@ import type { IntakeRequest } from "@/modules/property/intake";
 import type { RegulatorySnapshot } from "@/modules/regulatory";
 import { narrateSynthesis } from "./narrative";
 import { computeOpportunityDNA, computeOpportunityGap, rankStrategies, templateSynthesis } from "./synthesis";
-import type { AnalysisResult, ArchitectureAssessment, ExitAssessment, FinanceAssessment, MarketAssessment, PropertyProfile, RiskAssessment, StrategyResult, UrbanismAssessment } from "./types";
+import type {
+  AnalysisResult,
+  ArchitectureAssessment,
+  ExitAssessment,
+  FinanceAssessment,
+  MarketAssessment,
+  PropertyProfile,
+  RiskAssessment,
+  StrategyResult,
+  UrbanismAssessment,
+} from "./types";
 
 export interface AnalysisParams {
   intake: IntakeRequest;
@@ -87,24 +112,55 @@ export async function runAnalysis(params: AnalysisParams): Promise<AnalysisResul
 
   const outcome = await executePlan(
     plan,
-    { analysisId, organizationId: params.organizationId, userId: params.userId, dealId: params.dealId, analysisDate, city, adapters: adapterSet, evidence, ai, logger: createLogger({ analysisId }) },
+    {
+      analysisId,
+      organizationId: params.organizationId,
+      userId: params.userId,
+      dealId: params.dealId,
+      analysisDate,
+      city,
+      adapters: adapterSet,
+      evidence,
+      ai,
+      logger: createLogger({ analysisId }),
+    },
     { emit, budget: params.budget, onRunRecord: params.onRunRecord },
   );
   const o = outcome.outputs;
   const profile = o.get("data.catastro") as PropertyProfile | undefined;
   const market = o.get("market.valuation") as MarketAssessment | undefined;
-  if (!profile || !market) throw new Error(`Analysis could not complete: ${outcome.failed.join(", ") || "unknown failure"}`);
+  if (!profile || !market)
+    throw new Error(`Analysis could not complete: ${outcome.failed.join(", ") || "unknown failure"}`);
   const urbanism = o.get("urbanism.synthesis") as UrbanismAssessment;
   const architecture = o.get("architecture.alternatives") as ArchitectureAssessment;
   const finance = o.get("finance.offers") as FinanceAssessment;
   const regulatory = o.get("regulatory.snapshot") as RegulatorySnapshot;
   const rawStrategies = (o.get("investment.strategies") as StrategyResult[] | undefined) ?? [];
-  const risk = (o.get("risk.synthesis") as RiskAssessment | undefined) ?? { stressByStrategy: {}, findings: [], overall: "medium", summary: "Análisis de riesgo incompleto." };
-  const exit = (o.get("exit.liquidity") as ExitAssessment | undefined) ?? { daysToSell: market.liquidity.daysToSell, liquidity: market.liquidity.level, options: [], summary: "" };
+  const risk = (o.get("risk.synthesis") as RiskAssessment | undefined) ?? {
+    stressByStrategy: {},
+    findings: [],
+    overall: "medium",
+    summary: "Análisis de riesgo incompleto.",
+  };
+  const exit = (o.get("exit.liquidity") as ExitAssessment | undefined) ?? {
+    daysToSell: market.liquidity.daysToSell,
+    liquidity: market.liquidity.level,
+    options: [],
+    summary: "",
+  };
 
   const strategies = rankStrategies(rawStrategies, investor);
   const gap = computeOpportunityGap(strategies, market, profile.askingPrice);
-  const dna = computeOpportunityDNA({ strategies, market, urbanism, architecture, finance, risk, profile, gap });
+  const dna = computeOpportunityDNA({
+    strategies,
+    market,
+    urbanism,
+    architecture,
+    finance,
+    risk,
+    profile,
+    gap,
+  });
   const template = templateSynthesis({ profile, strategies, gap, risk, urbanism, market, investor });
   const synthesis = await narrateSynthesis(ai, template, { profile, strategies, gap, risk });
   const sources = await sourceStatuses(adapterSet);

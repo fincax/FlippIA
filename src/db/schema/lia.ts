@@ -11,14 +11,19 @@ export const conversations = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("conversations_org_user").on(t.organizationId, t.userId), index("conversations_deal").on(t.dealId)],
+  (t) => [
+    index("conversations_org_user").on(t.organizationId, t.userId),
+    index("conversations_deal").on(t.dealId),
+  ],
 );
 
 export const messages = pgTable(
   "messages",
   {
     id: text("id").primaryKey(),
-    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull(),
     role: text("role").$type<"user" | "lia" | "system">().notNull(),
     content: text("content").notNull(),

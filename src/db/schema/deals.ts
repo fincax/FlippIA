@@ -1,4 +1,13 @@
-import { boolean, doublePrecision, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { geometry } from "drizzle-orm/pg-core";
 import type { AnalysisResult } from "@/modules/analysis/types";
 import type { AgentRunRecord } from "@/modules/agents/runtime/types";
@@ -14,8 +23,12 @@ export const investorProfiles = pgTable(
   "investor_profiles",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     dna: jsonb("dna").$type<InvestorDNA>().notNull(),
     version: integer("version").notNull().default(1),
     completed: boolean("completed").notNull().default(false),
@@ -28,7 +41,9 @@ export const properties = pgTable(
   "properties",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     cityId: text("city_id").notNull(),
     microzoneId: text("microzone_id"),
     cadastralRef: text("cadastral_ref"),
@@ -41,13 +56,24 @@ export const properties = pgTable(
   (t) => [index("properties_org").on(t.organizationId), index("properties_cadastral").on(t.cadastralRef)],
 );
 
-export type DealStatus = "draft" | "analyzing" | "analyzed" | "watching" | "rejected" | "approved" | "acquired" | "project" | "closed";
+export type DealStatus =
+  | "draft"
+  | "analyzing"
+  | "analyzed"
+  | "watching"
+  | "rejected"
+  | "approved"
+  | "acquired"
+  | "project"
+  | "closed";
 
 export const deals = pgTable(
   "deals",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     status: text("status").$type<DealStatus>().notNull().default("draft"),
@@ -68,8 +94,12 @@ export const analyses = pgTable(
   "analyses",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-    dealId: text("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
     status: text("status").$type<"running" | "completed" | "failed">().notNull(),
     analysisDate: text("analysis_date").notNull(),
     result: jsonb("result").$type<AnalysisResult>(),
@@ -98,7 +128,10 @@ export const agentRuns = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
-  (t) => [index("agent_runs_analysis").on(t.analysisId), index("agent_runs_org_started").on(t.organizationId, t.startedAt)],
+  (t) => [
+    index("agent_runs_analysis").on(t.analysisId),
+    index("agent_runs_org_started").on(t.organizationId, t.startedAt),
+  ],
 );
 
 export const evidence = pgTable(
@@ -138,7 +171,9 @@ export const scenarioSets = pgTable(
   {
     id: text("id").primaryKey(),
     organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+    dealId: text("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
     strategyId: text("strategy_id").notNull(),
     set: jsonb("set").$type<ScenarioSet>().notNull(),
     version: integer("version").notNull().default(1),
@@ -148,7 +183,13 @@ export const scenarioSets = pgTable(
 );
 
 export interface WatchRule {
-  kind: "price_below" | "price_drop_pct" | "regulation_change" | "days_on_market" | "meets_criteria" | "new_comparable";
+  kind:
+    | "price_below"
+    | "price_drop_pct"
+    | "regulation_change"
+    | "days_on_market"
+    | "meets_criteria"
+    | "new_comparable";
   value?: number;
   note?: string;
 }
@@ -196,7 +237,9 @@ export const humanReviews = pgTable(
     dealId: text("deal_id").notNull(),
     analysisId: text("analysis_id"),
     reviewerUserId: text("reviewer_user_id").notNull(),
-    role: text("role").$type<"ai_precheck" | "technical" | "architect" | "real_estate" | "legal" | "tax">().notNull(),
+    role: text("role")
+      .$type<"ai_precheck" | "technical" | "architect" | "real_estate" | "legal" | "tax">()
+      .notNull(),
     scope: text("scope").notNull(),
     version: integer("version").notNull().default(1),
     status: text("status").$type<"approved" | "rejected" | "changes_requested">().notNull(),
@@ -237,5 +280,8 @@ export const activities = pgTable(
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("activities_org_created").on(t.organizationId, t.createdAt), index("activities_deal").on(t.dealId)],
+  (t) => [
+    index("activities_org_created").on(t.organizationId, t.createdAt),
+    index("activities_deal").on(t.dealId),
+  ],
 );

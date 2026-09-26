@@ -4,13 +4,18 @@
 export const EVIDENCE_STATUSES = ["VERIFIED", "INFERRED", "REVIEW_REQUIRED", "CONFLICT", "UNKNOWN"] as const;
 export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
 
-export const EVIDENCE_STATUS_LABEL: Record<EvidenceStatus, { es: string; en: string; description: string }> = {
-  VERIFIED: { es: "Verificado", en: "Verified", description: "Evidencia directa y fiable." },
-  INFERRED: { es: "Inferido", en: "Inferred", description: "Conclusión derivada de evidencia indirecta." },
-  REVIEW_REQUIRED: { es: "Requiere revisión", en: "Review required", description: "Necesita técnico o profesional." },
-  CONFLICT: { es: "Conflicto", en: "Conflict", description: "Fuentes inconsistentes entre sí." },
-  UNKNOWN: { es: "Desconocido", en: "Unknown", description: "No existe evidencia suficiente." },
-};
+export const EVIDENCE_STATUS_LABEL: Record<EvidenceStatus, { es: string; en: string; description: string }> =
+  {
+    VERIFIED: { es: "Verificado", en: "Verified", description: "Evidencia directa y fiable." },
+    INFERRED: { es: "Inferido", en: "Inferred", description: "Conclusión derivada de evidencia indirecta." },
+    REVIEW_REQUIRED: {
+      es: "Requiere revisión",
+      en: "Review required",
+      description: "Necesita técnico o profesional.",
+    },
+    CONFLICT: { es: "Conflicto", en: "Conflict", description: "Fuentes inconsistentes entre sí." },
+    UNKNOWN: { es: "Desconocido", en: "Unknown", description: "No existe evidencia suficiente." },
+  };
 
 /**
  * Confidence is never a fake probability. It is a 0–1 score built from

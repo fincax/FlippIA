@@ -35,7 +35,14 @@ export const TAX_RULES_ES_AND_SEVILLA_2025: TaxRuleSet = {
   label: "España · Andalucía · Sevilla (vigente 2025)",
   jurisdiction: { country: "ES", region: "AND", municipalityCode: "41091" },
   effectiveFrom: "2025-01-01",
-  regulationRefs: ["reg.es.and.tributos-cedidos.ley5-2021", "reg.es.irpf.ley35-2006", "reg.es.iva.ley37-1992", "reg.es.haciendas-locales.rdl2-2004", "reg.es.sevilla.ordenanza-icio", "reg.es.itp-ajd.rdl1-1993"],
+  regulationRefs: [
+    "reg.es.and.tributos-cedidos.ley5-2021",
+    "reg.es.irpf.ley35-2006",
+    "reg.es.iva.ley37-1992",
+    "reg.es.haciendas-locales.rdl2-2004",
+    "reg.es.sevilla.ordenanza-icio",
+    "reg.es.itp-ajd.rdl1-1993",
+  ],
   status: "INFERRED",
   notes: [
     "ITP general en Andalucía: 7 % conforme a la Ley 5/2021 de Tributos Cedidos. Tipos reducidos (jóvenes, VPO, familias numerosas) no se aplican automáticamente.",
@@ -95,12 +102,15 @@ export function resolveTaxRules(
   const candidates = RULE_SETS.filter((r) => {
     if (r.jurisdiction.country !== jurisdiction.country) return false;
     if (r.jurisdiction.region && r.jurisdiction.region !== jurisdiction.region) return false;
-    if (r.jurisdiction.municipalityCode && r.jurisdiction.municipalityCode !== jurisdiction.municipalityCode) return false;
+    if (r.jurisdiction.municipalityCode && r.jurisdiction.municipalityCode !== jurisdiction.municipalityCode)
+      return false;
     if (r.effectiveFrom > date) return false;
     if (r.effectiveUntil && r.effectiveUntil < date) return false;
     return true;
   });
-  candidates.sort((a, b) => specificity(b) - specificity(a) || b.effectiveFrom.localeCompare(a.effectiveFrom));
+  candidates.sort(
+    (a, b) => specificity(b) - specificity(a) || b.effectiveFrom.localeCompare(a.effectiveFrom),
+  );
   return candidates[0];
 }
 

@@ -40,12 +40,25 @@ export async function sourceStatuses(set = adapters()): Promise<SourceStatus[]> 
       authority: a.sourceAuthority,
       mode: a.mode,
       available: await a.isAvailable(),
-      note: a.mode === "demo" ? "Datos sintéticos de demostración. Sustituible por la fuente real sin cambios en la aplicación." : a.mode === "unavailable" ? "Fuente no configurada." : "Fuente pública.",
+      note:
+        a.mode === "demo"
+          ? "Datos sintéticos de demostración. Sustituible por la fuente real sin cambios en la aplicación."
+          : a.mode === "unavailable"
+            ? "Fuente no configurada."
+            : "Fuente pública.",
       demo: a.mode === "demo",
     })),
   );
   for (const s of set.sources) {
-    statuses.push({ sourceId: s.sourceId, name: s.sourceName, authority: "FlippIA", mode: s.kind === "demo" ? "demo" : "partner", available: await s.isAvailable(), note: s.kind === "demo" ? "Listado sintético de oportunidades." : "Feed autorizado.", demo: s.kind === "demo" });
+    statuses.push({
+      sourceId: s.sourceId,
+      name: s.sourceName,
+      authority: "FlippIA",
+      mode: s.kind === "demo" ? "demo" : "partner",
+      available: await s.isAvailable(),
+      note: s.kind === "demo" ? "Listado sintético de oportunidades." : "Feed autorizado.",
+      demo: s.kind === "demo",
+    });
   }
   return statuses;
 }

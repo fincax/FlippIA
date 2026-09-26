@@ -12,7 +12,13 @@ export interface EstimateRequest {
   bathrooms: number;
   bedrooms: number;
   /** Extra scope switches. */
-  scope?: Partial<{ energyRetrofit: boolean; accessibility: boolean; fireSafety: boolean; facade: boolean; facadeAreaM2: number }>;
+  scope?: Partial<{
+    energyRetrofit: boolean;
+    accessibility: boolean;
+    fireSafety: boolean;
+    facade: boolean;
+    facadeAreaM2: number;
+  }>;
   overheadRate?: number;
   library?: CostLibraryItem[];
   now?: Date;
@@ -33,7 +39,11 @@ export function quantitiesFor(req: EstimateRequest): Quantity[] {
   const doors = Math.max(3, req.bedrooms + 2);
   switch (req.level) {
     case "cosmetic":
-      q.push({ code: "ACA.01", quantity: a * 2.6 }, { code: "SOL.01", quantity: a * 0.4 }, { code: "LIM.01", quantity: 1 });
+      q.push(
+        { code: "ACA.01", quantity: a * 2.6 },
+        { code: "SOL.01", quantity: a * 0.4 },
+        { code: "LIM.01", quantity: 1 },
+      );
       break;
     case "medium":
       q.push(
@@ -82,7 +92,8 @@ export function quantitiesFor(req: EstimateRequest): Quantity[] {
       );
       break;
   }
-  if (req.scope?.energyRetrofit && req.level !== "change_of_use") q.push({ code: "ENE.01", quantity: a * 0.5 });
+  if (req.scope?.energyRetrofit && req.level !== "change_of_use")
+    q.push({ code: "ENE.01", quantity: a * 0.5 });
   if (req.scope?.accessibility) q.push({ code: "ACC.01", quantity: 1 });
   if (req.scope?.fireSafety) q.push({ code: "PCI.01", quantity: 1 });
   if (req.scope?.facade) q.push({ code: "FAC.01", quantity: req.scope.facadeAreaM2 ?? a * 0.6 });
@@ -120,11 +131,20 @@ export function estimateRenovation(req: EstimateRequest): RenovationEstimate {
   const chapters = new Map<WorkChapter, number>();
   for (const l of lines) chapters.set(l.chapter, (chapters.get(l.chapter) ?? 0) + l.subtotal);
   const byChapter = [...chapters.entries()]
-    .map(([chapter, amount]) => ({ chapter, amount: round2(amount), share: materialBudget ? round2(amount / materialBudget) : 0 }))
+    .map(([chapter, amount]) => ({
+      chapter,
+      amount: round2(amount),
+      share: materialBudget ? round2(amount / materialBudget) : 0,
+    }))
     .sort((a, b) => b.amount - a.amount);
   const conf = buildConfidence(
     [
-      { key: "sourceQuality", weight: 3, score: 0.5, note: "Biblioteca de costes DEMO; no es un presupuesto profesional." },
+      {
+        key: "sourceQuality",
+        weight: 3,
+        score: 0.5,
+        note: "Biblioteca de costes DEMO; no es un presupuesto profesional.",
+      },
       { key: "recency", weight: 1, score: 0.8, note: `Actualizada ${library[0]?.updatedAt ?? "n/d"}.` },
       { key: "quantity", weight: 1, score: 0.6, note: "Mediciones paramétricas por nivel de reforma." },
       { key: "verification", weight: 2, score: 0.2, note: "Sin visita técnica ni mediciones reales." },
@@ -153,7 +173,11 @@ export function estimateRenovation(req: EstimateRequest): RenovationEstimate {
 }
 
 /** Replace estimate lines with a professional budget, preserving traceability. */
-export function replaceWithProfessionalBudget(estimate: RenovationEstimate, lines: BudgetLine[], stage: BudgetLine["stage"] = "professional_budget"): RenovationEstimate {
+export function replaceWithProfessionalBudget(
+  estimate: RenovationEstimate,
+  lines: BudgetLine[],
+  stage: BudgetLine["stage"] = "professional_budget",
+): RenovationEstimate {
   const materialBudget = round2(lines.reduce((a, l) => a + l.subtotal, 0));
   const overhead = round2(materialBudget * estimate.overheadRate);
   return {

@@ -8,8 +8,24 @@ import type { CostLibraryItem } from "./types";
 const UPDATED = "2026-01-10";
 const LIB = "demo.sevilla.2026";
 
-function item(code: string, chapter: CostLibraryItem["chapter"], label: string, unit: CostLibraryItem["unit"], unitCost: number): CostLibraryItem {
-  return { code, chapter, label, unit, unitCost, source: LIB, confidence: 0.55, status: "INFERRED", updatedAt: UPDATED };
+function item(
+  code: string,
+  chapter: CostLibraryItem["chapter"],
+  label: string,
+  unit: CostLibraryItem["unit"],
+  unitCost: number,
+): CostLibraryItem {
+  return {
+    code,
+    chapter,
+    label,
+    unit,
+    unitCost,
+    source: LIB,
+    confidence: 0.55,
+    status: "INFERRED",
+    updatedAt: UPDATED,
+  };
 }
 
 export const DEMO_COST_LIBRARY_SEVILLA: CostLibraryItem[] = [
@@ -28,10 +44,19 @@ export const DEMO_COST_LIBRARY_SEVILLA: CostLibraryItem[] = [
   item("ACC.01", "accessibility", "Adaptación accesibilidad (rampa, puertas, baño adaptado)", "pa", 6_500),
   item("FAC.01", "facade", "Rehabilitación de fachada (por m² de fachada)", "m2", 145),
   item("CUB.01", "roof", "Reparación / impermeabilización de cubierta", "m2", 95),
-  item("PCI.01", "fire_safety", "Protección contra incendios en local (extintores, señalización, sectorización básica)", "pa", 3_200),
+  item(
+    "PCI.01",
+    "fire_safety",
+    "Protección contra incendios en local (extintores, señalización, sectorización básica)",
+    "pa",
+    3_200,
+  ),
   item("LIM.01", "cleanup", "Limpieza final de obra", "pa", 650),
 ];
 
-export function findLibraryItem(code: string, library = DEMO_COST_LIBRARY_SEVILLA): CostLibraryItem | undefined {
+export function findLibraryItem(
+  code: string,
+  library = DEMO_COST_LIBRARY_SEVILLA,
+): CostLibraryItem | undefined {
   return library.find((i) => i.code === code);
 }

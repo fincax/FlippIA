@@ -31,5 +31,9 @@ export interface SourceAdapter {
   sourceName: string;
   kind: "manual" | "csv" | "partner" | "api" | "webhook" | "network" | "demo";
   isAvailable(): Promise<boolean>;
-  listings(filter?: { microzoneIds?: string[]; maxPrice?: number; assetUse?: OpportunityListing["assetUse"] }): Promise<OpportunityListing[]>;
+  listings(filter?: {
+    microzoneIds?: string[];
+    maxPrice?: number;
+    assetUse?: OpportunityListing["assetUse"];
+  }): Promise<OpportunityListing[]>;
 }

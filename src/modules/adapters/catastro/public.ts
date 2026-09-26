@@ -26,7 +26,9 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 3_000);
-      const res = await this.fetchImpl(`${OVC_BASE}/COVCCallejero.svc/json/ObtenerProvincias`, { signal: ctrl.signal });
+      const res = await this.fetchImpl(`${OVC_BASE}/COVCCallejero.svc/json/ObtenerProvincias`, {
+        signal: ctrl.signal,
+      });
       clearTimeout(t);
       return res.ok;
     } catch {
@@ -36,16 +38,23 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
 
   async query(input: CatastroQuery) {
     const url = buildUrl(input);
-    if (!url) return err(appError("UNSUPPORTED_QUERY", "Consulta no soportada por el servicio público del Catastro."));
+    if (!url)
+      return err(
+        appError("UNSUPPORTED_QUERY", "Consulta no soportada por el servicio público del Catastro."),
+      );
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
       const res = await this.fetchImpl(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
       clearTimeout(t);
-      if (!res.ok) return err(appError("SOURCE_HTTP_ERROR", `Catastro respondió ${res.status}.`, { status: res.status }));
+      if (!res.ok)
+        return err(
+          appError("SOURCE_HTTP_ERROR", `Catastro respondió ${res.status}.`, { status: res.status }),
+        );
       const json = (await res.json()) as unknown;
       const parsed = parseOvc(json, input);
-      if (!parsed) return err(appError("SOURCE_EMPTY", "El Catastro no devolvió inmuebles para esta consulta."));
+      if (!parsed)
+        return err(appError("SOURCE_EMPTY", "El Catastro no devolvió inmuebles para esta consulta."));
       const retrievedAt = new Date().toISOString();
       const evidence: NewEvidence[] = [
         {
@@ -57,17 +66,34 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
           retrievedAt,
           geographicScope: { level: "parcel", code: parsed.cadastralRef, label: parsed.address },
           excerpt: `Catastro: ${parsed.address} — ${parsed.builtAreaM2 ?? "?"} m², uso ${parsed.useLabel ?? "?"}, año ${parsed.yearBuilt ?? "?"}.`,
-          structuredData: { cadastralRef: parsed.cadastralRef, builtAreaM2: parsed.builtAreaM2, yearBuilt: parsed.yearBuilt, useCode: parsed.useCode },
+          structuredData: {
+            cadastralRef: parsed.cadastralRef,
+            builtAreaM2: parsed.builtAreaM2,
+            yearBuilt: parsed.yearBuilt,
+            useCode: parsed.useCode,
+          },
           confidence: 0.9,
           verificationStatus: "VERIFIED",
           demo: false,
         },
       ];
-      const response: AdapterResponse<CatastroParcelInfo> = { data: parsed, evidence, retrievedAt, mode: "public" };
+      const response: AdapterResponse<CatastroParcelInfo> = {
+        data: parsed,
+        evidence,
+        retrievedAt,
+        mode: "public",
+      };
       return ok(response);
     } catch (e) {
       logger.warn("catastro.public.query_failed", { error: e instanceof Error ? e.message : String(e) });
-      return err(appError("SOURCE_UNAVAILABLE", "No hemos podido consultar el Catastro en este momento.", undefined, e));
+      return err(
+        appError(
+          "SOURCE_UNAVAILABLE",
+          "No hemos podido consultar el Catastro en este momento.",
+          undefined,
+          e,
+        ),
+      );
     }
   }
 }
@@ -98,8 +124,10 @@ function buildUrl(q: CatastroQuery): string | null {
 }
 
 type Obj = Record<string, unknown>;
-const get = (o: unknown, ...path: string[]): unknown => path.reduce<unknown>((acc, k) => (acc && typeof acc === "object" ? (acc as Obj)[k] : undefined), o);
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : undefined);
+const get = (o: unknown, ...path: string[]): unknown =>
+  path.reduce<unknown>((acc, k) => (acc && typeof acc === "object" ? (acc as Obj)[k] : undefined), o);
+const str = (v: unknown) =>
+  typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : undefined;
 const num = (v: unknown) => {
   const n = Number(str(v));
   return Number.isFinite(n) ? n : undefined;
@@ -107,16 +135,24 @@ const num = (v: unknown) => {
 
 /** Parse the OVC JSON. Defensive: the structure differs slightly between endpoints. */
 export function parseOvc(json: unknown, q: CatastroQuery): CatastroParcelInfo | null {
-  const root = (get(json, "consulta_dnprcResult") ?? get(json, "consulta_dnplocResult") ?? get(json, "Consulta_RCCOORResult") ?? json) as Obj;
+  const root = (get(json, "consulta_dnprcResult") ??
+    get(json, "consulta_dnplocResult") ??
+    get(json, "Consulta_RCCOORResult") ??
+    json) as Obj;
   const bico = get(root, "bico");
-  const list = (get(bico, "bi") ?? get(root, "lrcdnp", "rcdnp") ?? get(root, "coordenadas", "coord")) as unknown;
+  const list = (get(bico, "bi") ??
+    get(root, "lrcdnp", "rcdnp") ??
+    get(root, "coordenadas", "coord")) as unknown;
   const items = Array.isArray(list) ? list : list ? [list] : [];
   if (items.length === 0) return null;
   const units: CatastroUnit[] = items.map((bi) => {
     const rc = get(bi, "idbi", "rc") ?? get(bi, "rc") ?? get(bi, "pc");
     const ref = ["pc1", "pc2", "car", "cc1", "cc2"].map((k) => str(get(rc, k)) ?? "").join("");
     const dir = get(bi, "dt", "locs", "lous", "lourb", "dir") ?? get(bi, "dt", "locs", "lous", "lourb");
-    const address = [str(get(dir, "tv")), str(get(dir, "nv")), str(get(dir, "pnp"))].filter(Boolean).join(" ") || str(get(bi, "ldt")) || "";
+    const address =
+      [str(get(dir, "tv")), str(get(dir, "nv")), str(get(dir, "pnp"))].filter(Boolean).join(" ") ||
+      str(get(bi, "ldt")) ||
+      "";
     const loint = get(bi, "dt", "locs", "lous", "lourb", "loint");
     const useCode = str(get(bi, "debi", "luso"))?.charAt(0);
     return {
@@ -134,7 +170,8 @@ export function parseOvc(json: unknown, q: CatastroQuery): CatastroParcelInfo | 
   return {
     cadastralRef: q.kind === "cadastralRef" ? q.cadastralRef.toUpperCase() : first.cadastralRef,
     address: first.address,
-    municipality: str(get(root, "bico", "bi", "dt", "nm")) ?? (q.kind === "address" ? q.municipality : "SEVILLA"),
+    municipality:
+      str(get(root, "bico", "bi", "dt", "nm")) ?? (q.kind === "address" ? q.municipality : "SEVILLA"),
     province: str(get(root, "bico", "bi", "dt", "np")) ?? "SEVILLA",
     coordinates: q.kind === "point" ? q.point : undefined,
     builtAreaM2: first.builtAreaM2 || undefined,

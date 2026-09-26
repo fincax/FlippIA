@@ -17,7 +17,12 @@ export interface AppError {
 export const ok = <T>(value: T): Ok<T> => ({ ok: true, value });
 export const err = <E = AppError>(error: E): Err<E> => ({ ok: false, error });
 
-export function appError(code: string, message: string, details?: Record<string, unknown>, cause?: unknown): AppError {
+export function appError(
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+  cause?: unknown,
+): AppError {
   return { code, message, details, cause };
 }
 

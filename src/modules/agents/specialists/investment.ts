@@ -1,4 +1,11 @@
-import type { ArchitectureAssessment, FinanceAssessment, MarketAssessment, PropertyProfile, StrategyResult, UrbanismAssessment } from "@/modules/analysis/types";
+import type {
+  ArchitectureAssessment,
+  FinanceAssessment,
+  MarketAssessment,
+  PropertyProfile,
+  StrategyResult,
+  UrbanismAssessment,
+} from "@/modules/analysis/types";
 import { computeMaximumAcquisitionPrice, runStressTest } from "@/modules/engines/financial";
 import { buildScenarioSet } from "@/modules/engines/scenario";
 import type { InvestorDNA } from "@/modules/investor/types";
@@ -35,10 +42,20 @@ export function strategiesAgent(investor: InvestorDNA): AgentDefinition<Strategy
         const ev = plugin.evaluate(sctx);
         if (!ev) continue;
         ctx.progress(`Escenarios: ${plugin.label}`);
-        const scenarioSet = buildScenarioSet({ dealId: ctx.dealId ?? "pending", strategyId: plugin.id, base: ev.inputs, assumptions: ev.assumptions, now: new Date(ctx.analysisDate) });
+        const scenarioSet = buildScenarioSet({
+          dealId: ctx.dealId ?? "pending",
+          strategyId: plugin.id,
+          base: ev.inputs,
+          assumptions: ev.assumptions,
+          now: new Date(ctx.analysisDate),
+        });
         const base = scenarioSet.scenarios.find((s) => s.kind === "base")!.result!;
         const stress = runStressTest(ev.inputs, { minimumProfit: 0 });
-        const maxPrice = computeMaximumAcquisitionPrice(ev.inputs, { minimumRoe: investor.targetRoe, minimumProfit: investor.targetProfit, maximumCapital: investor.maxEquityPerDeal });
+        const maxPrice = computeMaximumAcquisitionPrice(ev.inputs, {
+          minimumRoe: investor.targetRoe,
+          minimumProfit: investor.targetProfit,
+          maximumCapital: investor.maxEquityPerDeal,
+        });
         results.push({
           id: plugin.id,
           label: plugin.label,

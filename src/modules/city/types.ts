@@ -38,7 +38,15 @@ export interface CityUrbanismProfile {
   authority: string;
   authorityUrl: string;
   /** Zoning ordinance code → human label + parameters. */
-  zoningCatalogue: Record<string, { label: string; maxFloors: number; groundFloorResidential: "allowed" | "conditioned" | "forbidden"; notes: string }>;
+  zoningCatalogue: Record<
+    string,
+    {
+      label: string;
+      maxFloors: number;
+      groundFloorResidential: "allowed" | "conditioned" | "forbidden";
+      notes: string;
+    }
+  >;
 }
 
 export interface CityProfile {

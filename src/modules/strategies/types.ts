@@ -1,5 +1,13 @@
 import type { CityProfile } from "@/modules/city/types";
-import type { ArchitectureAssessment, FinanceAssessment, MarketAssessment, PropertyProfile, RequiredCheck, StrategyApplicability, UrbanismAssessment } from "@/modules/analysis/types";
+import type {
+  ArchitectureAssessment,
+  FinanceAssessment,
+  MarketAssessment,
+  PropertyProfile,
+  RequiredCheck,
+  StrategyApplicability,
+  UrbanismAssessment,
+} from "@/modules/analysis/types";
 import type { RenovationEstimate, RenovationLevel } from "@/modules/engines/construction";
 import type { FinancialInputs } from "@/modules/engines/financial";
 import type { Assumption } from "@/modules/engines/scenario/types";

@@ -6,7 +6,12 @@ import type { AgentRunRecord } from "@/modules/agents/runtime/types";
 import type { Microzone } from "@/modules/city/types";
 import type { Confidence, EvidenceStatus } from "@/modules/core/evidence-status";
 import type { RenovationEstimate, RenovationLevel } from "@/modules/engines/construction";
-import type { FinancialInputs, FinancingInstrument, MaxPriceResult, StressReport } from "@/modules/engines/financial";
+import type {
+  FinancialInputs,
+  FinancingInstrument,
+  MaxPriceResult,
+  StressReport,
+} from "@/modules/engines/financial";
 import type { ScenarioSet } from "@/modules/engines/scenario/types";
 import type { ValuationResult } from "@/modules/engines/valuation/types";
 import type { Evidence } from "@/modules/evidence/types";
@@ -18,7 +23,15 @@ import type { RegulatorySnapshot, RegulatoryTopic } from "@/modules/regulatory/t
 export interface PropertyProfile {
   property: Property;
   microzone: Microzone;
-  cadastral: { found: boolean; cadastralRef?: string; builtAreaM2?: number; yearBuilt?: number; useLabel?: string; accessLevel?: "public" | "protected"; mode: string };
+  cadastral: {
+    found: boolean;
+    cadastralRef?: string;
+    builtAreaM2?: number;
+    yearBuilt?: number;
+    useLabel?: string;
+    accessLevel?: "public" | "protected";
+    mode: string;
+  };
   askingPrice: number;
   askingPriceSource: "user" | "listing" | "estimated";
   summary: string;
@@ -183,7 +196,16 @@ export interface OpportunityGap {
 }
 
 export interface DnaDimension {
-  key: "acquisition" | "market" | "transformation" | "urbanism" | "architecture" | "finance" | "execution" | "liquidity" | "risk";
+  key:
+    | "acquisition"
+    | "market"
+    | "transformation"
+    | "urbanism"
+    | "architecture"
+    | "finance"
+    | "execution"
+    | "liquidity"
+    | "risk";
   label: string;
   score: number; // 0..100
   explanation: string;
@@ -191,7 +213,12 @@ export interface DnaDimension {
 
 export interface OpportunityDNA {
   dimensions: DnaDimension[];
-  composite: { score: number; formula: string; weights: Record<DnaDimension["key"], number>; uncertainty: string };
+  composite: {
+    score: number;
+    formula: string;
+    weights: Record<DnaDimension["key"], number>;
+    uncertainty: string;
+  };
 }
 
 export interface InvestmentSynthesis {

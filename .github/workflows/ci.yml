@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: flippia
+          POSTGRES_PASSWORD: flippia
+          POSTGRES_DB: flippia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U flippia" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://flippia:flippia@localhost:5432/flippia
+      DATABASE_URL_TEST: postgres://flippia:flippia@localhost:5432/flippia_test
+      APP_SECRET: ci-secret-at-least-32-characters-long
+      DEMO_MODE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: PGPASSWORD=flippia psql -h localhost -U flippia -d flippia -c "CREATE DATABASE flippia_test"
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build

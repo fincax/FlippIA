@@ -1,6 +1,7 @@
 import type { EvidenceStatus } from "@/modules/core/evidence-status";
 
-export type CostStage = "estimate" | "professional_budget" | "accepted_budget" | "committed" | "invoiced" | "paid";
+export type CostStage =
+  "estimate" | "professional_budget" | "accepted_budget" | "committed" | "invoiced" | "paid";
 
 export type WorkChapter =
   | "demolition"

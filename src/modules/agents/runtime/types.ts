@@ -67,14 +67,43 @@ export interface Budget {
   maxRetries: number;
 }
 
-export const DEFAULT_BUDGET: Budget = { maxAgents: 60, maxTotalMs: 90_000, maxAgentMs: 20_000, maxRetries: 1 };
+export const DEFAULT_BUDGET: Budget = {
+  maxAgents: 60,
+  maxTotalMs: 90_000,
+  maxAgentMs: 20_000,
+  maxRetries: 1,
+};
 
 export type AnalysisEvent =
-  | { type: "run.started"; analysisId: string; at: string; plan: Array<{ type: string; label: string; domain: AgentDomain; dependsOn: string[] }> }
+  | {
+      type: "run.started";
+      analysisId: string;
+      at: string;
+      plan: Array<{ type: string; label: string; domain: AgentDomain; dependsOn: string[] }>;
+    }
   | { type: "task.started"; analysisId: string; at: string; task: string; label: string; domain: AgentDomain }
   | { type: "task.progress"; analysisId: string; at: string; task: string; message: string }
-  | { type: "task.completed"; analysisId: string; at: string; task: string; label: string; domain: AgentDomain; latencyMs: number; summary?: string; partial?: unknown }
-  | { type: "task.failed"; analysisId: string; at: string; task: string; label: string; domain: AgentDomain; error: string; fatal: boolean }
+  | {
+      type: "task.completed";
+      analysisId: string;
+      at: string;
+      task: string;
+      label: string;
+      domain: AgentDomain;
+      latencyMs: number;
+      summary?: string;
+      partial?: unknown;
+    }
+  | {
+      type: "task.failed";
+      analysisId: string;
+      at: string;
+      task: string;
+      label: string;
+      domain: AgentDomain;
+      error: string;
+      fatal: boolean;
+    }
   | { type: "task.skipped"; analysisId: string; at: string; task: string; label: string; reason: string }
   | { type: "run.completed"; analysisId: string; at: string; durationMs: number }
   | { type: "run.failed"; analysisId: string; at: string; error: string };

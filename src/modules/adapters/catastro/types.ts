@@ -2,7 +2,14 @@ import type { LatLng } from "@/modules/city/types";
 
 export type CatastroQuery =
   | { kind: "cadastralRef"; cadastralRef: string; municipality?: string; province?: string }
-  | { kind: "address"; municipality: string; province: string; streetType?: string; street: string; number: string }
+  | {
+      kind: "address";
+      municipality: string;
+      province: string;
+      streetType?: string;
+      street: string;
+      number: string;
+    }
   | { kind: "point"; point: LatLng };
 
 export interface CatastroUnit {

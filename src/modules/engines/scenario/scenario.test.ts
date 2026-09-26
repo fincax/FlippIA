@@ -21,7 +21,12 @@ describe("paths", () => {
 });
 
 describe("scenario set", () => {
-  const set = buildScenarioSet({ dealId: "deal_x", strategyId: "flip", base: baseSaleInputs(), assumptions: [] });
+  const set = buildScenarioSet({
+    dealId: "deal_x",
+    strategyId: "flip",
+    base: baseSaleInputs(),
+    assumptions: [],
+  });
 
   it("creates base + three standard scenarios, all computed", () => {
     expect(set.scenarios.map((s) => s.kind)).toEqual(["base", "optimistic", "conservative", "stress"]);
@@ -56,7 +61,9 @@ describe("scenario set", () => {
   it("what-if does not mutate the set", () => {
     const before = JSON.stringify(set);
     const wi = evaluateWhatIf(set, { "transformation.renovationBudget": 55_000 });
-    expect(wi.result.metrics.netProfit.value!).toBeLessThan(set.scenarios[0]!.result!.metrics.netProfit.value!);
+    expect(wi.result.metrics.netProfit.value!).toBeLessThan(
+      set.scenarios[0]!.result!.metrics.netProfit.value!,
+    );
     expect(JSON.stringify(set)).toBe(before);
   });
   it("compare returns a row per scenario", () => {

@@ -35,10 +35,14 @@ describe("parseIntake", () => {
   });
   it("detects coordinates and urls", () => {
     expect(parseIntake("37.3839, -6.0055").property?.coordinates).toEqual({ lat: 37.3839, lng: -6.0055 });
-    expect(parseIntake("https://example.com/listing/123").property?.url).toBe("https://example.com/listing/123");
+    expect(parseIntake("https://example.com/listing/123").property?.url).toBe(
+      "https://example.com/listing/123",
+    );
   });
   it("parses reverse investing", () => {
-    const r = parseIntake("Tengo 300.000 €. Quiero aportar máximo 120.000 €. Sevilla. Horizonte inferior a 12 meses. Quiero estudiar operaciones con 40.000 € de potencial.");
+    const r = parseIntake(
+      "Tengo 300.000 €. Quiero aportar máximo 120.000 €. Sevilla. Horizonte inferior a 12 meses. Quiero estudiar operaciones con 40.000 € de potencial.",
+    );
     expect(r.intent).toBe("capital_available");
     expect(r.investor?.capital).toBe(300_000);
     expect(r.investor?.maxEquity).toBe(120_000);

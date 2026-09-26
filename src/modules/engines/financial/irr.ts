@@ -2,7 +2,10 @@
  * IRR over periodic cash flows (index = period). Robust hybrid: bisection with
  * bracketing, then Newton refinement. Returns null when no sign change exists.
  */
-export function irr(cashflows: readonly number[], opts: { maxIterations?: number; tolerance?: number } = {}): number | null {
+export function irr(
+  cashflows: readonly number[],
+  opts: { maxIterations?: number; tolerance?: number } = {},
+): number | null {
   const maxIterations = opts.maxIterations ?? 200;
   const tolerance = opts.tolerance ?? 1e-9;
   const hasNeg = cashflows.some((c) => c < 0);

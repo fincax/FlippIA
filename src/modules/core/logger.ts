@@ -22,7 +22,10 @@ export interface Logger {
 function write(level: LogLevel, msg: string, ctx: Record<string, unknown>) {
   if (LEVELS[level] < LEVELS[configuredLevel()]) return;
   const record = { ts: new Date().toISOString(), level, msg, ...ctx };
-  const line = process.env.NODE_ENV === "production" ? JSON.stringify(record) : `[${level}] ${msg} ${Object.keys(ctx).length ? JSON.stringify(ctx) : ""}`;
+  const line =
+    process.env.NODE_ENV === "production"
+      ? JSON.stringify(record)
+      : `[${level}] ${msg} ${Object.keys(ctx).length ? JSON.stringify(ctx) : ""}`;
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   // eslint-disable-next-line no-console

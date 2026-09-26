@@ -72,7 +72,11 @@ export function estimateValue(params: {
     let factor = 1;
     if (c.type === "asking") {
       const f = 1 - adj.askingDiscount;
-      adjustments.push({ key: "asking", factor: f, note: `Precio de oferta: descuento de negociación ${Math.round(adj.askingDiscount * 100)} %.` });
+      adjustments.push({
+        key: "asking",
+        factor: f,
+        note: `Precio de oferta: descuento de negociación ${Math.round(adj.askingDiscount * 100)} %.`,
+      });
       factor *= f;
     }
     // Condition: bring every comparable to the target condition.
@@ -80,7 +84,11 @@ export function estimateValue(params: {
     const compAdj = adj.conditionAdjustment[c.condition];
     if (compAdj !== targetAdj) {
       const f = (1 + compAdj) / (1 + targetAdj);
-      adjustments.push({ key: "condition", factor: round2(f), note: `Estado ${c.condition} → ${params.targetCondition}.` });
+      adjustments.push({
+        key: "condition",
+        factor: round2(f),
+        note: `Estado ${c.condition} → ${params.targetCondition}.`,
+      });
       factor *= f;
     }
     if (adj.annualDrift !== 0 && age > 0) {
@@ -96,7 +104,17 @@ export function estimateValue(params: {
     const ageWeight = 1 - Math.min(1, age / adj.maxAgeMonths) * 0.4;
     const sizeWeight = sizeRatio > 1.6 || sizeRatio < 0.6 ? 0.5 : 1;
     const weight = round2(TYPE_WEIGHT[c.type] * distanceWeight * ageWeight * sizeWeight);
-    used.push({ id: c.id, type: c.type, rawPricePerM2: round0(raw), adjustedPricePerM2: round0(raw * factor), weight, adjustments, distanceM: c.distanceM, date: c.date, demo: c.demo ?? false });
+    used.push({
+      id: c.id,
+      type: c.type,
+      rawPricePerM2: round0(raw),
+      adjustedPricePerM2: round0(raw * factor),
+      weight,
+      adjustments,
+      distanceM: c.distanceM,
+      date: c.date,
+      demo: c.demo ?? false,
+    });
   }
 
   if (used.length === 0) {
@@ -108,7 +126,10 @@ export function estimateValue(params: {
       comparablesUsed: [],
       comparablesRejected: rejected,
       methodology: "Sin comparables válidos dentro de los criterios de distancia y antigüedad.",
-      confidence: buildConfidence([{ key: "quantity", weight: 1, score: 0, note: "0 comparables." }], "No hay evidencia suficiente para valorar."),
+      confidence: buildConfidence(
+        [{ key: "quantity", weight: 1, score: 0, note: "0 comparables." }],
+        "No hay evidencia suficiente para valorar.",
+      ),
       status: "UNKNOWN",
       analysisDate: params.analysisDate,
     };
@@ -119,7 +140,9 @@ export function estimateValue(params: {
   const point = weightedQuantile(values, 0.5);
   const high = weightedQuantile(values, 0.75);
   const n = used.length;
-  const transactional = used.filter((u) => u.type === "transaction" || u.type === "verified" || u.type === "professional").length;
+  const transactional = used.filter(
+    (u) => u.type === "transaction" || u.type === "verified" || u.type === "professional",
+  ).length;
   const spread = point > 0 ? (high - low) / point : 1;
   const avgAge = used.reduce((a, u) => a + monthsBetween(u.date, params.analysisDate), 0) / n;
   const demoShare = used.filter((u) => u.demo).length / n;
@@ -127,10 +150,30 @@ export function estimateValue(params: {
   const confidence = buildConfidence(
     [
       { key: "quantity", weight: 2, score: Math.min(1, n / 8), note: `${n} comparables utilizados.` },
-      { key: "sourceQuality", weight: 3, score: n ? transactional / n : 0, note: `${transactional} de ${n} son transacciones o valoraciones verificadas; el resto son precios de oferta.` },
-      { key: "consistency", weight: 2, score: Math.max(0, 1 - spread * 2), note: `Dispersión intercuartílica ${Math.round(spread * 100)} %.` },
-      { key: "recency", weight: 1, score: Math.max(0, 1 - avgAge / adj.maxAgeMonths), note: `Antigüedad media ${Math.round(avgAge)} meses.` },
-      { key: "verification", weight: 2, score: demoShare > 0 ? 0.1 : 0.6, note: demoShare > 0 ? "Incluye comparables DEMO sintéticos." : "Sin verificación profesional." },
+      {
+        key: "sourceQuality",
+        weight: 3,
+        score: n ? transactional / n : 0,
+        note: `${transactional} de ${n} son transacciones o valoraciones verificadas; el resto son precios de oferta.`,
+      },
+      {
+        key: "consistency",
+        weight: 2,
+        score: Math.max(0, 1 - spread * 2),
+        note: `Dispersión intercuartílica ${Math.round(spread * 100)} %.`,
+      },
+      {
+        key: "recency",
+        weight: 1,
+        score: Math.max(0, 1 - avgAge / adj.maxAgeMonths),
+        note: `Antigüedad media ${Math.round(avgAge)} meses.`,
+      },
+      {
+        key: "verification",
+        weight: 2,
+        score: demoShare > 0 ? 0.1 : 0.6,
+        note: demoShare > 0 ? "Incluye comparables DEMO sintéticos." : "Sin verificación profesional.",
+      },
     ],
     "Mediana ponderada de €/m² ajustados; rango = cuartiles 25–75 ponderados.",
   );
@@ -140,7 +183,11 @@ export function estimateValue(params: {
   return {
     targetCondition: params.targetCondition,
     pricePerM2: { low: round0(low), point: round0(point), high: round0(high) },
-    value: { low: round0(low * params.areaM2), point: round0(point * params.areaM2), high: round0(high * params.areaM2) },
+    value: {
+      low: round0(low * params.areaM2),
+      point: round0(point * params.areaM2),
+      high: round0(high * params.areaM2),
+    },
     areaM2: params.areaM2,
     comparablesUsed: used.sort((a, b) => b.weight - a.weight),
     comparablesRejected: rejected,
