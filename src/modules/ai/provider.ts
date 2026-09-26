@@ -1,3 +1,4 @@
+import { envNumber } from "@/modules/core/env-number";
 /**
  * AI provider abstraction. Business logic never depends on a vendor SDK.
  * The deterministic provider keeps the whole product working without keys:
@@ -40,7 +41,7 @@ export class DeterministicProvider implements AIProvider {
   }
 }
 
-const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS ?? 15_000);
+const AI_TIMEOUT_MS = envNumber("AI_TIMEOUT_MS", 15_000);
 
 export class AnthropicProvider implements AIProvider {
   id = "anthropic";
@@ -48,7 +49,7 @@ export class AnthropicProvider implements AIProvider {
   constructor(
     private readonly apiKey: string,
     public readonly model = process.env.AI_MODEL ?? "claude-sonnet-5",
-    private readonly defaultMaxTokens = Number(process.env.AI_MAX_TOKENS ?? 1200),
+    private readonly defaultMaxTokens = envNumber("AI_MAX_TOKENS", 1200),
   ) {}
 
   private client?: import("@anthropic-ai/sdk").default;

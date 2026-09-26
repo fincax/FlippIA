@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { envNumber } from "@/modules/core/env-number";
 import * as schema from "./schema";
 
 export type Database = ReturnType<typeof createDb>;
@@ -22,7 +23,7 @@ export function createDb(url: string) {
         ? "require"
         : false;
   const client = postgres(url, {
-    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    max: envNumber("DATABASE_POOL_MAX", 10),
     prepare: false,
     idle_timeout: 20,
     connect_timeout: 10,
