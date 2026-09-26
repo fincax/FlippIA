@@ -69,7 +69,7 @@ export interface Budget {
 
 export const DEFAULT_BUDGET: Budget = {
   maxAgents: 60,
-  maxTotalMs: 90_000,
+  maxTotalMs: 150_000,
   maxAgentMs: 20_000,
   maxRetries: 1,
 };

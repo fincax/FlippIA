@@ -18,6 +18,8 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
   description: "Consulta el Catastro (modo configurado) y consolida el perfil del activo.",
   dependsOn: ["opportunity.intake"],
   critical: true,
+  /** Public sources chain several OVC calls (address → numerero → units → coordinates). */
+  timeoutMs: 40_000,
   async run(ctx) {
     const { draft, intake } = output<IntakeResolution>(ctx, "opportunity.intake");
     const q: CatastroQuery | null = draft.cadastralRef

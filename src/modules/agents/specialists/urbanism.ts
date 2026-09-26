@@ -56,6 +56,8 @@ export const planningAgent: AgentDefinition<{
   domain: "urbanism",
   description: "Consulta calificación, ordenanza y protección de la parcela.",
   dependsOn: ["data.catastro", "regulatory.snapshot"],
+  /** Public geoservices: ten layers in parallel, some of them slow. */
+  timeoutMs: 45_000,
   async run(ctx) {
     const profile = output<PropertyProfile>(ctx, "data.catastro");
     const res = await ctx.tool("urbanism.query", { microzoneId: profile.microzone.id }, () =>

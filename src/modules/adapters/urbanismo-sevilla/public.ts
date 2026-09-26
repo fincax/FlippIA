@@ -16,7 +16,7 @@ import {
 } from "./public-config";
 import type { PlanningInfo, ProtectionLevel, UrbanismQuery } from "./types";
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 12_000;
 /** Second attempt radius when nothing intersects the exact point (points geocoded on the street). */
 const TOLERANCE_M = 8;
 /** Roles retried with the tolerance radius. */
@@ -165,6 +165,8 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
       } catch (e) {
         lastError = e instanceof Error ? e.message : String(e);
         logger.warn("urbanism.public.layer_failed", { role, layer: layer.label, attempt, error: lastError });
+        // A timed-out layer will not answer faster the second time: give it up.
+        if (/abort/i.test(lastError)) break;
       }
     }
     return { role, layer, features: [], error: lastError };

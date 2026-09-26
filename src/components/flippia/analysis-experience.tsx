@@ -197,6 +197,12 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
           style={{ width: tasks.length ? `${(completed / tasks.length) * 100}%` : "4%" }}
         />
       </div>
+      {status === "connecting" || (status === "running" && tasks.length === 0) ? (
+        <p className="mt-4 text-sm text-fg-2" role="status">
+          Preparando el análisis. Las fuentes públicas del Catastro y de la Gerencia de Urbanismo pueden
+          tardar hasta un minuto en responder.
+        </p>
+      ) : null}
       <div className="mt-6">
         <AgentActivity tasks={tasks} />
       </div>

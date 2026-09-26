@@ -20,10 +20,10 @@ import { getInvestorDNA } from "@/server/services/investor";
 const schema = z.object({ text: z.string().min(2).max(2000), dealId: z.string().optional() });
 
 export const dynamic = "force-dynamic";
-/** Upper bound for serverless hosts; the agent runtime's own budget is 90 s. */
-export const maxDuration = 120;
+/** Upper bound for serverless hosts; the agent runtime's own budget is 150 s. */
+export const maxDuration = 180;
 
-/** Concurrent analyses per organization (the hourly limit alone lets one org hold many 90 s runs). */
+/** Concurrent analyses per organization (the hourly limit alone lets one org hold many long runs). */
 const MAX_CONCURRENT_PER_ORG = 3;
 
 /**
