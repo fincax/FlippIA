@@ -31,7 +31,7 @@ export function MaxPricePanel({
   };
   return (
     <Surface className="p-5">
-      <SectionTitle kicker="Maximum acquisition price">¿Hasta cuánto puedo pagar?</SectionTitle>
+      <SectionTitle kicker="Precio máximo de adquisición">¿Hasta cuánto puedo pagar?</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 items-end">
         <Field label="Estrategia" className="lg:col-span-2">
           <Select value={strategyId} onChange={(e) => setStrategyId(e.target.value)}>

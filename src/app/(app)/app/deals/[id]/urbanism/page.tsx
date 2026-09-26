@@ -11,7 +11,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       <Surface className="p-5">
-        <SectionTitle kicker="Urbanism Orchestrator" right={<EvidenceBadge status={u.status} />}>
+        <SectionTitle kicker="Orquestador de urbanismo" right={<EvidenceBadge status={u.status} />}>
           Planeamiento y protección
         </SectionTitle>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-[13px]">
@@ -45,7 +45,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
         <p className="mt-4 text-[12px] text-fg-3">{u.planning.notes.join(" ")}</p>
       </Surface>
       <Surface className="p-5">
-        <SectionTitle kicker="UrbanCheck">Hallazgos</SectionTitle>
+        <SectionTitle kicker="Comprobación urbanística">Hallazgos</SectionTitle>
         <ul className="space-y-3">
           {u.findings.map((f) => (
             <li key={f.key} className="flex gap-3 items-start">
@@ -69,7 +69,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
         </ul>
       </Surface>
       <Surface className="p-5">
-        <SectionTitle kicker="Human in the loop">Comprobaciones requeridas</SectionTitle>
+        <SectionTitle kicker="Revisión humana">Comprobaciones requeridas</SectionTitle>
         <ul className="space-y-2">
           {u.requiredChecks.map((c) => (
             <li key={c.key} className="flex gap-3 items-start text-[13px]">
@@ -87,7 +87,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
         </ul>
       </Surface>
       <Surface className="p-5">
-        <SectionTitle kicker="Regulatory Snapshot" right={<Badge>{analysis.regulatory.fingerprint}</Badge>}>
+        <SectionTitle kicker="Instantánea normativa" right={<Badge>{analysis.regulatory.fingerprint}</Badge>}>
           Normativa aplicada
         </SectionTitle>
         <p className="text-[13px] text-fg-2 mb-3">{regulatoryPreamble(analysis.regulatory)}</p>

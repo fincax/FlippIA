@@ -12,7 +12,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       <Surface className="p-5">
-        <SectionTitle kicker="Source status">Fuentes consultadas</SectionTitle>
+        <SectionTitle kicker="Estado de las fuentes">Fuentes consultadas</SectionTitle>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-[13px]">
           {analysis.sources.map((s) => (
             <div key={s.sourceId} className="rounded-[var(--radius-md)] border border-line p-3">

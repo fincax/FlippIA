@@ -95,7 +95,7 @@ export default async function FinancePage({ params }: { params: Promise<{ id: st
       ) : null}
       <Surface className="p-5">
         <SectionTitle
-          kicker="FlippIA Funding"
+          kicker="Financiación FlippIA"
           right={analysis.finance.demo ? <Badge tone="warning">DEMO</Badge> : null}
         >
           Smart Capital Stack

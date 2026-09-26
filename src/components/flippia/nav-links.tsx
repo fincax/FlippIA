@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 export const NAV = [
-  { href: "/app", label: "Pulse", short: "Pulse", icon: "◉" },
+  { href: "/app", label: "Pulso", short: "Pulso", icon: "◉" },
   { href: "/app/deals", label: "Deals", short: "Deals", icon: "▤" },
   { href: "/app/radar", label: "Radar", short: "Radar", icon: "◎" },
   { href: "/app/watch", label: "Vigilancia", short: "Vigilar", icon: "◷" },

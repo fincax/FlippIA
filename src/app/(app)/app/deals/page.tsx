@@ -11,7 +11,7 @@ export default async function DealsPage() {
   const deals = await listDeals(ctx, 100);
   return (
     <div>
-      <SectionTitle kicker="Portfolio">Deals</SectionTitle>
+      <SectionTitle kicker="Cartera">Deals</SectionTitle>
       {deals.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {deals.map((d) => (

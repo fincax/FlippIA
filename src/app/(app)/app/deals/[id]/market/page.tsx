@@ -16,7 +16,7 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Surface className="p-5">
           <SectionTitle
-            kicker="Market Orchestrator"
+            kicker="Orquestador de mercado"
             right={
               <span className="flex gap-1">
                 <EvidenceBadge status={m.status} />

@@ -26,7 +26,7 @@ export default async function ObservabilityPage() {
   return (
     <div className="space-y-8">
       <div>
-        <SectionTitle kicker="Agent observability">La organización agéntica</SectionTitle>
+        <SectionTitle kicker="Observabilidad de agentes">La organización agéntica</SectionTitle>
         <p className="text-sm text-fg-2 max-w-3xl">
           Cada análisis es un plan de agentes con dependencias, presupuesto de tiempo y reintentos. Aquí se ve
           qué se ejecuta, cuánto tarda, qué falla y qué evidencia genera.

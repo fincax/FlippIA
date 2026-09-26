@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-10">
       <section className="anim-rise">
-        <Kicker>FlippIA Pulse</Kicker>
+        <Kicker>Pulso FlippIA</Kicker>
         <h1 className="font-display text-3xl md:text-4xl mt-1">
           {p.greeting} {session.user.name.split(" ")[0]}.
         </h1>

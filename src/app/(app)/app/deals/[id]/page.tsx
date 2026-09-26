@@ -84,14 +84,16 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
           ) : null}
 
           <Surface className="p-5">
-            <SectionTitle kicker="Opportunity Gap">Lo que es hoy y lo que puede llegar a ser</SectionTitle>
+            <SectionTitle kicker="Diferencial de oportunidad">
+              Lo que es hoy y lo que puede llegar a ser
+            </SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-end">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.14em] text-fg-3">Valor actual</div>
                 <div className="font-display text-2xl num">{formatMoney(analysis.gap.currentValue)}</div>
               </div>
               <div className="sm:text-center">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-accent">Gap</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-accent">Diferencial</div>
                 <div className="font-display text-3xl num text-accent">
                   <Money value={analysis.gap.gap} signed />
                 </div>
@@ -127,7 +129,7 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
         <aside className="space-y-8">
           <Surface className="p-5">
             <SectionTitle
-              kicker="Opportunity DNA"
+              kicker="ADN de la oportunidad"
               right={<Badge tone="accent">{analysis.dna.composite.score}/100</Badge>}
             >
               Nueve dimensiones

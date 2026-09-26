@@ -13,7 +13,7 @@ export function MagicPanel({ dealId }: { dealId: string }) {
   return (
     <Surface className="p-5 no-print">
       <SectionTitle
-        kicker="Discover potential"
+        kicker="Descubrir el potencial"
         right={
           <Button
             variant="accent"

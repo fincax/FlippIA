@@ -11,7 +11,7 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-6">
       <Surface className="p-5">
-        <SectionTitle kicker="Architecture Orchestrator" right={<EvidenceBadge status={a.status} />}>
+        <SectionTitle kicker="Orquestador de arquitectura" right={<EvidenceBadge status={a.status} />}>
           Programa actual
         </SectionTitle>
         <div className="text-sm text-fg-2">

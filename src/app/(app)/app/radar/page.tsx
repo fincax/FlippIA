@@ -47,7 +47,7 @@ export default async function RadarPage({
     <div className="space-y-8">
       <div>
         <SectionTitle
-          kicker="FlippIA Radar"
+          kicker="Radar FlippIA"
           right={
             <Link href="/app/onboarding" className="text-sm text-fg-2 hover:text-fg">
               Ajustar Investor DNA →
@@ -66,7 +66,7 @@ export default async function RadarPage({
       </div>
       {focus && focusAutopsy ? (
         <Surface raised className="p-5 border-accent/40">
-          <SectionTitle kicker="Opportunity autopsy">{focus.listing.title}</SectionTitle>
+          <SectionTitle kicker="Autopsia de la oportunidad">{focus.listing.title}</SectionTitle>
           <div className="text-sm">
             <div className="text-fg">{focusAutopsy.headline}</div>
             {focusAutopsy.reasons.length ? (
@@ -181,7 +181,7 @@ function HitCard({ hit }: { hit: Hit }) {
           <span className="num">{u.durationMonths} m</span>
         </div>
         <div>
-          <div className="text-fg-3">Gap</div>
+          <div className="text-fg-3">Diferencial</div>
           <Money value={u.opportunityGap} />
         </div>
       </div>

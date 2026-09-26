@@ -232,7 +232,7 @@ export function ScenarioPanel({
           ) : null}
         </Surface>
         <Surface className="p-5 no-print">
-          <SectionTitle kicker="What if?">Cambia una variable</SectionTitle>
+          <SectionTitle kicker="¿Y si…?">Cambia una variable</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
             <Field label="Variable">
               <Select value={whatIfPath} onChange={(e) => setWhatIfPath(e.target.value)}>

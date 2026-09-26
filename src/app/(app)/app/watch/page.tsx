@@ -24,7 +24,7 @@ export default async function WatchPage() {
   return (
     <div className="space-y-8">
       <div>
-        <SectionTitle kicker="Smart Watcher" right={<WatchActions />}>
+        <SectionTitle kicker="Vigilancia inteligente" right={<WatchActions />}>
           Vigilancia
         </SectionTitle>
         <p className="text-sm text-fg-2 max-w-3xl">

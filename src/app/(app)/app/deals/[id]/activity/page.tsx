@@ -11,7 +11,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       <Surface className="p-5">
-        <SectionTitle kicker="Deal timeline">Actividad</SectionTitle>
+        <SectionTitle kicker="Cronología del deal">Actividad</SectionTitle>
         <ol className="relative border-l border-line ml-2 space-y-4">
           {items.map((a) => (
             <li key={a.id} className="pl-4">
@@ -26,7 +26,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       </Surface>
       {analysis ? (
         <Surface className="p-5">
-          <SectionTitle kicker="Agent observability">Ejecución del análisis</SectionTitle>
+          <SectionTitle kicker="Observabilidad de agentes">Ejecución del análisis</SectionTitle>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>

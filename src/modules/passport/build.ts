@@ -252,7 +252,7 @@ export function buildPassport(
         level === "verified"
           ? "FlippIA Verified"
           : level === "ai_precheck"
-            ? "AI pre-check"
+            ? "Pre-check IA"
             : `Revisión ${level}`,
       meaning: meaning[level],
       reviews,

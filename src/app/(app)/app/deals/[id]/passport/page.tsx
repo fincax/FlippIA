@@ -76,7 +76,7 @@ export default async function PassportPage({ params }: { params: Promise<{ id: s
         </Surface>
       ))}
       <Surface className="p-5 no-print">
-        <SectionTitle kicker="Human in the loop" right={<Badge>{reviews.length} revisiones</Badge>}>
+        <SectionTitle kicker="Revisión humana" right={<Badge>{reviews.length} revisiones</Badge>}>
           Registrar revisión
         </SectionTitle>
         <ReviewForm dealId={id} analysisId={analysis.id} />
