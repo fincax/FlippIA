@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateRenovation, quantitiesFor } from "./estimate";
+import { ConstructionEngineError, estimateRenovation, quantitiesFor } from "./estimate";
 
 describe("construction estimate", () => {
   it("scales with area and level", () => {
@@ -25,6 +25,16 @@ describe("construction estimate", () => {
     const e = estimateRenovation({ areaM2: 90, level: "integral", bathrooms: 1, bedrooms: 3 });
     expect(e.costPerM2).toBeGreaterThan(500);
     expect(e.costPerM2).toBeLessThan(1_300);
+  });
+  it("rejects a non-positive or non-finite area", () => {
+    for (const areaM2 of [0, -10, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => estimateRenovation({ areaM2, level: "medium", bathrooms: 1, bedrooms: 2 })).toThrow(
+        ConstructionEngineError,
+      );
+      expect(() => quantitiesFor({ areaM2, level: "medium", bathrooms: 1, bedrooms: 2 })).toThrow(
+        /areaM2 must be a positive/,
+      );
+    }
   });
   it("scope switches add lines", () => {
     const base = quantitiesFor({ areaM2: 80, level: "medium", bathrooms: 1, bedrooms: 2 });

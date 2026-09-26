@@ -2,11 +2,21 @@ import {
   computeFinancials,
   computeMaximumAcquisitionPrice,
   type FinancialInputs,
+  type FinancingInstrument,
 } from "@/modules/engines/financial";
-import { applyOverrides } from "@/modules/engines/scenario";
+import { applyOverrides, pathsOverlap } from "@/modules/engines/scenario";
 import type { InvestorDNA } from "@/modules/investor/types";
 import type { AnalysisResult, StrategyResult } from "./types";
 import { formatMoney, formatPercent } from "@/lib/format";
+
+/**
+ * Dot-path overrides over `FinancialInputs` that reproduce an improvement when
+ * applied to the strategy's base inputs (`applyOverrides`). Scalars for leaf
+ * paths; the capital stack replaces the whole `financing` array and an exit
+ * change replaces the whole `exit` object.
+ */
+export type MagicOverrideValue = number | string | boolean | FinancingInstrument[] | FinancialInputs["exit"];
+export type MagicOverrides = Record<string, MagicOverrideValue>;
 
 export interface MagicImprovement {
   key: string;
@@ -19,7 +29,7 @@ export interface MagicImprovement {
   deltaRoe: number | null;
   equityAfter: number | null;
   conditions: string[];
-  overrides: Record<string, number | string | boolean>;
+  overrides: MagicOverrides;
   status: "VERIFIED" | "INFERRED" | "REVIEW_REQUIRED";
 }
 
@@ -54,12 +64,11 @@ export function discoverPotential(
 
   let best: MagicReport["bestCombination"] = null;
   for (const s of candidates) {
-    const mine = improvements.filter((i) => i.strategyId === s.id && i.status !== "REVIEW_REQUIRED");
-    if (!mine.length) continue;
-    const combined = mine.reduce<Record<string, number | string | boolean>>(
-      (acc, i) => ({ ...acc, ...i.overrides }),
-      {},
+    const mine = compatibleImprovements(
+      improvements.filter((i) => i.strategyId === s.id && i.status !== "REVIEW_REQUIRED"),
     );
+    if (!mine.length) continue;
+    const combined = mine.reduce<MagicOverrides>((acc, i) => ({ ...acc, ...i.overrides }), {});
     const inputs = applyOverrides(s.scenarioSet.base, combined);
     const r = safeCompute(inputs);
     if (!r) continue;
@@ -83,6 +92,25 @@ export function discoverPotential(
     ? `He encontrado ${improvements.length} maneras de mejorar la operación.`
     : "No hay magia posible sin datos nuevos.";
   return { headline, improvements: improvements.slice(0, 12), bestCombination: best, notes };
+}
+
+/**
+ * Improvements that touch the same input (two capital stacks, an exit change
+ * and a timeline change…) are alternatives, not additive. Keep, in the given
+ * order (best delta first), only those whose override paths do not overlap
+ * with an already-kept one, so the combination really is the sum of its parts.
+ */
+export function compatibleImprovements(sorted: MagicImprovement[]): MagicImprovement[] {
+  const kept: MagicImprovement[] = [];
+  const paths: string[] = [];
+  for (const i of sorted) {
+    const own = Object.keys(i.overrides);
+    if (own.length === 0) continue;
+    if (own.some((p) => paths.some((q) => pathsOverlap(p, q)))) continue;
+    kept.push(i);
+    paths.push(...own);
+  }
+  return kept;
 }
 
 function baseOf(s: StrategyResult) {
@@ -175,7 +203,8 @@ function improveStrategy(
         deltaRoe: Math.round(roeGain * 1000) / 1000,
         equityAfter: equity,
         conditions: stack.instruments.length ? ["Oferta indicativa: sujeta a aprobación de la entidad."] : [],
-        overrides: {},
+        // The whole stack replaces the base financing, so the combination can reproduce it.
+        overrides: { financing: stack.instruments },
         status: "INFERRED",
       });
     }
@@ -269,7 +298,7 @@ function improveStrategy(
       title: "Salida por venta tras la reforma",
       detail: "El alquiler no alcanza tu ROE objetivo; vender reformado acorta el plazo.",
       conditions: [],
-      overrides: {},
+      overrides: { "holding.durationMonths": sale.holding.durationMonths, exit: sale.exit },
       status: "INFERRED",
       inputs: sale,
     });

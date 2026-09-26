@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseIntake } from "@/modules/property/intake";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
+import { computeFinancials } from "@/modules/engines/financial";
+import { applyOverrides } from "@/modules/engines/scenario";
+import { compatibleImprovements, discoverPotential, type MagicImprovement } from "./magic";
 import { runAnalysis } from "./run-analysis";
 
 describe("runAnalysis — vertical slice", () => {
@@ -63,5 +66,69 @@ describe("runAnalysis — vertical slice", () => {
     expect(result.property.askingPriceSource).toBe("estimated");
     expect(result.synthesis.missingData).toContain("Precio de compra real.");
     expect(result.risk.findings.some((f) => f.title === "Sin precio de compra")).toBe(true);
+  }, 30_000);
+});
+
+describe("discoverPotential — improvements are reproducible overrides", () => {
+  const improvement = (key: string, overrides: MagicImprovement["overrides"]): MagicImprovement => ({
+    key,
+    strategyId: "s",
+    strategyLabel: "s",
+    lever: "financing",
+    title: key,
+    detail: "",
+    deltaProfit: 0,
+    deltaRoe: null,
+    equityAfter: null,
+    conditions: [],
+    overrides,
+    status: "INFERRED",
+  });
+
+  it("keeps only one of several improvements that override the same path", () => {
+    const kept = compatibleImprovements([
+      improvement("stack-a", { financing: [] }),
+      improvement("price", { "acquisition.purchasePrice": 1 }),
+      improvement("stack-b", { financing: [] }),
+      improvement("empty", {}),
+      improvement("timeline", { "holding.durationMonths": 5 }),
+      improvement("exit", { "holding.durationMonths": 6, exit: { kind: "sale" } as never }),
+    ]);
+    expect(kept.map((i) => i.key)).toEqual(["stack-a", "price", "timeline"]);
+  });
+
+  it("every capital-stack improvement carries the stack as an override and reproduces its numbers", async () => {
+    const intake = parseIntake(
+      "Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 285.000 €",
+    );
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+    });
+    // A permissive investor so alternative stacks are not filtered out by the equity cap.
+    const report = discoverPotential(result, { ...result.investor, maxEquityPerDeal: 10_000_000 });
+    const financing = report.improvements.filter((i) => i.lever === "financing");
+    expect(financing.length).toBeGreaterThan(0);
+    for (const i of financing) {
+      const stackId = i.key.split(":").at(-1);
+      const stack = result.finance.stacks.find((s) => s.id === stackId);
+      expect(Array.isArray(i.overrides.financing)).toBe(true);
+      expect(i.overrides.financing).toEqual(stack?.instruments);
+    }
+    // Any non-review improvement, applied as overrides to the strategy's base, gives back its delta.
+    for (const i of report.improvements.filter((x) => x.status !== "REVIEW_REQUIRED")) {
+      const strategy = result.strategies.find((s) => s.id === i.strategyId)!;
+      const base = strategy.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
+      expect(base).not.toBeNull();
+      const r = computeFinancials(applyOverrides(strategy.scenarioSet.base, i.overrides));
+      const delta = (r.metrics.netProfit.value ?? 0) - (base?.metrics.netProfit.value ?? 0);
+      expect(Math.abs(delta - i.deltaProfit)).toBeLessThanOrEqual(1);
+      expect(r.metrics.equityRequired.value).toBe(i.equityAfter);
+    }
+    // The best combination never stacks two capital structures on top of each other.
+    expect(report.bestCombination).not.toBeNull();
+    expect((report.bestCombination?.description.match(/estructura:/gi) ?? []).length).toBeLessThanOrEqual(1);
   }, 30_000);
 });

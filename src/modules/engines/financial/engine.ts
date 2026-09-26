@@ -6,7 +6,7 @@ import {
   resolveTaxRules,
   type TaxRuleSet,
 } from "@/modules/tax";
-import { buildSchedule, sizeInstrument, type InstrumentSchedule } from "./financing";
+import { buildSchedule, normalizeInstrument, sizeInstrument, type InstrumentSchedule } from "./financing";
 import { irr, monthlyToAnnual } from "./irr";
 import type {
   CashflowPoint,
@@ -44,8 +44,21 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
   const warnings: string[] = [];
   const reviewItems: string[] = [];
   const lines: CostLine[] = [];
-  const { acquisition, transformation, holding, exit } = inputs;
+  const { acquisition, holding, exit } = inputs;
   const duration = holding.durationMonths;
+  // Works with a budget but no calendar cannot be executed: give them one month and say so.
+  const rawWorksMonths = inputs.transformation.worksMonths;
+  let worksMonthsEff = Math.min(Math.max(0, rawWorksMonths), duration);
+  if (inputs.transformation.renovationBudget > 0 && worksMonthsEff < 1) {
+    worksMonthsEff = 1;
+    warnings.push(
+      `Presupuesto de obra positivo con ${rawWorksMonths} meses de obra: se asume 1 mes de ejecución.`,
+    );
+  } else if (worksMonthsEff !== rawWorksMonths)
+    warnings.push(
+      `Meses de obra (${rawWorksMonths}) superan la duración del proyecto; ajustados a ${worksMonthsEff}.`,
+    );
+  const transformation = { ...inputs.transformation, worksMonths: worksMonthsEff };
 
   // ── Acquisition ─────────────────────────────────────────────────────────────
   const purchase = acquisition.purchasePrice;
@@ -232,7 +245,12 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
 
   // ── Financing ──────────────────────────────────────────────────────────────
   const costBeforeFinancing = round2(purchase + acquisitionCosts + transformationTotal + holdingTotal);
-  const schedules: InstrumentSchedule[] = inputs.financing
+  const normalizedFinancing = inputs.financing.map((f) => {
+    const n = normalizeInstrument(f, duration);
+    warnings.push(...n.warnings);
+    return n.instrument;
+  });
+  const schedules: InstrumentSchedule[] = normalizedFinancing
     .filter((f) => f.kind !== "partner_equity" && f.kind !== "co_investment")
     .map((f) =>
       buildSchedule(
@@ -241,7 +259,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
         duration,
       ),
     );
-  const equityPartners = inputs.financing.filter(
+  const equityPartners = normalizedFinancing.filter(
     (f) => f.kind === "partner_equity" || f.kind === "co_investment",
   );
   const partnerCapital = equityPartners.map((f) => ({
@@ -377,7 +395,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       worksTax.total,
     "Adquisición",
   );
-  const worksMonths = Math.max(1, Math.min(transformation.worksMonths, duration));
+  const worksMonths = Math.max(1, transformation.worksMonths);
   const worksPerMonth = (construction + contingency) / worksMonths;
   for (let m = 1; m <= duration; m++) {
     const out =

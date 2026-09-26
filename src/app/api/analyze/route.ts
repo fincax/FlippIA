@@ -66,7 +66,6 @@ export async function POST(req: Request): Promise<Response> {
   const abort = new AbortController();
   req.signal.addEventListener("abort", () => abort.abort(new Error("Cliente desconectado")), { once: true });
 
-
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let closed = false;

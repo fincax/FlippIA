@@ -48,7 +48,12 @@ export async function rateLimit(
   return rateLimitMemory(key, limit, windowMs, now.getTime());
 }
 
-export function rateLimitMemory(key: string, limit: number, windowMs: number, now = Date.now()): RateLimitResult {
+export function rateLimitMemory(
+  key: string,
+  limit: number,
+  windowMs: number,
+  now = Date.now(),
+): RateLimitResult {
   const entry = memory.get(key);
   if (!entry || now - entry.windowStart >= windowMs) {
     memory.set(key, { windowStart: now, count: 1 });

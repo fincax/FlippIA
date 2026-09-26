@@ -1,4 +1,8 @@
+import { ZodError } from "zod";
 import { newId } from "@/modules/core/ids";
+import { EvidenceCollector } from "@/modules/evidence/store";
+import type { Evidence } from "@/modules/evidence/types";
+import type { NewEvidence } from "@/modules/evidence/store";
 import type {
   AgentContext,
   AgentDefinition,
@@ -31,6 +35,54 @@ export interface RunOutcome {
 }
 
 class DependencyError extends Error {}
+
+/**
+ * Evidence written by one attempt of one agent. Reads see the shared
+ * collector plus this attempt's own records; writes stay local until the
+ * attempt succeeds, when they are promoted to the shared collector. An attempt
+ * that timed out (or failed) can keep running in the background and keep
+ * adding evidence here, but nothing of it ever reaches the shared collector,
+ * so a retry never double-counts it.
+ */
+class AttemptEvidence extends EvidenceCollector {
+  constructor(private readonly shared: EvidenceCollector) {
+    super();
+  }
+  override get(id: string): Evidence | undefined {
+    return super.get(id) ?? this.shared.get(id);
+  }
+  override all(): Evidence[] {
+    const mine = super.all();
+    const own = new Set(mine.map((e) => e.id));
+    return [...this.shared.all().filter((e) => !own.has(e.id)), ...mine];
+  }
+  override byIds(ids: string[]): Evidence[] {
+    return ids.map((id) => this.get(id)).filter((e): e is Evidence => Boolean(e));
+  }
+  override addMany(inputs: NewEvidence[]): Evidence[] {
+    return inputs.map((i) => this.add(i));
+  }
+  /** Records written by this attempt only. */
+  staged(): Evidence[] {
+    return super.all();
+  }
+  /** Promote this attempt's records to the shared collector (on success). */
+  commit(): Evidence[] {
+    const mine = this.staged();
+    this.shared.attach(mine);
+    return mine;
+  }
+}
+
+/**
+ * Deterministic failures are not retried: the same input produces the same
+ * output, so a second attempt only burns budget. Today that is output-schema
+ * validation (zod); transport errors, timeouts and generic errors are retried.
+ */
+export function isRetryableFailure(e: unknown): boolean {
+  if (e instanceof ZodError) return false;
+  return true;
+}
 
 /**
  * Core Orchestrator execution engine.
@@ -170,15 +222,23 @@ export async function executePlan(
       label: agent.label,
       domain: agent.domain,
     });
-    const evidenceBefore = new Set(baseCtx.evidence.all().map((e) => e.id));
     const t0 = Date.now();
     let lastError: unknown;
+    let completed = false;
     for (let attempt = 1; attempt <= budget.maxRetries + 1; attempt++) {
       record.attempts = attempt;
       if (controller.signal.aborted) break;
+      // Each attempt gets its own signal (aborted on timeout or run abort) and
+      // its own evidence staging area, so a late-completing timed-out attempt
+      // can neither pollute the shared collector nor be counted twice.
+      const attemptCtrl = new AbortController();
+      const onRunAbort = () => attemptCtrl.abort(controller.signal.reason);
+      controller.signal.addEventListener("abort", onRunAbort, { once: true });
+      const staging = new AttemptEvidence(baseCtx.evidence);
+      const attemptCtx: AgentContext = { ...ctx, signal: attemptCtrl.signal, evidence: staging };
       try {
         const result = await withTimeout(
-          agent.run(ctx),
+          agent.run(attemptCtx),
           agent.timeoutMs ?? budget.maxAgentMs,
           controller.signal,
         );
@@ -188,10 +248,8 @@ export async function executePlan(
         record.status = "completed";
         record.completedAt = at();
         record.latencyMs = Date.now() - t0;
-        record.evidenceIds = baseCtx.evidence
-          .all()
-          .filter((e) => !evidenceBefore.has(e.id))
-          .map((e) => e.id);
+        record.evidenceIds = staging.commit().map((e) => e.id);
+        completed = true;
         const summary = summarize(parsed);
         opts.emit({
           type: "task.completed",
@@ -208,14 +266,37 @@ export async function executePlan(
         break;
       } catch (e) {
         lastError = e;
+        // Stop whatever the attempt is still doing; its staged evidence is discarded.
+        attemptCtrl.abort(e instanceof Error ? e : new Error(String(e)));
         baseCtx.logger.warn("agent.failed", {
           agent: agent.type,
           attempt,
           error: e instanceof Error ? e.message : String(e),
         });
+        if (!isRetryableFailure(e)) break;
+      } finally {
+        controller.signal.removeEventListener("abort", onRunAbort);
       }
     }
-    if (lastError !== undefined) {
+    const cancelled =
+      !completed &&
+      controller.signal.aborted &&
+      (lastError === undefined || lastError instanceof AbortedError);
+    if (cancelled) {
+      // Cancelled by the run (external signal or total time budget), not a failure of its own.
+      record.status = "skipped";
+      record.completedAt = at();
+      record.latencyMs = Date.now() - t0;
+      skipped.push(agent.type);
+      opts.emit({
+        type: "task.skipped",
+        analysisId: baseCtx.analysisId,
+        at: record.completedAt,
+        task: agent.type,
+        label: agent.label,
+        reason: "Cancelado",
+      });
+    } else if (lastError !== undefined) {
       record.status = lastError instanceof TimeoutError ? "timeout" : "failed";
       record.error = lastError instanceof Error ? lastError.message : String(lastError);
       record.completedAt = at();
@@ -256,6 +337,21 @@ export async function executePlan(
     clearTimeout(totalTimer);
   }
   const aborted = controller.signal.aborted;
+  if (aborted) {
+    // Agents never scheduled: tell the UI so no task stays "pending" forever.
+    for (const agent of pending.values()) {
+      skipped.push(agent.type);
+      opts.emit({
+        type: "task.skipped",
+        analysisId: baseCtx.analysisId,
+        at: at(),
+        task: agent.type,
+        label: agent.label,
+        reason: "Cancelado",
+      });
+    }
+    pending.clear();
+  }
   const durationMs = Date.now() - started;
   if (aborted)
     opts.emit({
@@ -273,13 +369,18 @@ export async function executePlan(
 }
 
 export class TimeoutError extends Error {}
+/** The run was cancelled while the attempt was in flight. */
+export class AbortedError extends Error {}
 
 function withTimeout<T>(p: Promise<T>, ms: number, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new TimeoutError(`Timed out after ${ms} ms`)), ms);
+    const t = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      reject(new TimeoutError(`Timed out after ${ms} ms`));
+    }, ms);
     const onAbort = () => {
       clearTimeout(t);
-      reject(new Error("Aborted"));
+      reject(new AbortedError("Aborted"));
     };
     signal.addEventListener("abort", onAbort, { once: true });
     p.then(

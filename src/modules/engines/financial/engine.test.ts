@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeFinancials, FinancialEngineError } from "./engine";
-import { annuityPayment, buildSchedule } from "./financing";
+import { annuityPayment, buildSchedule, normalizeInstrument } from "./financing";
 import { irr, monthlyToAnnual } from "./irr";
 import { computeMaximumAcquisitionPrice } from "./max-price";
 import { baseSaleInputs, bridgeLoan, mortgage } from "./presets";
@@ -222,6 +222,69 @@ describe("computeFinancials — input validation", () => {
     const rate = baseSaleInputs();
     rate.transformation.contingencyRate = 1.5;
     expect(() => computeFinancials(rate)).toThrow(FinancialEngineError);
+  });
+});
+
+describe("financing edge cases", () => {
+  it("clamps drawMonth into [0, duration] and reports it", () => {
+    const late = { ...mortgage(0.7), drawMonth: 50 };
+    const n = normalizeInstrument(late, 9);
+    expect(n.instrument.drawMonth).toBe(9);
+    expect(n.warnings).toHaveLength(1);
+    const r = computeFinancials(baseSaleInputs({ financing: [late] }));
+    expect(Math.max(...r.cashflows.map((c) => c.month))).toBe(9);
+    expect(r.warnings.some((w) => w.includes("mes de disposición"))).toBe(true);
+    // Drawn at exit: no interest accrues, principal is repaid the same month.
+    expect(r.totals.financing).toBeCloseTo(r.financing.instruments[0]?.arrangementFee ?? 0, 2);
+  });
+  it("treats termMonths 0 as the holding duration", () => {
+    const zero = { ...mortgage(0.7), termMonths: 0 };
+    const n = normalizeInstrument(zero, 12);
+    expect(n.instrument.termMonths).toBe(12);
+    const s = buildSchedule(zero, 100_000, 12);
+    expect(s.months).toHaveLength(12);
+    expect(s.outstandingAtExit).toBeCloseTo(0, 0);
+    expect(s.months.every((m) => Number.isFinite(m.payment) && m.payment > 0)).toBe(true);
+    const r = computeFinancials(baseSaleInputs({ financing: [zero], durationMonths: 12 }));
+    expect(r.warnings.some((w) => w.includes("plazo de amortización"))).toBe(true);
+    expect(Number.isFinite(r.metrics.netProfit.value ?? Number.NaN)).toBe(true);
+  });
+  it("leaves a well-formed instrument untouched", () => {
+    const m = mortgage(0.7);
+    const n = normalizeInstrument(m, 9);
+    expect(n.instrument).toBe(m);
+    expect(n.warnings).toEqual([]);
+  });
+  it("gives a positive renovation budget with 0 works months one month and warns", () => {
+    const r = computeFinancials(baseSaleInputs({ renovationBudget: 30_000, worksMonths: 0 }));
+    expect(r.warnings.some((w) => w.includes("1 mes"))).toBe(true);
+    const construction = r.costLines.find((l) => l.key === "construction")?.amount ?? 0;
+    const contingency = r.costLines.find((l) => l.key === "contingency")?.amount ?? 0;
+    const month1 = r.cashflows.find((c) => c.month === 1);
+    const month2 = r.cashflows.find((c) => c.month === 2);
+    expect((month1?.outflow ?? 0) - (month2?.outflow ?? 0)).toBeCloseTo(construction + contingency, 0);
+    expect(Number.isFinite(r.metrics.netProfit.value ?? Number.NaN)).toBe(true);
+  });
+  it("does not warn about works months when there is no renovation", () => {
+    const r = computeFinancials(baseSaleInputs({ renovationBudget: 0, professionalFees: 0, worksMonths: 0 }));
+    expect(r.warnings.some((w) => w.includes("mes de ejecución"))).toBe(false);
+  });
+  it("rent exit with a budget and 0 works months starts renting in month 2", () => {
+    const base = baseSaleInputs({ durationMonths: 24, worksMonths: 0, renovationBudget: 20_000 });
+    const r = computeFinancials({
+      ...base,
+      exit: {
+        kind: "rent",
+        monthlyRent: 1_000,
+        vacancyRate: 0,
+        opexRate: 0,
+        terminalValue: 260_000,
+        terminalAgencyRate: 0.03,
+        sellerProfile: "individual",
+      },
+    });
+    expect(r.cashflows.find((c) => c.month === 1)?.inflow).toBe(0);
+    expect(r.cashflows.find((c) => c.month === 2)?.inflow).toBeCloseTo(1_000, 0);
   });
 });
 

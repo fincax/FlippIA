@@ -1,5 +1,7 @@
 import { err, ok, appError } from "@/modules/core/result";
 import { logger } from "@/modules/core/logger";
+import type { EvidenceStatus } from "@/modules/core/evidence-status";
+import type { AssetUse } from "@/modules/engines/financial/types";
 import type { NewEvidence } from "@/modules/evidence/store";
 import type { AdapterResponse, DataSourceAdapter } from "../types";
 import { CATASTRO_USE_LABELS, type CatastroParcelInfo, type CatastroQuery, type CatastroUnit } from "./types";
@@ -56,6 +58,7 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       if (!parsed)
         return err(appError("SOURCE_EMPTY", "El Catastro no devolvió inmuebles para esta consulta."));
       const retrievedAt = new Date().toISOString();
+      const quality = assessParsedQuality(parsed);
       const evidence: NewEvidence[] = [
         {
           sourceType: "official_registry",
@@ -65,15 +68,17 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
           sourceUrl: url,
           retrievedAt,
           geographicScope: { level: "parcel", code: parsed.cadastralRef, label: parsed.address },
-          excerpt: `Catastro: ${parsed.address} — ${parsed.builtAreaM2 ?? "?"} m², uso ${parsed.useLabel ?? "?"}, año ${parsed.yearBuilt ?? "?"}.`,
+          excerpt: `Catastro: ${parsed.address} — ${parsed.builtAreaM2 ?? "?"} m², uso ${parsed.useLabel ?? "?"}, año ${parsed.yearBuilt ?? "?"}.${quality.notes.length ? ` ${quality.notes.join(" ")}` : ""}`,
           structuredData: {
             cadastralRef: parsed.cadastralRef,
             builtAreaM2: parsed.builtAreaM2,
             yearBuilt: parsed.yearBuilt,
             useCode: parsed.useCode,
+            assetUse: catastroUseToAssetUse(parsed.useCode),
+            notes: quality.notes,
           },
-          confidence: 0.9,
-          verificationStatus: "VERIFIED",
+          confidence: quality.status === "VERIFIED" ? 0.9 : 0.6,
+          verificationStatus: quality.status,
           demo: false,
         },
       ];
@@ -154,12 +159,13 @@ export function parseOvc(json: unknown, q: CatastroQuery): CatastroParcelInfo | 
       str(get(bi, "ldt")) ||
       "";
     const loint = get(bi, "dt", "locs", "lous", "lourb", "loint");
-    const useCode = str(get(bi, "debi", "luso"))?.charAt(0);
+    const luso = str(get(bi, "debi", "luso"));
+    const useCode = resolveCatastroUseCode(luso);
     return {
       cadastralRef: ref,
       address,
-      useCode: useCode ?? "",
-      useLabel: (useCode && CATASTRO_USE_LABELS[useCode]) || str(get(bi, "debi", "luso")) || "",
+      useCode,
+      useLabel: (useCode && CATASTRO_USE_LABELS[useCode]) || luso || "",
       builtAreaM2: num(get(bi, "debi", "sfc")) ?? 0,
       yearBuilt: num(get(bi, "debi", "ant")),
       floor: str(get(loint, "pt")),
@@ -183,4 +189,93 @@ export function parseOvc(json: unknown, q: CatastroQuery): CatastroParcelInfo | 
     landValue: null,
     accessLevel: "public",
   };
+}
+
+/**
+ * Quality of a public record. The OVC free services sometimes omit the built
+ * area (`sfc`) or return a use label we cannot map; in that case the record is
+ * still useful but must not be presented as fully verified.
+ */
+export function assessParsedQuality(parsed: CatastroParcelInfo): { status: EvidenceStatus; notes: string[] } {
+  const notes: string[] = [];
+  if (!parsed.builtAreaM2 || parsed.builtAreaM2 <= 0)
+    notes.push("Superficie construida no informada por el Catastro; se estimará por otras vías.");
+  if (!parsed.useCode)
+    notes.push(
+      parsed.useLabel
+        ? `Uso catastral "${parsed.useLabel}" no reconocido; requiere revisión.`
+        : "Uso catastral no informado por el Catastro.",
+    );
+  return { status: notes.length ? "INFERRED" : "VERIFIED", notes };
+}
+
+const strip = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Label patterns (accent/case-insensitive) → canonical Catastro use code. In the
+ * OVC JSON `luso` is a descriptive label ("Residencial", "Almacén-Estacionamiento"…),
+ * not the single-letter code used in the cadastral reference/cartography, so we
+ * normalise both forms to the code that `CATASTRO_USE_LABELS` and the specialists use.
+ */
+const USE_LABEL_PATTERNS: Array<[RegExp, string]> = [
+  [/\bresidencial\b|\bvivienda/, "V"],
+  [/\bcomercial\b|\bcomercio\b/, "C"],
+  [/\boficinas?\b/, "O"],
+  [/\bindustrial\b/, "I"],
+  [/\balmacen|\bestacionamiento\b|\baparcamiento\b|\bgaraje\b/, "A"],
+  [/\breligioso\b/, "R"],
+  [/\bocio\b|\bhosteleria\b/, "G"],
+  [/\bdeportivo\b/, "K"],
+  [/\bcultural\b/, "E"],
+  [/\bsingular\b/, "P"],
+  [/\bespectaculos?\b/, "T"],
+  [/\bsanidad\b|\bbeneficencia\b/, "Y"],
+  [/\bsuelos? sin edif|\bsolar(?:es)?\b|\burbanizacion\b|\bjardineria\b/, "M"],
+  [/\bagrario\b|\bagricola\b|\brustico\b/, "Z"],
+];
+
+/**
+ * Resolve the OVC `luso` value to a canonical single-letter use code. Accepts
+ * the descriptive label returned by the JSON services and, as a fallback, a
+ * bare single-letter code. Returns "" when the value cannot be mapped.
+ */
+export function resolveCatastroUseCode(luso: string | undefined): string {
+  if (!luso) return "";
+  const raw = luso.trim();
+  if (raw.length === 1) {
+    const code = raw.toUpperCase();
+    return code in CATASTRO_USE_LABELS ? code : "";
+  }
+  const label = strip(raw);
+  for (const [re, code] of USE_LABEL_PATTERNS) if (re.test(label)) return code;
+  return "";
+}
+
+const USE_CODE_TO_ASSET_USE: Record<string, AssetUse> = {
+  V: "residential",
+  C: "commercial",
+  O: "office",
+  I: "industrial",
+  M: "land",
+  Z: "land",
+  A: "other",
+  R: "other",
+  G: "other",
+  K: "other",
+  E: "other",
+  P: "other",
+  T: "other",
+  Y: "other",
+};
+
+/** Map a canonical Catastro use code to the engine's `AssetUse`; undefined when unknown. */
+export function catastroUseToAssetUse(useCode: string | undefined): AssetUse | undefined {
+  if (!useCode) return undefined;
+  return USE_CODE_TO_ASSET_USE[useCode.toUpperCase()];
 }

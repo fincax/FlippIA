@@ -10,14 +10,18 @@ import { revokeAllSessionsForUser } from "../auth/session";
  * removes users left without any membership. Irreversible: the caller must
  * be an owner and repeat the organization slug.
  */
-export async function deleteOrganization(ctx: TenantContext, confirmSlug: string): Promise<{ deletedUsers: number }> {
+export async function deleteOrganization(
+  ctx: TenantContext,
+  confirmSlug: string,
+): Promise<{ deletedUsers: number }> {
   requireRole(ctx, "owner");
   const [org] = await ctx.db
     .select({ id: organizations.id, slug: organizations.slug })
     .from(organizations)
     .where(eq(organizations.id, ctx.organizationId))
     .limit(1);
-  if (!org || org.slug !== confirmSlug) throw new ForbiddenError("La confirmación no coincide con la organización.");
+  if (!org || org.slug !== confirmSlug)
+    throw new ForbiddenError("La confirmación no coincide con la organización.");
   const members = await ctx.db
     .select({ userId: memberships.userId })
     .from(memberships)

@@ -6,6 +6,24 @@ import type { BudgetLine, CostLibraryItem, RenovationEstimate, WorkChapter } fro
 
 export type RenovationLevel = "cosmetic" | "medium" | "integral" | "change_of_use";
 
+export class ConstructionEngineError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message);
+  }
+}
+
+/** The estimate is parametric on area: without a positive, finite area every line would be 0 or NaN. */
+function validateArea(areaM2: number): void {
+  if (!Number.isFinite(areaM2) || areaM2 <= 0)
+    throw new ConstructionEngineError(
+      `areaM2 must be a positive finite number (received ${String(areaM2)})`,
+      "INVALID_AREA",
+    );
+}
+
 export interface EstimateRequest {
   areaM2: number;
   level: RenovationLevel;
@@ -34,6 +52,7 @@ interface Quantity {
  * template; a professional budget replaces it line by line at a later stage.
  */
 export function quantitiesFor(req: EstimateRequest): Quantity[] {
+  validateArea(req.areaM2);
   const a = req.areaM2;
   const q: Quantity[] = [];
   const doors = Math.max(3, req.bedrooms + 2);
@@ -101,6 +120,7 @@ export function quantitiesFor(req: EstimateRequest): Quantity[] {
 }
 
 export function estimateRenovation(req: EstimateRequest): RenovationEstimate {
+  validateArea(req.areaM2);
   const library = req.library ?? DEMO_COST_LIBRARY_SEVILLA;
   const now = (req.now ?? new Date()).toISOString();
   const overheadRate = req.overheadRate ?? 0.13; // gastos generales + beneficio industrial
