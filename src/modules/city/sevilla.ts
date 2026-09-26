@@ -345,6 +345,63 @@ export const SEVILLA: CityProfile = {
         notes: "Uso residencial incompatible salvo modificación de planeamiento.",
       },
     },
+    /**
+     * Free geoservices of IDE Sevilla (Gerencia de Urbanismo y Medio Ambiente),
+     * ArcGIS REST, open data (CC0). Layer ids and attribute names were taken
+     * from the public services directory; run `pnpm urbanismo:discover` and
+     * `pnpm sources:check "<dirección>"` after any change on the publisher's side
+     * and override with URBANISMO_PUBLIC_CONFIG when a layer moves.
+     */
+    publicSources: {
+      publisher: "IDE Sevilla · Gerencia de Urbanismo y Medio Ambiente",
+      publisherUrl: "https://sig.urbanismosevilla.org/",
+      parcel: {
+        label: "Parcelario (plano de situación)",
+        source: {
+          kind: "arcgis",
+          url: "https://sig.urbanismosevilla.org/arcgis/rest/services/Servicios_GIS/Pla_Sit_POI/MapServer/1",
+          where: "FECHA_HIST IS NULL",
+        },
+        fields: { cadastralRef: "REF_CAT" },
+        note: "Parcela catastral vigente según la Gerencia; se usa para localizar el centroide.",
+      },
+      classification: {
+        label: "Clasificación y categorías del suelo (PGOU 2006)",
+        source: {
+          kind: "arcgis",
+          url: "https://cdu.urbanismosevilla.org/arcgis/rest/services/MapaBase/Guia_Urbana_2026/FeatureServer/35",
+        },
+        fields: { class: "clase", category: "sub_cat", code: "cla_cat" },
+        note: "Guía urbana 2026, capa _TR_Cla_Cat (clase, sub_cat, cla_cat).",
+      },
+      zoning: {
+        label: "Calificación o usos (PGOU 2006)",
+        source: {
+          kind: "arcgis",
+          url: "https://cdu.urbanismosevilla.org/arcgis/rest/services/Hosted/Prueba_PGOU_para_Dashboard/FeatureServer/25",
+        },
+        fields: { code: "clase_cat" },
+        note: "Capa 'Calificación' del Centro de Datos Urbanos. Confirmar la capa definitiva con `pnpm urbanismo:discover`.",
+      },
+      touristSaturation: {
+        label: "Barrios saturados de vivienda de uso turístico",
+        source: {
+          kind: "arcgis",
+          url: "https://cdu.urbanismosevilla.org/arcgis/rest/services/Hosted/VUT_Barrios_saturados/FeatureServer/5",
+        },
+        fields: { flag: "vut", district: "distrito" },
+        note: "Zonas con limitación municipal a nuevas VUT.",
+      },
+      developmentPlanning: {
+        label: "Planeamiento no previsto en trámite",
+        source: {
+          kind: "arcgis",
+          url: "https://cdu.urbanismosevilla.org/arcgis/rest/services/Mapa_Web_publicando_para_Web_App_Builder_en_AGOL_MIL1/MapServer/10",
+        },
+        fields: { category: "categoria", name: "clase_cat", status: "catalogo" },
+        note: "Ámbitos con instrumentos de desarrollo o modificaciones en tramitación.",
+      },
+    },
   },
   microzones: SEVILLA_MICROZONES,
   adapters: {

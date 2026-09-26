@@ -8,7 +8,8 @@ Lista de comprobación para desplegar FlippIA con clientes reales. Cada punto es
 - `APP_SECRET`: 32+ caracteres aleatorios (`openssl rand -base64 48`). El servidor no arranca sin él.
 - `DATABASE_URL` a PostgreSQL 16 con PostGIS y pgcrypto (pgvector opcional). TLS activo (`DATABASE_SSL` vacío o `true`).
 - `DEMO_MODE=false`, o `DEMO_MODE=true` con `DEMO_USER_PASSWORD` privada. Nunca la de ejemplo.
-- Modos de fuente: `CATASTRO_MODE` (`demo` | `public`), `URBANISMO_SEVILLA_MODE` (`demo` | `public` | `official` + `URBANISMO_SEVILLA_ENDPOINT`), `MARKET_SOURCE_MODE=demo`, `FINANCING_PROVIDER_MODE=demo`. Los modos `partner` aún no existen; un valor desconocido impide el arranque.
+- Modos de fuente: `CATASTRO_MODE=public` y `URBANISMO_SEVILLA_MODE=public` para datos reales gratuitos (Catastro OVC e IDE Sevilla); `demo` para datos sintéticos; `official` solo con convenio (`URBANISMO_SEVILLA_ENDPOINT`). `MARKET_SOURCE_MODE=demo`, `FINANCING_PROVIDER_MODE=demo` (los modos `partner` aún no existen). Un valor desconocido impide el arranque.
+- Con fuentes públicas el servidor necesita salida HTTPS a `ovc.catastro.meh.es`, `sig.urbanismosevilla.org` y `cdu.urbanismosevilla.org`. Antes de lanzar, ejecuta `pnpm sources:check "Calle Pureza 45, Sevilla"` desde el servidor y comprueba que Catastro y al menos las capas de clasificación y calificación responden; `pnpm urbanismo:discover` lista las capas publicadas si alguna ha cambiado (ver `docs/DATA_SOURCES.md`).
 - `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` para narrativa con modelo; sin clave todo funciona en modo determinista.
 - `CRON_SECRET`: token aleatorio para `POST /api/cron/watches`. Programa la llamada cada hora desde tu plataforma (Vercel Cron, GitHub Actions, crontab):
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/watches`

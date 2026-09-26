@@ -38,6 +38,30 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
     }
   }
 
+  /** Parcel centroid from the free coordinates service; undefined when it fails (never throws). */
+  async coordinatesFor(
+    cadastralRef: string,
+    province: string,
+    municipality: string,
+  ): Promise<{ lat: number; lng: number } | undefined> {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      const res = await this.fetchImpl(buildCoordinatesUrl(cadastralRef, province, municipality), {
+        signal: ctrl.signal,
+        headers: { accept: "application/json" },
+      });
+      clearTimeout(t);
+      if (!res.ok) return undefined;
+      return parseCoordinates((await res.json()) as unknown);
+    } catch (e) {
+      logger.warn("catastro.public.coordinates_failed", {
+        error: e instanceof Error ? e.message : String(e),
+      });
+      return undefined;
+    }
+  }
+
   async query(input: CatastroQuery) {
     const url = buildUrl(input);
     if (!url)
@@ -57,6 +81,14 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       const parsed = parseOvc(json, input);
       if (!parsed)
         return err(appError("SOURCE_EMPTY", "El Catastro no devolvió inmuebles para esta consulta."));
+      if (!parsed.coordinates && parsed.cadastralRef) {
+        // Free geolocation of the parcel: lets the planning connector query the geoservices.
+        parsed.coordinates = await this.coordinatesFor(
+          parsed.cadastralRef,
+          parsed.province,
+          parsed.municipality,
+        );
+      }
       const retrievedAt = new Date().toISOString();
       const quality = assessParsedQuality(parsed);
       const evidence: NewEvidence[] = [
@@ -71,6 +103,7 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
           excerpt: `Catastro: ${parsed.address} — ${parsed.builtAreaM2 ?? "?"} m², uso ${parsed.useLabel ?? "?"}, año ${parsed.yearBuilt ?? "?"}.${quality.notes.length ? ` ${quality.notes.join(" ")}` : ""}`,
           structuredData: {
             cadastralRef: parsed.cadastralRef,
+            coordinates: parsed.coordinates,
             builtAreaM2: parsed.builtAreaM2,
             yearBuilt: parsed.yearBuilt,
             useCode: parsed.useCode,
@@ -101,6 +134,27 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       );
     }
   }
+}
+
+export function buildCoordinatesUrl(cadastralRef: string, province: string, municipality: string): string {
+  const p = new URLSearchParams();
+  p.set("Provincia", province);
+  p.set("Municipio", municipality);
+  p.set("SRS", "EPSG:4326");
+  p.set("RC", cadastralRef.slice(0, 14).toUpperCase());
+  return `${OVC_BASE}/COVCCoordenadas.svc/json/Consulta_CPMRC?${p.toString()}`;
+}
+
+/** Parse `Consulta_CPMRC`: `coordenadas.coord[0].geo.{xcen,ycen}` in the requested SRS (lon/lat for EPSG:4326). */
+export function parseCoordinates(json: unknown): { lat: number; lng: number } | undefined {
+  const root = (get(json, "Consulta_CPMRCResult") ?? get(json, "consulta_coordenadasResult") ?? json) as Obj;
+  const list = get(root, "coordenadas", "coord") as unknown;
+  const coord = Array.isArray(list) ? list[0] : list;
+  const lng = num(get(coord, "geo", "xcen"));
+  const lat = num(get(coord, "geo", "ycen"));
+  if (lng === undefined || lat === undefined) return undefined;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return undefined;
+  return { lat, lng };
 }
 
 function buildUrl(q: CatastroQuery): string | null {

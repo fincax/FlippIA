@@ -132,3 +132,36 @@ describe("discoverPotential — improvements are reproducible overrides", () => 
     expect((report.bestCombination?.description.match(/estructura:/gi) ?? []).length).toBeLessThanOrEqual(1);
   }, 30_000);
 });
+
+describe("runAnalysis — planning source down", () => {
+  it("completes with UNKNOWN planning and review checks instead of failing", async () => {
+    const { adapters } = await import("@/modules/adapters/registry");
+    const { parseIntake } = await import("@/modules/property/intake");
+    const { runAnalysis } = await import("./run-analysis");
+    const base = adapters();
+    const failing = {
+      ...base,
+      urbanism: {
+        ...base.urbanism,
+        mode: "public" as const,
+        async isAvailable() {
+          return false;
+        },
+        async query() {
+          return { ok: false as const, error: { code: "SOURCE_UNAVAILABLE", message: "IDE caída" } };
+        },
+      },
+    };
+    const result = await runAnalysis({
+      intake: parseIntake("Analiza Calle Pureza 45, Triana, 95 m2 por 255.000 €"),
+      organizationId: "org_t",
+      userId: "usr_t",
+      adapters: failing,
+      analysisDate: "2026-01-15",
+    });
+    expect(result.urbanism.planning.status).toBe("UNKNOWN");
+    expect(result.urbanism.planning.zoningCode).toBe("");
+    expect(result.strategies.length).toBeGreaterThan(0);
+    expect(result.urbanism.requiredChecks.length).toBeGreaterThan(0);
+  });
+});

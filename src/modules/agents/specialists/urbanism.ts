@@ -23,6 +23,28 @@ const ruleIds = (ctx: AgentContext, ...topics: string[]) =>
     .filter((e) => e.topics.some((t) => topics.includes(t)))
     .map((e) => e.regulationId);
 
+/** Planning record used when no source answered: nothing is asserted, everything requires verification. */
+export function unknownPlanning(planningInstrument: string, reason: string): PlanningInfo {
+  return {
+    planningInstrument,
+    zoningCode: "",
+    zoningLabel: "Calificación no consultada",
+    maxFloors: null,
+    groundFloorResidential: "unknown",
+    allowedUses: [],
+    conditionedUses: [],
+    forbiddenUses: [],
+    protectionLevel: "unknown",
+    catalogued: false,
+    inHistoricCentre: false,
+    knownFiles: [],
+    notes: [
+      `La fuente de planeamiento no ha respondido (${reason}). Verificar calificación y protección en la Gerencia de Urbanismo.`,
+    ],
+    status: "UNKNOWN",
+  };
+}
+
 /** Urbanism Orchestrator → Planning Agent: fetches parcel planning data. */
 export const planningAgent: AgentDefinition<{
   planning: PlanningInfo;
@@ -44,7 +66,13 @@ export const planningAgent: AgentDefinition<{
         microzoneId: profile.microzone.id,
       }),
     );
-    if (!res.ok) throw new Error(res.error.message);
+    if (!res.ok) {
+      // A public service that is down must not sink the analysis: continue with an
+      // explicitly unknown planning record; every downstream check becomes REVIEW_REQUIRED.
+      ctx.progress(`Planeamiento no disponible: ${res.error.message}`);
+      const planning = unknownPlanning(ctx.city.urbanism.planningInstrument, res.error.message);
+      return { planning, evidenceIds: [], summary: "Planeamiento no consultado: fuente no disponible." };
+    }
     const evs = ctx.evidence.addMany(res.value.evidence);
     ctx.progress(`Ordenanza ${res.value.data.zoningCode} · protección ${res.value.data.protectionLevel}`);
     return {

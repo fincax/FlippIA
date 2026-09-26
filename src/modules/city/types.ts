@@ -1,3 +1,4 @@
+import type { PublicPlanningConfig } from "@/modules/adapters/urbanismo-sevilla/public-config";
 import type { Jurisdiction } from "@/modules/regulatory/types";
 
 export interface LatLng {
@@ -47,6 +48,8 @@ export interface CityUrbanismProfile {
       notes: string;
     }
   >;
+  /** Free public geoservices of the planning authority (used by URBANISMO_*_MODE=public). */
+  publicSources?: PublicPlanningConfig;
 }
 
 export interface CityProfile {

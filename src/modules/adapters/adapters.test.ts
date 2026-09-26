@@ -220,3 +220,21 @@ describe("CatastroPublicAdapter evidence status", () => {
     expect(r.value.evidence[0]?.structuredData?.assetUse).toBeUndefined();
   });
 });
+
+describe("Catastro public coordinates (Consulta_CPMRC)", () => {
+  it("builds the coordinates URL and parses lon/lat", async () => {
+    const { buildCoordinatesUrl, parseCoordinates } = await import("./catastro/public");
+    const url = new URL(buildCoordinatesUrl("4219020TG3441N0001AB", "SEVILLA", "SEVILLA"));
+    expect(url.pathname).toContain("Consulta_CPMRC");
+    expect(url.searchParams.get("RC")).toBe("4219020TG3441N");
+    expect(url.searchParams.get("SRS")).toBe("EPSG:4326");
+    expect(
+      parseCoordinates({
+        Consulta_CPMRCResult: {
+          coordenadas: { coord: [{ geo: { xcen: "-5.9963", ycen: "37.3826", srs: "EPSG:4326" } }] },
+        },
+      }),
+    ).toEqual({ lat: 37.3826, lng: -5.9963 });
+    expect(parseCoordinates({ Consulta_CPMRCResult: { control: { cuerr: 1 } } })).toBeUndefined();
+  });
+});

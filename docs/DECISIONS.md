@@ -63,3 +63,8 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 
 - **Motivo**: drizzle-kit no serializa el SRID y el driver escribe puntos sin SRID; la primera consulta espacial mixta fallaría.
 - **Consecuencias**: migración `0001` cambia el tipo; las inserciones usan `ST_SetSRID(ST_MakePoint(), 4326)`.
+
+## ADR-013 Urbanismo público por geoservicios abiertos, configurado por ciudad (2026-09-26)
+
+- **Motivo**: la información de planeamiento debe obtenerse de la parte pública de la Gerencia sin coste ni convenio, y sin acoplar Sevilla al core.
+- **Consecuencias**: `src/modules/adapters/geoservices` habla ArcGIS REST y WFS; `CityProfile.urbanism.publicSources` declara capas por rol (parcelario, clasificación, calificación, catálogo, conjunto histórico, VUT, planeamiento en trámite, expedientes); cada capa que responde es una evidencia `official_planning` con la URL de la consulta; las que faltan se declaran, nunca se inventan. `pnpm urbanismo:discover` y `pnpm sources:check` verifican el mapeo contra el publicador.
