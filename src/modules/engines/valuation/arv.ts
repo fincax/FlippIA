@@ -4,7 +4,7 @@ import type { Comparable, ValuationAdjustments, ValuationResult } from "./types"
 
 export const DEFAULT_ADJUSTMENTS: ValuationAdjustments = {
   askingDiscount: 0.05,
-  conditionAdjustment: { renovated: 0, unrenovated: 0.22, new: -0.05, unknown: 0.1 },
+  conditionAdjustment: { renovated: 0, unrenovated: 0.35, new: -0.05, unknown: 0.15 },
   annualDrift: 0.0,
   maxDistanceM: 1_200,
   maxAgeMonths: 18,

@@ -39,7 +39,7 @@ describe("ARV estimation", () => {
     const ask = r.comparablesUsed.find((c) => c.id === "ask")!;
     const unren = r.comparablesUsed.find((c) => c.id === "unren")!;
     expect(ask.adjustedPricePerM2).toBe(2_850);
-    expect(unren.adjustedPricePerM2).toBeGreaterThan(unren.rawPricePerM2);
+    expect(unren.adjustedPricePerM2).toBe(Math.round(2_400 * 1.35));
   });
   it("rejects far and stale comparables with reasons", () => {
     const r = estimateValue({

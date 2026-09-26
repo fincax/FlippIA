@@ -44,13 +44,13 @@ export function generateDemoListings(): OpportunityListing[] {
     const u = (salt: string) => seededUnit(`listing:${i}`, salt);
     const isPremises = u("use") < 0.25;
     const toRenovate = u("cond") < 0.65;
-    const area = Math.round(55 + u("area") * 100);
+    const area = Math.round(50 + u("area") * 60);
     const streets = STREETS[zoneId]!;
     const street = streets[Math.floor(u("street") * streets.length)]!;
     const number = Math.floor(2 + u("num") * 80);
     const perM2 = isPremises ? zone.demoMarket.commercialPerM2 : toRenovate ? zone.demoMarket.residentialUnrenovatedPerM2 : zone.demoMarket.residentialRenovatedPerM2;
     // Some listings are mispriced (value discrepancy): that is what the Radar hunts.
-    const discrepancy = u("disc") < 0.3 ? 0.82 : u("disc") < 0.6 ? 0.95 : 1.08;
+    const discrepancy = u("disc") < 0.3 ? 0.74 : u("disc") < 0.6 ? 0.88 : 1.05;
     const price = Math.round((perM2 * area * discrepancy) / 1000) * 1000;
     const daysAgo = Math.floor(u("days") * 120);
     const published = new Date("2026-01-15");
