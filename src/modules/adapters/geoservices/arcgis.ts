@@ -25,6 +25,10 @@ export function buildArcGisQueryUrl(layerUrl: string, q: GeoQuery, baseWhere?: s
     p.set("geometryType", "esriGeometryPoint");
     p.set("inSR", "4326");
     p.set("spatialRel", "esriSpatialRelIntersects");
+    if (q.distanceM) {
+      p.set("distance", String(q.distanceM));
+      p.set("units", "esriSRUnit_Meter");
+    }
   }
   if (q.maxFeatures) p.set("resultRecordCount", String(q.maxFeatures));
   return `${base}/query?${p.toString()}`;

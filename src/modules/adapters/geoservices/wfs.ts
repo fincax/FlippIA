@@ -27,7 +27,11 @@ export function buildWfsQueryUrl(
   if (opts.cqlFilter) filters.push(`(${opts.cqlFilter})`);
   if (q.equals) filters.push(`${q.equals.field} = ${cqlLiteral(q.equals.value)}`);
   if (q.point)
-    filters.push(`INTERSECTS(${opts.geometryField ?? "geom"}, POINT(${q.point.lng} ${q.point.lat}))`);
+    filters.push(
+      q.distanceM
+        ? `DWITHIN(${opts.geometryField ?? "geom"}, POINT(${q.point.lng} ${q.point.lat}), ${q.distanceM}, meters)`
+        : `INTERSECTS(${opts.geometryField ?? "geom"}, POINT(${q.point.lng} ${q.point.lat}))`,
+    );
   if (filters.length) p.set("CQL_FILTER", filters.join(" AND "));
   const sep = serviceUrl.includes("?") ? "&" : "?";
   return `${serviceUrl}${sep}${p.toString()}`;

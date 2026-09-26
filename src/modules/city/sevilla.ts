@@ -385,6 +385,7 @@ export const SEVILLA: CityProfile = {
           label: "zona_orden",
           use: "u_global",
           maxFloors: "altura",
+          heightLabel: "altura_max",
           detail: "det_comple",
           historicCentre: "conjunto_h",
           catalogue: "catalogo",

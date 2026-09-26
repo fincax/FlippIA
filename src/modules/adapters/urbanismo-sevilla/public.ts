@@ -16,7 +16,11 @@ import {
 } from "./public-config";
 import type { PlanningInfo, ProtectionLevel, UrbanismQuery } from "./types";
 
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 15_000;
+/** Second attempt radius when nothing intersects the exact point (points geocoded on the street). */
+const TOLERANCE_M = 8;
+/** Roles retried with the tolerance radius. */
+const TOLERANT_ROLES = new Set<PlanningLayerRole>(["parcel", "zoning", "classification", "catalogue"]);
 
 interface LayerOutcome {
   role: PlanningLayerRole;
@@ -143,14 +147,27 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
   }
 
   private async run(role: PlanningLayerRole, layer: PlanningLayer, q: GeoQuery): Promise<LayerOutcome> {
-    try {
-      const r = await queryLayer(layer.source, q, { fetchImpl: this.fetchImpl, timeoutMs: TIMEOUT_MS });
-      return { role, layer, features: r.features, url: r.url };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      logger.warn("urbanism.public.layer_failed", { role, layer: layer.label, error: message });
-      return { role, layer, features: [], error: message };
+    let lastError = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await queryLayer(layer.source, q, { fetchImpl: this.fetchImpl, timeoutMs: TIMEOUT_MS });
+        if (r.features.length === 0 && q.point && !q.distanceM && TOLERANT_ROLES.has(role)) {
+          // Nothing under the exact point: look a few metres around (street-side geocoding).
+          const near = await queryLayer(
+            layer.source,
+            { ...q, distanceM: TOLERANCE_M },
+            { fetchImpl: this.fetchImpl, timeoutMs: TIMEOUT_MS },
+          );
+          if (near.features.length)
+            return { role, layer, features: rankFeatures(near.features, layer), url: near.url };
+        }
+        return { role, layer, features: rankFeatures(r.features, layer), url: r.url };
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
+        logger.warn("urbanism.public.layer_failed", { role, layer: layer.label, attempt, error: lastError });
+      }
     }
+    return { role, layer, features: [], error: lastError };
   }
 
   private toPlanningInfo(
@@ -181,13 +198,14 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
     const zoningLabel = zoningLabelRaw ?? catalogueEntry?.entry.label ?? zoningCode;
     const maxFloorsRaw = field("zoning", "maxFloors");
     const maxFloorsParsed = maxFloorsRaw ? Number(maxFloorsRaw.replace(/[^\d.]/g, "")) : Number.NaN;
-    const maxFloors =
-      Number.isFinite(maxFloorsParsed) && maxFloorsParsed > 0
-        ? maxFloorsParsed
-        : (catalogueEntry?.entry.maxFloors ?? null);
-    const classification = [field("classification", "class"), field("classification", "category")]
-      .filter(Boolean)
-      .join(" · ");
+    // Some publishers encode "according to the catalogue / special plan" as a sentinel (88, 99…).
+    const plausibleFloors =
+      Number.isFinite(maxFloorsParsed) && maxFloorsParsed > 0 && maxFloorsParsed <= MAX_PLAUSIBLE_FLOORS;
+    const maxFloors = plausibleFloors ? maxFloorsParsed : (catalogueEntry?.entry.maxFloors ?? null);
+    const heightLabel = field("zoning", "heightLabel");
+    const classification =
+      [field("classification", "class"), field("classification", "category")].filter(Boolean).join(" · ") ||
+      cleanLabel(field("classification", "code"));
 
     // Historic centre: dedicated layer first, then the zoning flag, then the city microzone.
     const zoningChFlag = truthy(field("zoning", "historicCentre"));
@@ -252,6 +270,12 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
 
     // Notes: classification, catalogue notes, planning in process, constraints, coverage.
     if (classification) notes.unshift(`Clasificación del suelo: ${classification}.`);
+    if (maxFloorsRaw && !plausibleFloors)
+      notes.push(
+        `Altura máxima según ${heightLabel ? `"${heightLabel}"` : "la ficha del planeamiento de desarrollo"} (valor publicado ${maxFloorsRaw}); se usa la altura de referencia de la ordenanza.`,
+      );
+    else if (heightLabel && heightLabel !== maxFloorsRaw)
+      notes.push(`Altura máxima publicada: ${heightLabel}.`);
     const detail = field("zoning", "detail");
     if (detail) notes.push(`Determinaciones complementarias: ${detail}.`);
     const normsUrl = field("zoning", "normsUrl");
@@ -279,6 +303,8 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
     for (const role of PLANNING_LAYER_ROLES) {
       if (role === "parcel" || role === "files") continue;
       if (missing(role)) {
+        if (role === "catalogue" && (protectionLevel !== "unknown" || !inHistoricCentre)) continue;
+        if (role === "historicCentre" && zoningChFlag !== undefined) continue;
         if (CORE_ROLES.has(role))
           notes.push(`${ROLE_LABEL[role]}: capa no configurada; verificar en la Gerencia.`);
       } else if (failed(role)) notes.push(`${ROLE_LABEL[role]}: el servicio público no ha respondido.`);
@@ -359,6 +385,31 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
 }
 
 const CORE_ROLES = new Set<PlanningLayerRole>(["classification", "zoning", "catalogue", "historicCentre"]);
+const MAX_PLAUSIBLE_FLOORS = 30;
+
+/** Attribute values that carry publisher artefacts ("Suelo Urbano_Representación"). */
+function cleanLabel(v: string | undefined): string | undefined {
+  if (!v) return undefined;
+  const cleaned = v
+    .replace(/_?representaci[oó]n$/i, "")
+    .replace(/_/g, " ")
+    .trim();
+  return cleaned || undefined;
+}
+
+/**
+ * Publishers often stack representation polygons with empty attributes over the
+ * real ones: prefer the feature that fills the most mapped fields.
+ */
+export function rankFeatures(features: FeatureRecord[], layer: PlanningLayer): FeatureRecord[] {
+  const mapped = Object.values(layer.fields).filter((f): f is string => Boolean(f));
+  const score = (f: FeatureRecord) =>
+    mapped.filter((name) => {
+      const v = f.attributes[name];
+      return v !== null && v !== undefined && String(v).trim() !== "";
+    }).length;
+  return [...features].sort((a, b) => score(b) - score(a));
+}
 
 const ROLE_LABEL: Record<PlanningLayerRole, string> = {
   parcel: "Parcelario",

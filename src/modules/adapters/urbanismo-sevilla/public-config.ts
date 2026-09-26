@@ -35,6 +35,7 @@ export interface PublicPlanningConfig {
     | "code"
     | "label"
     | "maxFloors"
+    | "heightLabel"
     | "use"
     | "ordinance"
     | "detail"

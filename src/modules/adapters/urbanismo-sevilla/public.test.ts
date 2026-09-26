@@ -224,3 +224,59 @@ describe("UrbanismoPublicConnector", () => {
     expect(matchZoningCatalogue(city, "ZZ", "otra cosa")).toBeUndefined();
   });
 });
+
+describe("UrbanismoPublicConnector — publisher quirks", () => {
+  it("ignores sentinel heights, prefers filled features and retries with tolerance", async () => {
+    let zoningCalls = 0;
+    const c = new UrbanismoPublicConnector(
+      defaultCity(),
+      null,
+      fakeIde({
+        "Info_Urban_2025_help/FeatureServer/56": () => {
+          zoningCalls++;
+          const body =
+            zoningCalls === 1
+              ? { features: [] }
+              : {
+                  features: [
+                    { attributes: { clase_cat: null, zona_orden: null, altura: null, conjunto_h: null } },
+                    {
+                      attributes: {
+                        clase_cat: "CH",
+                        zona_orden: "Centro Histórico",
+                        altura: 88,
+                        altura_max: "Según PEP",
+                        conjunto_h: "SI",
+                        catalogo: "D",
+                      },
+                    },
+                  ],
+                };
+          return new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        },
+        "Info_Urban_2025_help/FeatureServer/57": {
+          features: [
+            { attributes: { codigo: "Z", clase: "", sub_cat: "", cla_cat: "Suelo Urbano_Representación" } },
+            { attributes: { codigo: "SUC", clase: "Suelo Urbano", sub_cat: "Consolidado", cla_cat: "SUC" } },
+          ],
+        },
+      }),
+    );
+    const r = await c.query({ point });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(zoningCalls).toBe(2);
+    const p = r.value.data;
+    expect(p.zoningCode).toBe("CH");
+    expect(p.maxFloors).toBe(3); // catalogue default, 88 discarded
+    expect(p.notes.some((n) => n.includes("valor publicado 88"))).toBe(true);
+    expect(p.protectionLevel).toBe("D");
+    expect(p.notes[0]).toBe("Clasificación del suelo: Suelo Urbano · Consolidado.");
+    expect(p.notes.some((n) => n.includes("Catálogo de protección: capa no configurada"))).toBe(false);
+    const zoningEvidence = r.value.evidence.find((e) => e.sourceName.includes("Calificación"));
+    expect(zoningEvidence?.sourceUrl).toContain("distance=8");
+  });
+});

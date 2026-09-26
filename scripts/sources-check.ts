@@ -51,6 +51,7 @@ async function main() {
   if (!c.ok) {
     console.warn(`   ✗ ${c.error.code}: ${c.error.message}`);
     await dumpRaw(buildUrl(query));
+    if (query.kind === "point") await tryCoordinateVariants(query.point);
   } else {
     const d = c.value.data;
     console.warn(
@@ -95,6 +96,31 @@ async function main() {
   process.exit(0);
 }
 
+/** The OVC coordinate service is picky about parameter spelling; try the known variants and report which answers. */
+async function tryCoordinateVariants(p: { lat: number; lng: number }) {
+  const base =
+    "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR";
+  const variants: Array<[string, string]> = [
+    ["SRS sin codificar", `${base}?SRS=EPSG:4326&Coordenada_X=${p.lng}&Coordenada_Y=${p.lat}`],
+    [
+      "coma decimal",
+      `${base}?SRS=EPSG:4326&Coordenada_X=${String(p.lng).replace(".", ",")}&Coordenada_Y=${String(p.lat).replace(".", ",")}`,
+    ],
+    ["EPSG:4258", `${base}?SRS=EPSG:4258&Coordenada_X=${p.lng}&Coordenada_Y=${p.lat}`],
+    ["orden Y,X", `${base}?SRS=EPSG:4326&Coordenada_Y=${p.lat}&Coordenada_X=${p.lng}`],
+  ];
+  console.warn("   variantes del servicio de coordenadas:");
+  for (const [label, url] of variants) {
+    try {
+      const res = await fetch(url, { headers: { accept: "application/json" } });
+      const body = await res.text();
+      console.warn(`     - ${label}: ${res.status} ${body.slice(0, 220)}`);
+    } catch (e) {
+      console.warn(`     - ${label}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
 async function dumpRaw(url: string | null) {
   if (!url) return;
   try {
@@ -108,5 +134,5 @@ async function dumpRaw(url: string | null) {
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
+  process.exitCode = 1;
 });

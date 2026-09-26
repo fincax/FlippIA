@@ -95,10 +95,10 @@ async function main() {
   }
   console.warn("\nCapas configuradas actualmente:");
   for (const u of configured) console.warn(`  - ${u}`);
-  process.exit(0);
+  process.exitCode = 0;
 }
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
+  process.exitCode = 1;
 });

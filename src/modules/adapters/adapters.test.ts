@@ -238,3 +238,114 @@ describe("Catastro public coordinates (Consulta_CPMRC)", () => {
     expect(parseCoordinates({ Consulta_CPMRCResult: { control: { cuerr: 1 } } })).toBeUndefined();
   });
 });
+
+describe("Catastro public errors and nearest-number fallback", () => {
+  it("surfaces the OVC structured error", async () => {
+    const { ovcError } = await import("./catastro/public");
+    expect(
+      ovcError({
+        consulta_dnplocResult: { control: { cuerr: 1 }, lerr: [{ cod: "43", des: "EL NUMERO NO EXISTE" }] },
+      }),
+    ).toEqual({
+      code: "43",
+      message: "EL NUMERO NO EXISTE",
+    });
+    expect(ovcError({ consulta_dnplocResult: { control: { cuerr: 0 } } })).toBeUndefined();
+  });
+  it("parses the numerero list and uses the closest number, flagged as INFERRED", async () => {
+    const { buildNumereroUrl, CatastroPublicAdapter, parseNumerero } = await import("./catastro/public");
+    const numerero = {
+      consulta_numereroResult: {
+        control: { cunum: 2 },
+        nump: [
+          { num: { pnp: "43" }, pc: { pc1: "4219019", pc2: "TG3441N" } },
+          { num: { pnp: "47" }, pc: { pc1: "4219020", pc2: "TG3441N" } },
+        ],
+      },
+    };
+    expect(parseNumerero(numerero)).toEqual([
+      { number: 43, cadastralRef: "4219019TG3441N" },
+      { number: 47, cadastralRef: "4219020TG3441N" },
+    ]);
+    expect(
+      buildNumereroUrl({
+        kind: "address",
+        province: "SEVILLA",
+        municipality: "SEVILLA",
+        street: "Pureza",
+        number: "45",
+      }),
+    ).toContain("ObtenerNumerero?Provincia=SEVILLA&Municipio=SEVILLA&TipoVia=CL&NomVia=Pureza&Numero=45");
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const url = String(input);
+      const json = (b: unknown) =>
+        new Response(JSON.stringify(b), { status: 200, headers: { "content-type": "application/json" } });
+      if (url.includes("Consulta_DNPLOC"))
+        return json({
+          consulta_dnplocResult: { control: { cuerr: 1 }, lerr: [{ cod: "43", des: "EL NUMERO NO EXISTE" }] },
+        });
+      if (url.includes("ObtenerNumerero")) return json(numerero);
+      if (url.includes("Consulta_DNPRC"))
+        return json({
+          consulta_dnprcResult: {
+            bico: {
+              bi: [
+                {
+                  idbi: { rc: { pc1: "4219019", pc2: "TG3441N", car: "0001", cc1: "A", cc2: "B" } },
+                  dt: {
+                    np: "SEVILLA",
+                    nm: "SEVILLA",
+                    locs: { lous: { lourb: { dir: { tv: "CL", nv: "PUREZA", pnp: "43" } } } },
+                  },
+                  debi: { luso: "Residencial", sfc: "95", ant: "1903" },
+                },
+              ],
+            },
+          },
+        });
+      if (url.includes("Consulta_CPMRC"))
+        return json({
+          Consulta_CPMRCResult: { coordenadas: { coord: [{ geo: { xcen: "-6.0034", ycen: "37.3838" } }] } },
+        });
+      return json({});
+    }) as typeof fetch;
+    const adapter = new CatastroPublicAdapter(fetchImpl);
+    const r = await adapter.query({
+      kind: "address",
+      province: "SEVILLA",
+      municipality: "SEVILLA",
+      street: "Pureza",
+      number: "45",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.data.cadastralRef).toBe("4219019TG3441N");
+    expect(r.value.data.coordinates).toEqual({ lat: 37.3838, lng: -6.0034 });
+    expect(r.value.evidence[0]?.verificationStatus).toBe("INFERRED");
+    expect(r.value.evidence[0]?.excerpt).toContain("se usa el 43");
+  });
+  it("reports the OVC error when no fallback applies", async () => {
+    const { CatastroPublicAdapter } = await import("./catastro/public");
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          Consulta_RCCOORResult: {
+            control: { cuerr: 1 },
+            lerr: [{ cod: "76", des: "LA COORDENADA X OBLIGATORIA" }],
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof fetch;
+    const r = await new CatastroPublicAdapter(fetchImpl).query({
+      kind: "point",
+      point: { lat: 37.38, lng: -6 },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("SOURCE_ERROR");
+    expect(r.error.message).toContain("LA COORDENADA X OBLIGATORIA");
+  });
+});

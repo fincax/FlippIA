@@ -62,6 +62,55 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
     }
   }
 
+  /**
+   * `ObtenerNumerero` lists the numbers the cadastre knows around the requested
+   * one on that street; the closest parcel is then read by cadastral reference.
+   */
+  async nearestNumber(
+    input: Extract<CatastroQuery, { kind: "address" }>,
+  ): Promise<{ number: string; parsed: CatastroParcelInfo } | undefined> {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      const res = await this.fetchImpl(buildNumereroUrl(input), {
+        signal: ctrl.signal,
+        headers: { accept: "application/json" },
+      });
+      clearTimeout(t);
+      if (!res.ok) return undefined;
+      const candidates = parseNumerero((await res.json()) as unknown);
+      const wanted = Number(input.number.replace(/\D/g, ""));
+      const best = candidates
+        .filter((c) => Number.isFinite(c.number))
+        .sort((a, b) => Math.abs(a.number - wanted) - Math.abs(b.number - wanted))[0];
+      if (!best || Math.abs(best.number - wanted) > MAX_NUMBER_DISTANCE) return undefined;
+      const byRc = await this.fetchParsed({
+        kind: "cadastralRef",
+        cadastralRef: best.cadastralRef,
+        province: input.province,
+        municipality: input.municipality,
+      });
+      return byRc ? { number: String(best.number), parsed: byRc } : undefined;
+    } catch (e) {
+      logger.warn("catastro.public.numerero_failed", { error: e instanceof Error ? e.message : String(e) });
+      return undefined;
+    }
+  }
+
+  private async fetchParsed(q: CatastroQuery): Promise<CatastroParcelInfo | null> {
+    const url = buildUrl(q);
+    if (!url) return null;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await this.fetchImpl(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
+      if (!res.ok) return null;
+      return parseOvc((await res.json()) as unknown, q);
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
   async query(input: CatastroQuery) {
     const url = buildUrl(input);
     if (!url)
@@ -78,9 +127,31 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
           appError("SOURCE_HTTP_ERROR", `Catastro respondió ${res.status}.`, { status: res.status }),
         );
       const json = (await res.json()) as unknown;
-      const parsed = parseOvc(json, input);
-      if (!parsed)
-        return err(appError("SOURCE_EMPTY", "El Catastro no devolvió inmuebles para esta consulta."));
+      let parsed = parseOvc(json, input);
+      const notes: string[] = [];
+      if (!parsed) {
+        const ovc = ovcError(json);
+        // Street number not in the cadastre: use the closest existing number, clearly flagged.
+        if (ovc?.code === OVC_NUMBER_NOT_FOUND && input.kind === "address") {
+          const nearest = await this.nearestNumber(input);
+          if (nearest) {
+            parsed = nearest.parsed;
+            notes.push(
+              `El número ${input.number} no consta en el Catastro; se usa el ${nearest.number} (parcela más próxima). Verificar la referencia catastral.`,
+            );
+          }
+        }
+        if (!parsed)
+          return err(
+            appError(
+              ovc ? "SOURCE_ERROR" : "SOURCE_EMPTY",
+              ovc
+                ? `Catastro: ${ovc.message} (código ${ovc.code}).`
+                : "El Catastro no devolvió inmuebles para esta consulta.",
+              ovc ? { ovcCode: ovc.code } : undefined,
+            ),
+          );
+      }
       if (!parsed.coordinates && parsed.cadastralRef) {
         // Free geolocation of the parcel: lets the planning connector query the geoservices.
         parsed.coordinates = await this.coordinatesFor(
@@ -91,6 +162,10 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       }
       const retrievedAt = new Date().toISOString();
       const quality = assessParsedQuality(parsed);
+      if (notes.length) {
+        quality.status = "INFERRED";
+        quality.notes.unshift(...notes);
+      }
       const evidence: NewEvidence[] = [
         {
           sourceType: "official_registry",
@@ -134,6 +209,54 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       );
     }
   }
+}
+
+/** OVC error code for "EL NUMERO NO EXISTE". */
+export const OVC_NUMBER_NOT_FOUND = "43";
+/** How far (in street numbers) the nearest-number fallback may go. */
+const MAX_NUMBER_DISTANCE = 6;
+
+/** Structured error envelope of the OVC JSON services (`control.cuerr` + `lerr[]`). */
+export function ovcError(json: unknown): { code: string; message: string } | undefined {
+  const root = (get(json, "consulta_dnprcResult") ??
+    get(json, "consulta_dnplocResult") ??
+    get(json, "Consulta_RCCOORResult") ??
+    get(json, "Consulta_CPMRCResult") ??
+    get(json, "consulta_numereroResult") ??
+    json) as Obj;
+  const cuerr = num(get(root, "control", "cuerr"));
+  if (!cuerr) return undefined;
+  const list = get(root, "lerr") as unknown;
+  const first = Array.isArray(list) ? list[0] : list;
+  return { code: str(get(first, "cod")) ?? "?", message: str(get(first, "des")) ?? "error del Catastro" };
+}
+
+export function buildNumereroUrl(q: Extract<CatastroQuery, { kind: "address" }>): string {
+  const p = new URLSearchParams();
+  p.set("Provincia", q.province);
+  p.set("Municipio", q.municipality);
+  p.set("TipoVia", q.streetType ?? "CL");
+  p.set("NomVia", q.street);
+  p.set("Numero", q.number);
+  return `${OVC_BASE}/COVCCallejero.svc/json/ObtenerNumerero?${p.toString()}`;
+}
+
+/** Parse `ObtenerNumerero`: `nump[]` entries with `num.pnp` and `pc.pc1/pc2`. */
+export function parseNumerero(json: unknown): Array<{ number: number; cadastralRef: string }> {
+  const root = (get(json, "consulta_numereroResult") ?? json) as Obj;
+  const raw = get(root, "nump") as unknown;
+  const list = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object"
+      ? ((get(raw, "nump") as unknown[]) ?? [raw])
+      : [];
+  return (Array.isArray(list) ? list : [])
+    .map((item) => {
+      const number = num(get(item, "num", "pnp"));
+      const rc = `${str(get(item, "pc", "pc1")) ?? ""}${str(get(item, "pc", "pc2")) ?? ""}`;
+      return number !== undefined && rc.length >= 14 ? { number, cadastralRef: rc } : null;
+    })
+    .filter((x): x is { number: number; cadastralRef: string } => x !== null);
 }
 
 export function buildCoordinatesUrl(cadastralRef: string, province: string, municipality: string): string {

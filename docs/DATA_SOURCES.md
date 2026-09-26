@@ -42,6 +42,10 @@ Herramientas:
 
 Los nombres de capa y de campo se han tomado del directorio público de servicios; los dominios de la Gerencia (`sig.urbanismosevilla.org`, `cdu.urbanismosevilla.org`) deben ser accesibles desde el servidor. Otra ciudad se añade con su `CityProfile.urbanism.publicSources` (ArcGIS o WFS) sin cambios en agentes ni UI.
 
+Comportamiento verificado con datos reales (septiembre 2026): la calificación publica `altura=88` como valor centinela ("según PEP/catálogo"); el conector descarta alturas fuera de rango y usa la altura de referencia de la ordenanza, anotándolo. La clasificación superpone polígonos de "representación" con atributos vacíos; se elige la entidad con más campos informados. Si ningún polígono intersecta el punto exacto (geocodificación sobre la calle), se repite la consulta con 8 m de tolerancia. Cada capa se reintenta una vez ante timeout (15 s).
+
+Catastro: los servicios JSON devuelven errores estructurados (`control.cuerr` + `lerr[].cod/des`), que el adaptador expone como `SOURCE_ERROR` con el mensaje de la OVC. Para "EL NUMERO NO EXISTE" (código 43) se consulta `ObtenerNumerero`, se toma el número existente más próximo (máximo 6 números de distancia) y el registro se marca `INFERRED` con la nota correspondiente.
+
 ## Catastro público (OVC): parsing y estado de la evidencia
 
 `parseOvc` (`src/modules/adapters/catastro/public.ts`) lee `bico.bi[]` de `Consulta_DNPRC` / `Consulta_DNPLOC` (y `coordenadas.coord` de `Consulta_RCCOOR`). El campo `debi.luso` es una **etiqueta descriptiva** ("Residencial", "Comercial", "Oficinas", "Industrial", "Almacén-Estacionamiento", "Religioso"…), no un código: `resolveCatastroUseCode` la normaliza (sin tildes ni mayúsculas) al código canónico de una letra que usan `CATASTRO_USE_LABELS` y los especialistas (V, C, O, I, A, R, G, K, E, P, T, Y, M, Z) y acepta también códigos de una letra. `catastroUseToAssetUse` traduce el código al `AssetUse` del motor (V→residential, C→commercial, O→office, I→industrial, M/Z→land, resto→other) y se incluye en `structuredData.assetUse` de la evidencia.

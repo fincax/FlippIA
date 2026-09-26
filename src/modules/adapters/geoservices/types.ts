@@ -33,6 +33,8 @@ export interface FeatureRecord {
 export interface GeoQuery {
   /** Point-in-polygon lookup (WGS84). */
   point?: LatLng;
+  /** Search radius in metres around `point` (a point on the street still finds the parcel). */
+  distanceM?: number;
   /** Attribute filter: `{ field, value }` becomes `field = 'value'` (escaped). */
   equals?: { field: string; value: string };
   returnGeometry?: boolean;
