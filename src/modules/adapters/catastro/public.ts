@@ -22,7 +22,15 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
   sourceAuthority = "Dirección General del Catastro";
   mode = "public" as const;
 
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  /**
+   * @param pointResolver Optional municipal fallback (e.g. the IDE parcel layer)
+   * returning the cadastral reference under a point when the OVC coordinate
+   * service does not answer.
+   */
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly pointResolver?: (point: { lat: number; lng: number }) => Promise<string | undefined>,
+  ) {}
 
   async isAvailable() {
     try {
@@ -131,8 +139,21 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       const notes: string[] = [];
       if (!parsed) {
         const ovc = ovcError(json);
+        // The OVC coordinate service is unreliable: resolve the parcel through the municipal parcel layer.
+        if (input.kind === "point" && this.pointResolver) {
+          const rc = await this.pointResolver(input.point).catch(() => undefined);
+          if (rc) {
+            parsed = await this.fetchParsed({ kind: "cadastralRef", cadastralRef: rc });
+            if (parsed) {
+              parsed.coordinates = input.point;
+              notes.push(
+                "Referencia catastral localizada por el parcelario municipal a partir de las coordenadas.",
+              );
+            }
+          }
+        }
         // Street number not in the cadastre: use the closest existing number, clearly flagged.
-        if (ovc?.code === OVC_NUMBER_NOT_FOUND && input.kind === "address") {
+        if (!parsed && ovc?.code === OVC_NUMBER_NOT_FOUND && input.kind === "address") {
           const nearest = await this.nearestNumber(input);
           if (nearest) {
             parsed = nearest.parsed;
@@ -242,15 +263,25 @@ export function buildNumereroUrl(q: Extract<CatastroQuery, { kind: "address" }>)
 }
 
 /** Parse `ObtenerNumerero`: `nump[]` entries with `num.pnp` and `pc.pc1/pc2`. */
+/** Collect every object in a JSON tree that satisfies `pred` (the OVC nests lists inconsistently). */
+export function deepFind(json: unknown, pred: (o: Obj) => boolean, out: Obj[] = [], depth = 0): Obj[] {
+  if (depth > 12 || !json || typeof json !== "object") return out;
+  if (Array.isArray(json)) {
+    for (const item of json) deepFind(item, pred, out, depth + 1);
+    return out;
+  }
+  const o = json as Obj;
+  if (pred(o)) out.push(o);
+  for (const v of Object.values(o)) deepFind(v, pred, out, depth + 1);
+  return out;
+}
+
 export function parseNumerero(json: unknown): Array<{ number: number; cadastralRef: string }> {
-  const root = (get(json, "consulta_numereroResult") ?? json) as Obj;
-  const raw = get(root, "nump") as unknown;
-  const list = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object"
-      ? ((get(raw, "nump") as unknown[]) ?? [raw])
-      : [];
-  return (Array.isArray(list) ? list : [])
+  const items = deepFind(
+    json,
+    (o) => get(o, "num", "pnp") !== undefined && get(o, "pc", "pc1") !== undefined,
+  );
+  return items
     .map((item) => {
       const number = num(get(item, "num", "pnp"));
       const rc = `${str(get(item, "pc", "pc1")) ?? ""}${str(get(item, "pc", "pc2")) ?? ""}`;
@@ -270,11 +301,9 @@ export function buildCoordinatesUrl(cadastralRef: string, province: string, muni
 
 /** Parse `Consulta_CPMRC`: `coordenadas.coord[0].geo.{xcen,ycen}` in the requested SRS (lon/lat for EPSG:4326). */
 export function parseCoordinates(json: unknown): { lat: number; lng: number } | undefined {
-  const root = (get(json, "Consulta_CPMRCResult") ?? get(json, "consulta_coordenadasResult") ?? json) as Obj;
-  const list = get(root, "coordenadas", "coord") as unknown;
-  const coord = Array.isArray(list) ? list[0] : list;
-  const lng = num(get(coord, "geo", "xcen"));
-  const lat = num(get(coord, "geo", "ycen"));
+  const geo = deepFind(json, (o) => o.xcen !== undefined && o.ycen !== undefined)[0];
+  const lng = num(get(geo, "xcen"));
+  const lat = num(get(geo, "ycen"));
   if (lng === undefined || lat === undefined) return undefined;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return undefined;
   return { lat, lng };

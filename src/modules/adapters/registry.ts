@@ -4,6 +4,8 @@ import { createMarketAdapter, type MarketAdapter } from "./market";
 import { DemoListingsSource, type SourceAdapter } from "./sources";
 import type { SourceStatus } from "./types";
 import { createUrbanismAdapter, type UrbanismAdapter } from "./urbanismo-sevilla";
+import { defaultCity } from "@/modules/city/registry";
+import { queryLayer } from "./geoservices";
 
 export interface AdapterSet {
   catastro: CatastroAdapter;
@@ -18,13 +20,33 @@ let cached: AdapterSet | undefined;
 /** Adapters are chosen by environment; the rest of the system never knows which implementation is active. */
 export function adapters(): AdapterSet {
   cached ??= {
-    catastro: createCatastroAdapter(),
+    catastro: createCatastroAdapter(undefined, parcelResolverFromCity()),
     urbanism: createUrbanismAdapter(),
     market: createMarketAdapter(),
     financing: createFinancingAdapter(),
     sources: [new DemoListingsSource()],
   };
   return cached;
+}
+
+/** Cadastral reference under a point via the city's public parcel layer (when configured). */
+function parcelResolverFromCity():
+  ((point: { lat: number; lng: number }) => Promise<string | undefined>) | undefined {
+  const parcel = defaultCity().urbanism.publicSources?.parcel;
+  const field = parcel?.fields.cadastralRef;
+  if (!parcel || !field) return undefined;
+  return async (point) => {
+    const attempt = async (distanceM?: number) => {
+      const r = await queryLayer(
+        parcel.source,
+        { point, maxFeatures: 1, ...(distanceM ? { distanceM } : {}) },
+        { timeoutMs: 10_000 },
+      );
+      const v = r.features[0]?.attributes[field];
+      return v ? String(v).trim().toUpperCase() : undefined;
+    };
+    return (await attempt()) ?? (await attempt(8));
+  };
 }
 
 export function overrideAdapters(set: Partial<AdapterSet>) {

@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { buildUrl, CatastroPublicAdapter } from "@/modules/adapters/catastro/public";
 import type { CatastroQuery } from "@/modules/adapters/catastro/types";
+import { queryLayer } from "@/modules/adapters/geoservices";
+import { buildNumereroUrl } from "@/modules/adapters/catastro/public";
 import { UrbanismoPublicConnector } from "@/modules/adapters/urbanismo-sevilla/public";
 import { parseIntake } from "@/modules/property/intake";
 
@@ -18,8 +20,19 @@ import { parseIntake } from "@/modules/property/intake";
 async function main() {
   const text = process.argv.slice(2).join(" ").trim();
   if (!text) throw new Error('Uso: pnpm sources:check "<dirección | referencia catastral | lat,lng>"');
-  const catastro = new CatastroPublicAdapter();
   const urbanism = new UrbanismoPublicConnector();
+  const parcel = urbanism.config.parcel;
+  const catastro = new CatastroPublicAdapter(fetch, async (pt) => {
+    if (!parcel?.fields.cadastralRef) return undefined;
+    const r = await queryLayer(
+      parcel.source,
+      { point: pt, maxFeatures: 1, distanceM: 8 },
+      { timeoutMs: 10_000 },
+    );
+    const v = r.features[0]?.attributes[parcel.fields.cadastralRef];
+    console.warn(`   parcelario municipal por punto: ${v ? String(v) : "sin parcela"} (${r.url})`);
+    return v ? String(v).toUpperCase() : undefined;
+  });
   const point = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
   const rc = text.match(/^[0-9A-Z]{14}([0-9A-Z]{6})?$/i);
   const intake = parseIntake(text);
@@ -51,6 +64,10 @@ async function main() {
   if (!c.ok) {
     console.warn(`   ✗ ${c.error.code}: ${c.error.message}`);
     await dumpRaw(buildUrl(query));
+    if (query.kind === "address") {
+      console.warn(`   numerero: ${buildNumereroUrl(query)}`);
+      await dumpRaw(buildNumereroUrl(query));
+    }
     if (query.kind === "point") await tryCoordinateVariants(query.point);
   } else {
     const d = c.value.data;
@@ -108,6 +125,10 @@ async function tryCoordinateVariants(p: { lat: number; lng: number }) {
     ],
     ["EPSG:4258", `${base}?SRS=EPSG:4258&Coordenada_X=${p.lng}&Coordenada_Y=${p.lat}`],
     ["orden Y,X", `${base}?SRS=EPSG:4326&Coordenada_Y=${p.lat}&Coordenada_X=${p.lng}`],
+    [
+      "servicio XML (asmx)",
+      `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_RCCOOR?SRS=EPSG:4326&Coordenada_X=${p.lng}&Coordenada_Y=${p.lat}`,
+    ],
   ];
   console.warn("   variantes del servicio de coordenadas:");
   for (const [label, url] of variants) {

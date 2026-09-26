@@ -349,3 +349,62 @@ describe("Catastro public errors and nearest-number fallback", () => {
     expect(r.error.message).toContain("LA COORDENADA X OBLIGATORIA");
   });
 });
+
+describe("Catastro public point queries via the municipal parcel layer", () => {
+  it("resolves the cadastral reference with the point resolver when the OVC coordinate service fails", async () => {
+    const { CatastroPublicAdapter, deepFind, parseCoordinates, parseNumerero } =
+      await import("./catastro/public");
+    expect(
+      parseCoordinates({
+        Consulta_CPMRCResult: { coordenadas: { coord: { geo: { xcen: "-6.0", ycen: "37.4" } } } },
+      }),
+    ).toEqual({ lat: 37.4, lng: -6 });
+    expect(
+      parseNumerero({
+        consulta_numereroResult: {
+          numerero: { nump: [{ num: { pnp: "12" }, pc: { pc1: "1234567", pc2: "AB1234C" } }] },
+        },
+      }),
+    ).toEqual([{ number: 12, cadastralRef: "1234567AB1234C" }]);
+    expect(deepFind({ a: [{ x: 1 }, { y: { x: 2 } }] }, (o) => o.x !== undefined)).toHaveLength(2);
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const url = String(input);
+      const json = (b: unknown) =>
+        new Response(JSON.stringify(b), { status: 200, headers: { "content-type": "application/json" } });
+      if (url.includes("Consulta_RCCOOR"))
+        return json({
+          Consulta_RCCOORResult: {
+            control: { cuerr: 1 },
+            lerr: [{ cod: "76", des: "LA COORDENADA X OBLIGATORIA" }],
+          },
+        });
+      if (url.includes("Consulta_DNPRC"))
+        return json({
+          consulta_dnprcResult: {
+            bico: {
+              bi: [
+                {
+                  idbi: { rc: { pc1: "4219020", pc2: "TG3441N", car: "0001", cc1: "A", cc2: "B" } },
+                  dt: {
+                    np: "SEVILLA",
+                    nm: "SEVILLA",
+                    locs: { lous: { lourb: { dir: { tv: "CL", nv: "PUREZA", pnp: "23" } } } },
+                  },
+                  debi: { luso: "Residencial", sfc: "120", ant: "1920" },
+                },
+              ],
+            },
+          },
+        });
+      return json({});
+    }) as typeof fetch;
+    const adapter = new CatastroPublicAdapter(fetchImpl, async () => "4219020TG3441N");
+    const r = await adapter.query({ kind: "point", point: { lat: 37.3838, lng: -6.0034 } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.data.cadastralRef).toBe("4219020TG3441N");
+    expect(r.value.data.coordinates).toEqual({ lat: 37.3838, lng: -6.0034 });
+    expect(r.value.evidence[0]?.verificationStatus).toBe("INFERRED");
+    expect(r.value.evidence[0]?.excerpt).toContain("parcelario municipal");
+  });
+});
