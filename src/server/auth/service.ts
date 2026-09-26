@@ -39,37 +39,31 @@ export async function register(d: Database, input: RegisterInput): Promise<AuthR
   const orgId = newId("org");
   const orgName = input.organizationName?.trim() || `${input.name.trim().split(" ")[0] ?? "Mi"} · FlippIA`;
   await d.transaction(async (tx) => {
-    await tx
-      .insert(users)
-      .values({
-        id: userId,
-        email,
-        name: input.name.trim(),
-        passwordHash: await hashPassword(input.password),
-      });
+    await tx.insert(users).values({
+      id: userId,
+      email,
+      name: input.name.trim(),
+      passwordHash: await hashPassword(input.password),
+    });
     await tx
       .insert(organizations)
       .values({ id: orgId, name: orgName, slug: `${slugify(orgName)}-${orgId.slice(-6)}` });
     await tx.insert(memberships).values({ id: newId("mem"), organizationId: orgId, userId, role: "owner" });
-    await tx
-      .insert(investorProfiles)
-      .values({
-        id: newId("inv"),
-        organizationId: orgId,
-        userId,
-        dna: DEFAULT_INVESTOR_DNA,
-        completed: false,
-      });
-    await tx
-      .insert(auditEvents)
-      .values({
-        id: newId("aud"),
-        organizationId: orgId,
-        userId,
-        action: "user.registered",
-        targetType: "user",
-        targetId: userId,
-      });
+    await tx.insert(investorProfiles).values({
+      id: newId("inv"),
+      organizationId: orgId,
+      userId,
+      dna: DEFAULT_INVESTOR_DNA,
+      completed: false,
+    });
+    await tx.insert(auditEvents).values({
+      id: newId("aud"),
+      organizationId: orgId,
+      userId,
+      action: "user.registered",
+      targetType: "user",
+      targetId: userId,
+    });
   });
   const s = await createSession(d, { userId, organizationId: orgId, userAgent: input.userAgent });
   return { ok: true, ...s, userId, organizationId: orgId };
@@ -89,16 +83,14 @@ export async function login(
   const membership = (await d.select().from(memberships).where(eq(memberships.userId, row.id)).limit(1))[0];
   if (!membership) return { ok: false, error: "El usuario no pertenece a ninguna organización." };
   await d.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, row.id));
-  await d
-    .insert(auditEvents)
-    .values({
-      id: newId("aud"),
-      organizationId: membership.organizationId,
-      userId: row.id,
-      action: "user.login",
-      targetType: "user",
-      targetId: row.id,
-    });
+  await d.insert(auditEvents).values({
+    id: newId("aud"),
+    organizationId: membership.organizationId,
+    userId: row.id,
+    action: "user.login",
+    targetType: "user",
+    targetId: row.id,
+  });
   const s = await createSession(d, {
     userId: row.id,
     organizationId: membership.organizationId,

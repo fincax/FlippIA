@@ -2,15 +2,15 @@
 
 Tokens en `src/app/globals.css` (`:root` y `[data-theme="light"]`), expuestos a Tailwind 4 con `@theme inline`.
 
-| Token | Uso |
-| --- | --- |
-| `bg`, `bg-2` | fondos primario/secundario |
-| `surface`, `surface-raised`, `surface-hover` | tarjetas y estados |
-| `fg`, `fg-2`, `fg-3` | texto primario/secundario/atenuado |
-| `accent`, `accent-strong`, `accent-soft` | acento (el "IA" del wordmark, CTAs) |
-| `success`, `warning`, `danger` | estados |
-| `verified`, `inferred`, `review`, `conflict`, `unknown` | semáforo de evidencia |
-| `line`, `line-strong` | bordes |
+| Token                                                   | Uso                                 |
+| ------------------------------------------------------- | ----------------------------------- |
+| `bg`, `bg-2`                                            | fondos primario/secundario          |
+| `surface`, `surface-raised`, `surface-hover`            | tarjetas y estados                  |
+| `fg`, `fg-2`, `fg-3`                                    | texto primario/secundario/atenuado  |
+| `accent`, `accent-strong`, `accent-soft`                | acento (el "IA" del wordmark, CTAs) |
+| `success`, `warning`, `danger`                          | estados                             |
+| `verified`, `inferred`, `review`, `conflict`, `unknown` | semáforo de evidencia               |
+| `line`, `line-strong`                                   | bordes                              |
 
 Tipografía: `font-display` (serif editorial) para titulares y cifras grandes; sans para texto; mono para identificadores. `.num` activa cifras tabulares.
 

@@ -1,3 +1,5 @@
+import { labelConstraint } from "@/lib/labels";
+import { introducesNoNewNumbers } from "@/modules/ai/guard";
 import type { AnalysisResult, StrategyResult } from "@/modules/analysis/types";
 import { LIA_SYSTEM_PROMPT } from "@/modules/analysis/narrative";
 import type { AIProvider } from "@/modules/ai/provider";
@@ -209,7 +211,9 @@ export async function askProperty(
         ],
         maxTokens: 500,
       });
-      if (res && res.text.length > 30) return { ...answer, text: res.text, source: "model" };
+      // The model may rephrase, never add numbers. Otherwise keep the engine text.
+      if (res && res.text.length > 30 && introducesNoNewNumbers(res.text, answer.text))
+        return { ...answer, text: res.text, source: "model" };
     } catch {
       /* fall back to engine text */
     }
@@ -220,7 +224,7 @@ export async function askProperty(
 export function parseWhatIf(
   question: string,
   strategy: StrategyResult,
-): { overrides: Record<string, number>; description: string } | null {
+): { overrides: Record<string, number | string>; description: string } | null {
   const q = normalizeText(question);
   const money = parseMoney(question);
   const months = question.match(/(\d{1,2})\s*(?:meses|mes)\b/i);
@@ -249,10 +253,12 @@ export function parseWhatIf(
   }
   if (/financiaci|hipoteca|ltv/.test(q) && pctMatch) {
     const ratio = Number(pctMatch[1]) / 100;
+    // Only meaningful when the base already has an instrument to resize; keep it an LTV ratio.
+    if (!base.financing[0]) return null;
     return {
-      overrides: { "financing.0.sizing.ratio": ratio, "financing.0.sizing.type": 0 as unknown as number },
+      overrides: { "financing.0.sizing.ratio": ratio, "financing.0.sizing.type": "ltv" },
       description: `Financiación al ${Math.round(ratio * 100)} %`,
-    } as { overrides: Record<string, number>; description: string };
+    };
   }
   if (/pago|precio|compra|oferta/.test(q) && money[0]) {
     const value = more
@@ -295,16 +301,4 @@ function describeConstraints(c: AcquisitionConstraints): string {
   if (c.maximumLtc !== undefined) parts.push(`LTC ≤ ${formatPercent(c.maximumLtc, { decimals: 0 })}`);
   if (c.maximumDuration !== undefined) parts.push(`plazo ≤ ${c.maximumDuration} meses`);
   return parts.join(", ");
-}
-
-export function labelConstraint(k: keyof AcquisitionConstraints | "none"): string {
-  return {
-    minimumRoe: "el ROE mínimo",
-    minimumProfit: "el beneficio mínimo",
-    minimumMargin: "el margen mínimo",
-    maximumCapital: "el capital máximo",
-    maximumLtc: "el LTC máximo",
-    maximumDuration: "la duración máxima",
-    none: "ninguna restricción",
-  }[k];
 }

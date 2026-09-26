@@ -55,7 +55,7 @@ export default async function DealLayout({
               Deals
             </Link>
             <span>/</span>
-            <span>{deal.mode === "project" ? "Project mode" : "Deal mode"}</span>
+            <span>{deal.mode === "project" ? "Modo proyecto" : "Modo deal"}</span>
           </div>
           <h1 className="font-display text-2xl md:text-3xl mt-1 truncate">{deal.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">

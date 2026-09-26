@@ -16,6 +16,7 @@ export function AppShell({
   csrf: string;
   children: ReactNode;
 }) {
+  const isAdmin = session.role === "owner" || session.role === "admin";
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
       <meta name="csrf-token" content={csrf} />
@@ -24,7 +25,7 @@ export function AppShell({
           <Wordmark size="md" />
         </Link>
         <div className="mt-8 flex-1">
-          <NavLinks />
+          <NavLinks admin={isAdmin} />
         </div>
         <div className="px-2 text-[12px] text-fg-3 space-y-1">
           <div className="truncate text-fg-2">{session.organization.name}</div>
@@ -40,9 +41,14 @@ export function AppShell({
           </Link>
           <span className="text-[11px] text-fg-3 truncate max-w-[50%]">{session.organization.name}</span>
         </header>
-        <main className="px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-10 max-w-[1400px]">{children}</main>
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-line bg-bg-2/95 backdrop-blur">
-          <NavLinks mobile />
+        <main className="px-4 md:px-8 py-6 md:py-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10 max-w-[1400px]">
+          {children}
+        </main>
+        <nav
+          aria-label="Navegación principal"
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-line bg-bg-2/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+        >
+          <NavLinks mobile admin={isAdmin} />
         </nav>
       </div>
       <CommandPalette />

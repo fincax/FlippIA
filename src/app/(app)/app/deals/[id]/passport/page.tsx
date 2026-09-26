@@ -1,3 +1,5 @@
+import { labelReviewRole, labelReviewStatus } from "@/lib/labels";
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, EvidenceBadge, SectionTitle, Surface, VerificationBadge } from "@/components/ds";
 import { PrintButton } from "@/components/flippia/print-button";
 import { ReviewForm } from "@/components/flippia/review-form";
@@ -8,8 +10,8 @@ import { listReviews } from "@/server/services/reviews";
 
 export default async function PassportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { ctx, analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { ctx, deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const reviews = await listReviews(ctx, id);
   const passport = buildPassport(
     analysis,
@@ -82,7 +84,8 @@ export default async function PassportPage({ params }: { params: Promise<{ id: s
           <ul className="mt-4 text-[12px] text-fg-2 space-y-1">
             {reviews.map((r) => (
               <li key={r.id}>
-                {formatDate(r.createdAt)} · {r.role} v{r.version} · {r.status} · {r.scope}
+                {formatDate(r.createdAt)} · {labelReviewRole(r.role)} v{r.version} ·{" "}
+                {labelReviewStatus(r.status)} · {r.scope}
                 {r.comments ? ` — ${r.comments}` : ""}
               </li>
             ))}

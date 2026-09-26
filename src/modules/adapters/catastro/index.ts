@@ -10,5 +10,6 @@ export type CatastroAdapter = DataSourceAdapter<CatastroQuery, CatastroParcelInf
 
 export function createCatastroAdapter(mode = process.env.CATASTRO_MODE ?? "demo"): CatastroAdapter {
   if (mode === "public") return new CatastroPublicAdapter();
-  return new CatastroDemoAdapter();
+  if (mode === "demo") return new CatastroDemoAdapter();
+  throw new Error(`CATASTRO_MODE "${mode}" is not supported (demo | public)`);
 }

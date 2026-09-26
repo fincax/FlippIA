@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { investorProfiles } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import { DEFAULT_INVESTOR_DNA, type InvestorDNA } from "@/modules/investor/types";
@@ -52,26 +52,23 @@ export async function getInvestorDNA(ctx: TenantContext): Promise<{ dna: Investo
 
 export async function saveInvestorDNA(ctx: TenantContext, dna: InvestorDNA): Promise<void> {
   const parsed = investorDnaSchema.parse(dna);
-  const [existing] = await ctx.db
-    .select({ id: investorProfiles.id, version: investorProfiles.version })
-    .from(investorProfiles)
-    .where(
-      and(eq(investorProfiles.organizationId, ctx.organizationId), eq(investorProfiles.userId, ctx.userId)),
-    )
-    .limit(1);
-  if (existing)
-    await ctx.db
-      .update(investorProfiles)
-      .set({ dna: parsed, completed: true, version: existing.version + 1, updatedAt: new Date() })
-      .where(eq(investorProfiles.id, existing.id));
-  else
-    await ctx.db
-      .insert(investorProfiles)
-      .values({
-        id: newId("inv"),
-        organizationId: ctx.organizationId,
-        userId: ctx.userId,
+  // One profile per (organization, user): the unique index makes this atomic under concurrency.
+  await ctx.db
+    .insert(investorProfiles)
+    .values({
+      id: newId("inv"),
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      dna: parsed,
+      completed: true,
+    })
+    .onConflictDoUpdate({
+      target: [investorProfiles.organizationId, investorProfiles.userId],
+      set: {
         dna: parsed,
         completed: true,
-      });
+        version: sql`${investorProfiles.version} + 1`,
+        updatedAt: new Date(),
+      },
+    });
 }

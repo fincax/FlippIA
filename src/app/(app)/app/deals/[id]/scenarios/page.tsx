@@ -1,11 +1,12 @@
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { ScenarioPanel } from "@/components/flippia/scenario-panel";
 import { loadDeal } from "@/server/deal-page";
 import { listScenarioSets } from "@/server/services/scenarios";
 
 export default async function ScenariosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { ctx, analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { ctx, deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const sets = await listScenarioSets(ctx, id);
   const ordered = analysis.strategies
     .map((s) => ({

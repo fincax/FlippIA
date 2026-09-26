@@ -62,6 +62,8 @@ export interface AnalysisParams {
   budget?: Partial<Budget>;
   emit?: (event: AnalysisEvent) => void;
   onRunRecord?: (r: AgentRunRecord) => void;
+  /** Cancels the plan (client disconnect, shutdown). */
+  signal?: AbortSignal;
 }
 
 /** The Core Orchestrator's plan for a property analysis. Domain orchestrators are groups of specialist agents. */
@@ -124,17 +126,28 @@ export async function runAnalysis(params: AnalysisParams): Promise<AnalysisResul
       ai,
       logger: createLogger({ analysisId }),
     },
-    { emit, budget: params.budget, onRunRecord: params.onRunRecord },
+    { emit, budget: params.budget, onRunRecord: params.onRunRecord, signal: params.signal },
   );
   const o = outcome.outputs;
   const profile = o.get("data.catastro") as PropertyProfile | undefined;
   const market = o.get("market.valuation") as MarketAssessment | undefined;
   if (!profile || !market)
     throw new Error(`Analysis could not complete: ${outcome.failed.join(", ") || "unknown failure"}`);
-  const urbanism = o.get("urbanism.synthesis") as UrbanismAssessment;
-  const architecture = o.get("architecture.alternatives") as ArchitectureAssessment;
-  const finance = o.get("finance.offers") as FinanceAssessment;
-  const regulatory = o.get("regulatory.snapshot") as RegulatorySnapshot;
+  const urbanism = o.get("urbanism.synthesis") as UrbanismAssessment | undefined;
+  const architecture = o.get("architecture.alternatives") as ArchitectureAssessment | undefined;
+  const finance = o.get("finance.offers") as FinanceAssessment | undefined;
+  const regulatory = o.get("regulatory.snapshot") as RegulatorySnapshot | undefined;
+  if (!urbanism || !architecture || !finance || !regulatory) {
+    const missing = [
+      !urbanism && "urbanism.synthesis",
+      !architecture && "architecture.alternatives",
+      !finance && "finance.offers",
+      !regulatory && "regulatory.snapshot",
+    ].filter(Boolean);
+    throw new Error(
+      `Analysis could not complete: missing ${missing.join(", ")} (failed: ${outcome.failed.join(", ") || "none"})`,
+    );
+  }
   const rawStrategies = (o.get("investment.strategies") as StrategyResult[] | undefined) ?? [];
   const risk = (o.get("risk.synthesis") as RiskAssessment | undefined) ?? {
     stressByStrategy: {},

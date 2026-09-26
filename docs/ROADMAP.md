@@ -1,9 +1,11 @@
 # Roadmap
 
 ## Hecho (MVP vertical slice)
+
 Auth + organizaciones · Investor DNA · LIA (router, ask, narrativa) · intake · Deal workspace · runtime agéntico observable · evidencia · base regulatoria + snapshot + watcher · motor financiero · escenarios (twin) · MultiExit (10) · adaptadores Sevilla (Catastro público/demo, urbanismo demo/oficial-placeholder, mercado, financiación, listados) · Deal Passport + revisiones · stress · precio máximo · Haz magia · Radar + reverse investing + autopsia · Watch + alertas + Pulse · panel de agentes · UX responsive · tests unit/integration/e2e.
 
 ## Siguiente
+
 1. Ingesta regulatoria (BOE/BOJA/BOP), embeddings pgvector, verificación humana de normas.
 2. Conector oficial Urbanismo Sevilla / IDE Sevilla WFS; Catastro público validado en producción.
 3. Feeds de mercado autorizados (transacciones) y City Brain con muestra y confianza reales.

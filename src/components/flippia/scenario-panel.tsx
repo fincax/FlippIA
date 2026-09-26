@@ -76,6 +76,7 @@ export function ScenarioPanel({
     });
     setBusy(false);
     if (res.ok && res.data) setWhatIf(res.data);
+    else setMsg(res.error?.message ?? "No hemos podido simular ese cambio.");
   }
   async function commitBase() {
     const v = Number(whatIfValue.replace(/[^\d.-]/g, ""));
@@ -110,7 +111,7 @@ export function ScenarioPanel({
     if (res.ok) {
       setMsg("Escenario personalizado guardado.");
       router.refresh();
-    }
+    } else setMsg(res.error?.message ?? "No hemos podido guardar el escenario.");
   }
 
   return (

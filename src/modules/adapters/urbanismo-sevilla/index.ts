@@ -10,5 +10,6 @@ export type UrbanismAdapter = DataSourceAdapter<UrbanismQuery, PlanningInfo>;
 
 export function createUrbanismAdapter(mode = process.env.URBANISMO_SEVILLA_MODE ?? "demo"): UrbanismAdapter {
   if (mode === "official") return new UrbanismoSevillaOfficialConnector();
-  return new UrbanismoSevillaDemoAdapter();
+  if (mode === "demo" || mode === "public") return new UrbanismoSevillaDemoAdapter();
+  throw new Error(`URBANISMO_SEVILLA_MODE "${mode}" is not supported (demo | public | official)`);
 }

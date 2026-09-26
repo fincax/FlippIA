@@ -25,6 +25,7 @@ DISCOVER → UNDERSTAND → VERIFY → TRANSFORM → DECIDE → FUND → ACQUIRE
 ## Arranque rápido
 
 ```bash
+# Producción: sigue docs/PRODUCTION.md antes del primer despliegue.
 # 1. Requisitos: Node ≥ 20.9, pnpm 10, PostgreSQL 16 con PostGIS (docker-compose incluido)
 cp .env.example .env
 docker compose up -d db          # o usa tu Postgres local (DATABASE_URL)
@@ -40,14 +41,14 @@ Sin `ANTHROPIC_API_KEY` la aplicación funciona íntegramente en modo determinis
 
 ## Comandos
 
-| Comando | Qué hace |
-| --- | --- |
-| `pnpm dev` / `pnpm build` / `pnpm start` | Next.js |
-| `pnpm typecheck` · `pnpm lint` · `pnpm format` | Calidad |
-| `pnpm test` | Unit (motores, agentes, LIA) + integration (Postgres `DATABASE_URL_TEST`) |
-| `pnpm test:e2e` | Playwright (requiere servidor y seed) |
-| `pnpm db:generate` · `pnpm db:migrate` · `pnpm db:seed` · `pnpm db:reset` | Base de datos |
-| `pnpm check` | typecheck + lint + test |
+| Comando                                                                   | Qué hace                                                                  |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `pnpm dev` / `pnpm build` / `pnpm start`                                  | Next.js                                                                   |
+| `pnpm typecheck` · `pnpm lint` · `pnpm format`                            | Calidad                                                                   |
+| `pnpm test`                                                               | Unit (motores, agentes, LIA) + integration (Postgres `DATABASE_URL_TEST`) |
+| `pnpm test:e2e`                                                           | Playwright (requiere servidor y seed)                                     |
+| `pnpm db:generate` · `pnpm db:migrate` · `pnpm db:seed` · `pnpm db:reset` | Base de datos                                                             |
+| `pnpm check`                                                              | typecheck + lint + test                                                   |
 
 ## Arquitectura (resumen)
 
@@ -55,14 +56,14 @@ Monolito modular en Next.js 16 / TypeScript strict con separación estricta por 
 
 ## Integraciones pendientes (configurables, nunca bloqueantes)
 
-| Variable | Estado | Qué falta |
-| --- | --- | --- |
-| `CATASTRO_MODE=public` | Implementado (OVC servicios libres) | Verificación de campos en producción |
-| `URBANISMO_SEVILLA_MODE=official` + `URBANISMO_SEVILLA_ENDPOINT` | Interfaz lista, conector no configurado | Convenio/API con Gerencia de Urbanismo o WFS de IDE Sevilla |
-| `MARKET_SOURCE_MODE=partner` | Interfaz lista | Feed autorizado de comparables/transacciones |
-| `FINANCING_PROVIDER_MODE=partner` | Interfaz lista | Brokers/entidades |
-| `ANTHROPIC_API_KEY` | Proveedor implementado | Clave |
-| Feature flags (`FEATURE_FLAGS`) | `radar.v2, architect.generative, urbanism.experimental, financing.live, lens.beta, map.tiles, execution.mode` | Capacidades post-MVP |
+| Variable                                                         | Estado                                                                                                        | Qué falta                                                   |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `CATASTRO_MODE=public`                                           | Implementado (OVC servicios libres)                                                                           | Verificación de campos en producción                        |
+| `URBANISMO_SEVILLA_MODE=official` + `URBANISMO_SEVILLA_ENDPOINT` | Interfaz lista, conector no configurado                                                                       | Convenio/API con Gerencia de Urbanismo o WFS de IDE Sevilla |
+| `MARKET_SOURCE_MODE=partner`                                     | Interfaz lista                                                                                                | Feed autorizado de comparables/transacciones                |
+| `FINANCING_PROVIDER_MODE=partner`                                | Interfaz lista                                                                                                | Brokers/entidades                                           |
+| `ANTHROPIC_API_KEY`                                              | Proveedor implementado                                                                                        | Clave                                                       |
+| Feature flags (`FEATURE_FLAGS`)                                  | `radar.v2, architect.generative, urbanism.experimental, financing.live, lens.beta, map.tiles, execution.mode` | Capacidades post-MVP                                        |
 
 Todo lo sintético está marcado **DEMO** en datos, evidencia y UI.
 

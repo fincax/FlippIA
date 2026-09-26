@@ -6,7 +6,7 @@ Lee esto antes de tocar el repositorio. Cualquier sesión de Claude Code debe po
 
 FlippIA es un **Real Estate Transformation OS** agéntico: convierte una dirección en una tesis de inversión completa (estrategias MultiExit, escenarios, financiación, normativa, riesgos) con evidencia y procedencia. City Zero: Sevilla; arquitectura global (nunca `if (city === "Sevilla")`).
 
-Mantra: *FlippIA no busca casas, busca posibilidades. No vende IA: usa inteligencia para decidir mejor.*
+Mantra: _FlippIA no busca casas, busca posibilidades. No vende IA: usa inteligencia para decidir mejor._
 
 ## Principios no negociables
 

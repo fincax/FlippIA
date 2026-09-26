@@ -22,7 +22,8 @@ export interface RegulatoryQuery {
 /** Version in force on a date (or the most recent unverified/pending one, flagged). */
 export function versionInForce(reg: Regulation, date: string): RegulationVersion | undefined {
   const candidates = reg.versions.filter(
-    (v) => v.effectiveFrom <= date && (!v.effectiveUntil || v.effectiveUntil >= date),
+    (v) =>
+      v.status !== "repealed" && v.effectiveFrom <= date && (!v.effectiveUntil || v.effectiveUntil >= date),
   );
   candidates.sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
   return candidates[0];

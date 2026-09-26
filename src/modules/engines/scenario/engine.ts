@@ -151,7 +151,7 @@ export function updateBase(
   });
   const assumptions = set.assumptions.map((a) =>
     a.path in changes
-      ? { ...a, value: changes[a.path]!, source: "user" as const, status: "VERIFIED" as const }
+      ? { ...a, value: changes[a.path]!, source: "user" as const, status: "INFERRED" as const }
       : a,
   );
   return {

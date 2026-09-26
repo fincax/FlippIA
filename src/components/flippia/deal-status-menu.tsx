@@ -7,6 +7,7 @@ import { api } from "@/lib/client";
 
 const OPTIONS: Array<[string, string]> = [
   ["draft", "Borrador"],
+  ["analyzing", "Analizando"],
   ["analyzed", "Analizado"],
   ["watching", "Vigilado"],
   ["approved", "Aprobado"],
@@ -27,8 +28,9 @@ export function DealStatusMenu({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <div className="flex items-center gap-2 no-print">
+    <div className="flex flex-wrap items-center gap-2 no-print">
       <Select
         aria-label="Estado del deal"
         value={status}
@@ -36,13 +38,15 @@ export function DealStatusMenu({
         className="w-auto h-9"
         onChange={async (e) => {
           setBusy(true);
-          await api(`/api/deals/${dealId}/status`, { body: { status: e.target.value } });
+          setError(null);
+          const r = await api(`/api/deals/${dealId}/status`, { body: { status: e.target.value } });
           setBusy(false);
-          router.refresh();
+          if (r.ok) router.refresh();
+          else setError(r.error?.message ?? "No hemos podido cambiar el estado.");
         }}
       >
         {OPTIONS.map(([v, l]) => (
-          <option key={v} value={v}>
+          <option key={v} value={v} disabled={v === "analyzing"}>
             {l}
           </option>
         ))}
@@ -54,6 +58,11 @@ export function DealStatusMenu({
       >
         Reanalizar
       </Button>
+      {error ? (
+        <span role="alert" className="text-[12px] text-danger">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

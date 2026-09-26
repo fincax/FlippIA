@@ -8,6 +8,13 @@
       "when": 1790381472938,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790419743220,
+      "tag": "0001_investor_unique_profile",
+      "breakpoints": true
     }
   ]
 }

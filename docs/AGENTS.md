@@ -14,18 +14,18 @@ USER → LIA → CORE ORCHESTRATOR → DOMAIN ORCHESTRATORS → SPECIALIST AGENT
 
 ## Plan actual (23 agentes)
 
-| Dominio | Agentes |
-| --- | --- |
-| Opportunity | `opportunity.intake` (crítico) |
-| Data | `data.catastro` (crítico) |
-| Market | `market.comparables`, `market.valuation` |
-| Regulatory | `regulatory.snapshot` |
-| Urbanism | `urbanism.planning`, `zoning`, `protection`, `licence`, `change_of_use` (solo no residencial), `tourism` (solo residencial), `synthesis` |
-| Architecture | `architecture.existing`, `architecture.alternatives` |
-| Finance | `finance.offers` |
-| Investment | `investment.strategies` (MultiExit + escenarios + estrés + precio máximo) |
-| Exit | `exit.liquidity` |
-| Risk (adversariales) | `risk.devils_advocate`, `regulatory_conflict`, `data_integrity`, `assumptions`, `anomaly`, `synthesis` |
+| Dominio              | Agentes                                                                                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Opportunity          | `opportunity.intake` (crítico)                                                                                                           |
+| Data                 | `data.catastro` (crítico)                                                                                                                |
+| Market               | `market.comparables`, `market.valuation`                                                                                                 |
+| Regulatory           | `regulatory.snapshot`                                                                                                                    |
+| Urbanism             | `urbanism.planning`, `zoning`, `protection`, `licence`, `change_of_use` (solo no residencial), `tourism` (solo residencial), `synthesis` |
+| Architecture         | `architecture.existing`, `architecture.alternatives`                                                                                     |
+| Finance              | `finance.offers`                                                                                                                         |
+| Investment           | `investment.strategies` (MultiExit + escenarios + estrés + precio máximo)                                                                |
+| Exit                 | `exit.liquidity`                                                                                                                         |
+| Risk (adversariales) | `risk.devils_advocate`, `regulatory_conflict`, `data_integrity`, `assumptions`, `anomaly`, `synthesis`                                   |
 
 El número no es fijo: añade un `AgentDefinition` al plan. Los orquestadores de dominio son grupos con un agente de síntesis.
 

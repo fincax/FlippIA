@@ -25,6 +25,8 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   const [status, setStatus] = useState<"connecting" | "running" | "done" | "error">("connecting");
   const [done, setDone] = useState<DoneEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const currentDeal = useRef<string | undefined>(dealId);
   const started = useRef(false);
   const queue = useRef<Array<() => void>>([]);
   const draining = useRef(false);
@@ -50,11 +52,12 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
     if (started.current) return;
     started.current = true;
     const ctrl = new AbortController();
+    let settled = false;
     (async () => {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json", "x-csrf-token": csrfToken() },
-        body: JSON.stringify({ text, dealId }),
+        body: JSON.stringify({ text, dealId: currentDeal.current }),
         signal: ctrl.signal,
       });
       if (!res.ok || !res.body) {
@@ -62,9 +65,11 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
         setError(
           res.status === 401
             ? "Sesión caducada. Vuelve a entrar."
-            : res.status === 429
-              ? "Has alcanzado el límite de análisis por hora."
-              : "No hemos podido iniciar el análisis.",
+            : res.status === 403
+              ? "Tu rol no permite lanzar análisis."
+              : res.status === 429
+                ? "Hay demasiados análisis en curso o has alcanzado el límite por hora."
+                : "No hemos podido iniciar el análisis.",
         );
         return;
       }
@@ -84,20 +89,41 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
           const data = chunk.match(/^data: (.+)$/m)?.[1];
           if (!ev || !data) continue;
           const payload = JSON.parse(data) as unknown;
+          if (ev === "meta") {
+            // Remember the deal so a retry or reload does not create a duplicate.
+            const meta = payload as { dealId: string };
+            if (meta.dealId && meta.dealId !== currentDeal.current) {
+              currentDeal.current = meta.dealId;
+              window.history.replaceState(
+                null,
+                "",
+                `/app/analyze?q=${encodeURIComponent(text)}&deal=${encodeURIComponent(meta.dealId)}`,
+              );
+            }
+          }
           // Real events, presented at a readable cadence (the engines are faster than the eye).
           if (ev === "agent") enqueue(() => applyEvent(payload as AnalysisEvent));
-          if (ev === "done")
+          if (ev === "done") {
+            settled = true;
             enqueue(() => {
               setDone(payload as DoneEvent);
               setStatus("done");
             });
-          if (ev === "error")
+          }
+          if (ev === "error") {
+            settled = true;
             enqueue(() => {
               setError((payload as { message: string }).message);
               setStatus("error");
             });
+          }
         }
       }
+      if (!settled)
+        enqueue(() => {
+          setError("Conexión interrumpida antes de terminar el análisis.");
+          setStatus("error");
+        });
     })().catch((e) => {
       if ((e as Error).name === "AbortError") return;
       setStatus("error");
@@ -105,7 +131,16 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
     });
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
+
+  function retry() {
+    setTasks([]);
+    setError(null);
+    setDone(null);
+    setStatus("connecting");
+    started.current = false;
+    setAttempt((a) => a + 1);
+  }
 
   function applyEvent(e: AnalysisEvent) {
     setTasks((prev) => {
@@ -185,7 +220,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             <Button variant="secondary" onClick={() => router.push("/app")}>
               Volver
             </Button>
-            <Button variant="accent" onClick={() => location.reload()}>
+            <Button variant="accent" onClick={retry}>
               Reintentar
             </Button>
           </div>

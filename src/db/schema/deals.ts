@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { geometry } from "drizzle-orm/pg-core";
 import type { AnalysisResult } from "@/modules/analysis/types";
@@ -34,7 +35,7 @@ export const investorProfiles = pgTable(
     completed: boolean("completed").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("investor_profiles_org_user").on(t.organizationId, t.userId)],
+  (t) => [uniqueIndex("investor_profiles_org_user").on(t.organizationId, t.userId)],
 );
 
 export const properties = pgTable(

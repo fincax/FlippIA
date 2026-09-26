@@ -53,6 +53,14 @@ describe("applicability", () => {
     expect(versionInForce(reg, "2025-01-01")).toBeUndefined();
     expect(versionInForce(reg, "2026-06-01")?.version).toBe("2024");
   });
+  it("never selects a repealed version", () => {
+    const reg = findRegulation("reg.eu.str-data-2024")!;
+    const repealed = {
+      ...reg,
+      versions: reg.versions.map((v) => ({ ...v, status: "repealed" as const })),
+    };
+    expect(versionInForce(repealed, "2026-06-01")).toBeUndefined();
+  });
 });
 
 describe("snapshot", () => {

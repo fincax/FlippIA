@@ -1,9 +1,10 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import { memberships, organizations, sessions, users } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import type { Role } from "../context";
+import { appSecret } from "../env";
 
 export const SESSION_COOKIE = "flippia_session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
@@ -26,16 +27,16 @@ export async function createSession(
 ): Promise<{ token: string; expiresAt: Date }> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await d
-    .insert(sessions)
-    .values({
-      id: newId("ses"),
-      userId: params.userId,
-      organizationId: params.organizationId,
-      tokenHash: hashToken(token),
-      expiresAt,
-      userAgent: params.userAgent?.slice(0, 200),
-    });
+  // Opportunistic housekeeping: expired sessions are useless rows.
+  await d.delete(sessions).where(lt(sessions.expiresAt, new Date()));
+  await d.insert(sessions).values({
+    id: newId("ses"),
+    userId: params.userId,
+    organizationId: params.organizationId,
+    tokenHash: hashToken(token),
+    expiresAt,
+    userAgent: params.userAgent?.slice(0, 200),
+  });
   return { token, expiresAt };
 }
 
@@ -70,14 +71,14 @@ export async function revokeSession(d: Database, token: string): Promise<void> {
 }
 
 /** CSRF token bound to the session (double submit, HMAC with APP_SECRET). */
-export function csrfTokenFor(sessionId: string, secret = process.env.APP_SECRET ?? "dev-secret"): string {
+export function csrfTokenFor(sessionId: string, secret = appSecret()): string {
   return createHmac("sha256", secret).update(`csrf:${sessionId}`).digest("base64url");
 }
 
 export function verifyCsrf(
   sessionId: string,
   provided: string | null | undefined,
-  secret = process.env.APP_SECRET ?? "dev-secret",
+  secret = appSecret(),
 ): boolean {
   if (!provided) return false;
   const expected = Buffer.from(csrfTokenFor(sessionId, secret));

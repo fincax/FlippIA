@@ -3,7 +3,7 @@ import { humanReviews } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import { eventBus } from "@/modules/core/events";
 import { requireRole, type TenantContext } from "../context";
-import { logActivity } from "./deals";
+import { getDeal, logActivity } from "./deals";
 import { z } from "zod";
 
 export const reviewSchema = z.object({
@@ -19,6 +19,7 @@ export const reviewSchema = z.object({
 export async function recordReview(ctx: TenantContext, input: z.infer<typeof reviewSchema>) {
   requireRole(ctx, "analyst");
   const parsed = reviewSchema.parse(input);
+  await getDeal(ctx, parsed.dealId);
   const previous = await ctx.db
     .select({ version: humanReviews.version })
     .from(humanReviews)

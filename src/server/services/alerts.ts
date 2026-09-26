@@ -30,19 +30,17 @@ export async function createAlert(
     payload?: Record<string, unknown>;
   },
 ) {
-  await ctx.db
-    .insert(alerts)
-    .values({
-      id: newId("alr"),
-      organizationId: ctx.organizationId,
-      userId: ctx.userId,
-      dealId: input.dealId ?? null,
-      kind: input.kind,
-      severity: input.severity,
-      title: input.title,
-      body: input.body,
-      payload: input.payload ?? {},
-    });
+  await ctx.db.insert(alerts).values({
+    id: newId("alr"),
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    dealId: input.dealId ?? null,
+    kind: input.kind,
+    severity: input.severity,
+    title: input.title,
+    body: input.body,
+    payload: input.payload ?? {},
+  });
 }
 
 export interface Pulse {
@@ -57,7 +55,11 @@ export interface Pulse {
 
 /** FlippIA Pulse: the "welcome back" summary. Every line maps to a reason the user can open. */
 export async function pulse(ctx: TenantContext, now = new Date()): Promise<Pulse> {
-  const hour = now.getHours();
+  const hour = Number(
+    new Intl.DateTimeFormat("es-ES", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/Madrid" }).format(
+      now,
+    ),
+  );
   const greeting = hour < 13 ? "Buenos días." : hour < 20 ? "Buenas tardes." : "Buenas noches.";
   const unread = await ctx.db
     .select({ severity: alerts.severity, n: sql<number>`count(*)::int` })

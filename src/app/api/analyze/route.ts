@@ -6,12 +6,25 @@ import { logger } from "@/modules/core/logger";
 import { parseIntake } from "@/modules/property/intake";
 import { rateLimit } from "@/server/auth";
 import { requireMutation } from "@/server/auth/current";
-import { createDeal, markAnalysisFailed, markAnalyzing, persistAnalysis } from "@/server/services/deals";
+import { requireRole } from "@/server/context";
+import {
+  createDeal,
+  getDeal,
+  markAnalysisFailed,
+  markAnalyzing,
+  persistAnalysis,
+} from "@/server/services/deals";
 import { getInvestorDNA } from "@/server/services/investor";
 
 const schema = z.object({ text: z.string().min(2).max(2000), dealId: z.string().optional() });
 
 export const dynamic = "force-dynamic";
+/** Upper bound for serverless hosts; the agent runtime's own budget is 90 s. */
+export const maxDuration = 120;
+
+/** Concurrent analyses per organization (the hourly limit alone lets one org hold many 90 s runs). */
+const MAX_CONCURRENT_PER_ORG = 3;
+const running = new Map<string, number>();
 
 /**
  * Streams the agentic analysis as Server-Sent Events. The client renders
@@ -26,20 +39,51 @@ export async function POST(req: Request): Promise<Response> {
     return jsonError("UNAUTHORIZED", "No autenticado", 401);
   }
   const { ctx } = auth;
+  try {
+    requireRole(ctx, "analyst");
+  } catch {
+    return jsonError("FORBIDDEN", "Tu rol no permite lanzar análisis.", 403);
+  }
   const rl = rateLimit(`analyze:${ctx.organizationId}`, 30, 60 * 60 * 1000);
   if (!rl.allowed) return jsonError("RATE_LIMITED", "Límite de análisis por hora alcanzado.", 429);
+  if ((running.get(ctx.organizationId) ?? 0) >= MAX_CONCURRENT_PER_ORG)
+    return jsonError("BUSY", "Ya hay varios análisis en curso. Espera a que terminen.", 429);
   const body = schema.safeParse(await readJson(req).catch(() => null));
   if (!body.success) return jsonError("VALIDATION", "Petición no válida.", 422);
   const intake = parseIntake(body.data.text);
   if (intake.intent !== "analyze_property") intake.intent = "analyze_property";
+  // A re-analysis must target a deal that belongs to this tenant.
+  let existingDealId: string | undefined;
+  if (body.data.dealId) {
+    try {
+      existingDealId = (await getDeal(ctx, body.data.dealId)).id;
+    } catch {
+      return jsonError("NOT_FOUND", "Deal no encontrado.", 404);
+    }
+  }
   const { dna } = await getInvestorDNA(ctx);
   const encoder = new TextEncoder();
+  const abort = new AbortController();
+  req.signal.addEventListener("abort", () => abort.abort(new Error("Cliente desconectado")), { once: true });
+
+  running.set(ctx.organizationId, (running.get(ctx.organizationId) ?? 0) + 1);
+  const release = () =>
+    running.set(ctx.organizationId, Math.max(0, (running.get(ctx.organizationId) ?? 1) - 1));
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: string, data: unknown) =>
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-      let dealId = body.data.dealId;
+      let closed = false;
+      const send = (event: string, data: unknown) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          // The client went away; stop writing and let the abort signal cancel the run.
+          closed = true;
+          abort.abort(new Error("Cliente desconectado"));
+        }
+      };
+      let dealId = existingDealId;
       let analysisId: string | undefined;
       try {
         const deal = dealId ? { id: dealId } : await createDeal(ctx, intake);
@@ -52,6 +96,7 @@ export async function POST(req: Request): Promise<Response> {
           userId: ctx.userId,
           dealId,
           investor: dna,
+          signal: abort.signal,
           emit: (e: AnalysisEvent) => send("agent", stripPartial(e)),
         });
         await persistAnalysis(ctx, analysisId, dealId, result);
@@ -73,8 +118,19 @@ export async function POST(req: Request): Promise<Response> {
             "No hemos podido completar el análisis. Las fuentes consultadas y el resto de la aplicación siguen disponibles.",
         });
       } finally {
-        controller.close();
+        release();
+        if (!closed) {
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            // already closed by the consumer
+          }
+        }
       }
+    },
+    cancel() {
+      abort.abort(new Error("Cliente desconectado"));
     },
   });
   return new Response(stream, {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge, DemoBadge, Money, Pct, Surface } from "@/components/ds";
 import { formatRelative } from "@/lib/format";
+import { labelDealStatus, labelRisk } from "@/lib/labels";
 
 export interface DealCardData {
   id: string;
@@ -11,18 +12,6 @@ export interface DealCardData {
   updatedAt: string;
   demo: boolean;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Borrador",
-  analyzing: "Analizando",
-  analyzed: "Analizado",
-  watching: "Vigilado",
-  rejected: "Descartado",
-  approved: "Aprobado",
-  acquired: "Adquirido",
-  project: "Proyecto",
-  closed: "Cerrado",
-};
 
 export function DealCard({ deal }: { deal: DealCardData }) {
   const s = deal.summary as {
@@ -41,7 +30,7 @@ export function DealCard({ deal }: { deal: DealCardData }) {
           <div className="min-w-0">
             <div className="text-sm text-fg truncate">{deal.title}</div>
             <div className="text-[12px] text-fg-3 mt-0.5">
-              {STATUS_LABEL[deal.status] ?? deal.status} · {formatRelative(deal.updatedAt)}
+              {labelDealStatus(deal.status)} · {formatRelative(deal.updatedAt)}
             </div>
           </div>
           {s.demo || deal.demo ? <DemoBadge /> : null}
@@ -71,7 +60,7 @@ export function DealCard({ deal }: { deal: DealCardData }) {
           {s.strategies ? <Badge>{s.strategies} futuros</Badge> : null}
           {s.risk ? (
             <Badge tone={s.risk === "high" ? "danger" : s.risk === "medium" ? "warning" : "success"}>
-              riesgo {s.risk}
+              riesgo {labelRisk(s.risk)}
             </Badge>
           ) : null}
         </div>

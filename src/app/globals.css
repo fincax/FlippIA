@@ -13,7 +13,7 @@
   --color-surface-hover: #222831;
   --color-text-primary: #f2f1ec;
   --color-text-secondary: #a3a9b3;
-  --color-text-muted: #6f7681;
+  --color-text-muted: #858c97;
   --color-accent: #e6b450;
   --color-accent-strong: #f3c862;
   --color-accent-soft: rgba(230, 180, 80, 0.14);
@@ -28,8 +28,11 @@
   --color-border: #262c35;
   --color-border-strong: #343b46;
   --color-grid: rgba(255, 255, 255, 0.04);
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
-  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display:
+    "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -46,9 +49,9 @@
   --color-surface-hover: #f1efe9;
   --color-text-primary: #15181d;
   --color-text-secondary: #4d545e;
-  --color-text-muted: #7b8290;
-  --color-accent: #b4831c;
-  --color-accent-strong: #9a6f12;
+  --color-text-muted: #6b7280;
+  --color-accent: #8a6412;
+  --color-accent-strong: #71510e;
   --color-accent-soft: rgba(180, 131, 28, 0.12);
   --color-border: #e1ded6;
   --color-border-strong: #c9c5bb;
@@ -108,11 +111,15 @@ body {
 
 .num {
   font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
 }
 
 .grid-paper {
-  background-image: linear-gradient(var(--color-grid) 1px, transparent 1px), linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
@@ -128,23 +135,46 @@ body {
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 @keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes sweep {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(200%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
+  }
 }
-.anim-rise { animation: rise 320ms ease-out both; }
-.anim-pulse { animation: pulse-dot 1.4s ease-in-out infinite; }
-.anim-sweep { animation: sweep 1.6s linear infinite; }
+.anim-rise {
+  animation: rise 320ms ease-out both;
+}
+.anim-pulse {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.anim-sweep {
+  animation: sweep 1.6s linear infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -152,6 +182,11 @@ body {
 }
 
 @media print {
-  body { background: #fff; color: #111; }
-  .no-print { display: none !important; }
+  body {
+    background: #fff;
+    color: #111;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

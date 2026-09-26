@@ -149,3 +149,21 @@ describe("executePlan", () => {
     expect(out.records[0]?.toolCalls[0]?.ok).toBe(true);
   });
 });
+
+describe("executePlan — external cancellation", () => {
+  it("aborts when the caller's signal fires", async () => {
+    const ctrl = new AbortController();
+    const plan = {
+      agents: [
+        agent("slow", [], () => new Promise((r) => setTimeout(() => r({}), 500)), { timeoutMs: 5_000 }),
+      ],
+    };
+    setTimeout(() => ctrl.abort(new Error("client gone")), 20);
+    const out = await executePlan(plan, base(), {
+      emit: () => {},
+      budget: { maxRetries: 0 },
+      signal: ctrl.signal,
+    });
+    expect(out.aborted).toBe(true);
+  });
+});

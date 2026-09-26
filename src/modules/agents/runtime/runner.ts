@@ -17,6 +17,8 @@ export interface RunOptions {
   budget?: Partial<Budget>;
   emit: (event: AnalysisEvent) => void;
   onRunRecord?: (record: AgentRunRecord) => void;
+  /** External cancellation (e.g. the HTTP client disconnected). Aborts the whole plan. */
+  signal?: AbortSignal;
 }
 
 export interface RunOutcome {
@@ -52,6 +54,9 @@ export async function executePlan(
   const notNeeded = new Set<string>();
   const controller = new AbortController();
   const orchestratorRunId = newId("run");
+  const onExternalAbort = () => controller.abort(opts.signal?.reason ?? new Error("Analysis cancelled"));
+  if (opts.signal?.aborted) onExternalAbort();
+  else opts.signal?.addEventListener("abort", onExternalAbort, { once: true });
 
   validatePlan(plan);
   if (plan.agents.length > budget.maxAgents)

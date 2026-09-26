@@ -1,7 +1,8 @@
 import { Badge, Empty, SectionTitle, Surface } from "@/components/ds";
 import { AlertList } from "@/components/flippia/alert-list";
 import { WatchActions } from "@/components/flippia/watch-actions";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
+import { labelWatchStatus } from "@/lib/labels";
 import { tenantContext } from "@/server/auth/current";
 import { listAlerts } from "@/server/services/alerts";
 import { listWatches } from "@/server/services/watch";
@@ -40,7 +41,7 @@ export default async function WatchPage() {
                 <Badge
                   tone={w.status === "triggered" ? "success" : w.status === "paused" ? "neutral" : "accent"}
                 >
-                  {w.status === "triggered" ? "activada" : w.status}
+                  {labelWatchStatus(w.status)}
                 </Badge>
               </div>
               <ul className="mt-2 text-[12px] text-fg-2">
@@ -48,7 +49,7 @@ export default async function WatchPage() {
                   <li key={i}>
                     • {RULE_LABEL[r.kind] ?? r.kind}
                     {r.value !== undefined
-                      ? ` ${r.kind === "price_drop_pct" ? `${Math.round(r.value * 100)} %` : r.value.toLocaleString("es-ES")}`
+                      ? ` ${r.kind === "price_drop_pct" ? `${Math.round(r.value * 100)} %` : formatNumber(r.value)}`
                       : ""}
                   </li>
                 ))}

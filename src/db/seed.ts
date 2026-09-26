@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Database } from "./client";
 import {
   alerts,
+  deals,
   investorProfiles,
   memberships,
   opportunityListings,
@@ -40,7 +41,7 @@ export async function seedDemo(
   opts: SeedOptions = {},
 ): Promise<{ organizationId: string; userId: string; dealIds: string[] }> {
   const log = opts.log ?? (() => {});
-  const email = opts.email ?? process.env.DEMO_USER_EMAIL ?? "demo@flippia.local";
+  const email = (opts.email ?? process.env.DEMO_USER_EMAIL ?? "demo@flippia.local").trim().toLowerCase();
   const password = opts.password ?? process.env.DEMO_USER_PASSWORD ?? "flippia-demo";
 
   await d
@@ -60,26 +61,24 @@ export async function seedDemo(
   const existingProfile = await d
     .select({ id: investorProfiles.id })
     .from(investorProfiles)
-    .where(eq(investorProfiles.userId, userId))
+    .where(and(eq(investorProfiles.organizationId, DEMO_ORG_ID), eq(investorProfiles.userId, userId)))
     .limit(1);
   if (!existingProfile.length)
-    await d
-      .insert(investorProfiles)
-      .values({
-        id: newId("inv"),
-        organizationId: DEMO_ORG_ID,
-        userId,
-        dna: {
-          ...DEFAULT_INVESTOR_DNA,
-          capitalAvailable: 300_000,
-          maxEquityPerDeal: 140_000,
-          horizonMonths: 12,
-          targetProfit: 25_000,
-          targetRoe: 0.15,
-          ticketMax: 400_000,
-        },
-        completed: true,
-      });
+    await d.insert(investorProfiles).values({
+      id: newId("inv"),
+      organizationId: DEMO_ORG_ID,
+      userId,
+      dna: {
+        ...DEFAULT_INVESTOR_DNA,
+        capitalAvailable: 300_000,
+        maxEquityPerDeal: 140_000,
+        horizonMonths: 12,
+        targetProfit: 25_000,
+        targetRoe: 0.15,
+        ticketMax: 400_000,
+      },
+      completed: true,
+    });
   log("Organización y usuario demo listos.");
 
   const listings = generateDemoListings();
@@ -124,7 +123,14 @@ export async function seedDemo(
   log(`${REGULATORY_REGISTRY.length} normas registradas.`);
 
   const dealIds: string[] = [];
-  if (opts.withAnalyses !== false) {
+  const existingDeals = await d
+    .select({ id: deals.id })
+    .from(deals)
+    .where(eq(deals.organizationId, DEMO_ORG_ID))
+    .limit(1);
+  if (existingDeals.length) {
+    log("La organización demo ya tiene deals: se omite la creación de análisis demo.");
+  } else if (opts.withAnalyses !== false) {
     const ctx: TenantContext = { organizationId: DEMO_ORG_ID, userId, role: "owner", db: d };
     const [profile] = await d
       .select({ dna: investorProfiles.dna })
@@ -154,17 +160,15 @@ export async function seedDemo(
       log(`Deal demo analizado: ${result.property.summary}`);
     }
     const watched = listings.find((l) => l.priceHistory.length > 1) ?? listings[0]!;
-    await d
-      .insert(watches)
-      .values({
-        id: newId("wch"),
-        organizationId: DEMO_ORG_ID,
-        listingId: watched.id,
-        userId,
-        label: `Vigilar ${watched.title}`,
-        rules: [{ kind: "meets_criteria" }, { kind: "price_drop_pct", value: 0.05 }],
-        status: "triggered",
-      });
+    await d.insert(watches).values({
+      id: newId("wch"),
+      organizationId: DEMO_ORG_ID,
+      listingId: watched.id,
+      userId,
+      label: `Vigilar ${watched.title}`,
+      rules: [{ kind: "meets_criteria" }, { kind: "price_drop_pct", value: 0.05 }],
+      status: "triggered",
+    });
     await d.insert(alerts).values([
       {
         id: newId("alr"),

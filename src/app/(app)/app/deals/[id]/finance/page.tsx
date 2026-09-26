@@ -1,3 +1,4 @@
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, FinancialMetric, SectionTitle, Surface } from "@/components/ds";
 import { MaxPricePanel } from "@/components/flippia/max-price-panel";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -5,8 +6,8 @@ import { loadDeal, topStrategy } from "@/server/deal-page";
 
 export default async function FinancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const top = topStrategy(analysis);
   const base = top?.scenarioSet.scenarios.find((s) => s.kind === "base")?.result;
   return (
@@ -44,29 +45,31 @@ export default async function FinancePage({ params }: { params: Promise<{ id: st
             <FinancialMetric label="Margen" metric={base.metrics.margin} size="sm" />
             <FinancialMetric label="Precio de equilibrio" metric={base.metrics.breakEvenPrice} size="sm" />
           </div>
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="text-left text-fg-3 text-[11px] uppercase tracking-[0.12em]">
-                <th className="py-1 font-normal">Concepto</th>
-                <th className="py-1 font-normal">Origen</th>
-                <th className="py-1 font-normal text-right">Importe</th>
-              </tr>
-            </thead>
-            <tbody>
-              {base.costLines.map((l) => (
-                <tr key={l.key} className="border-t border-line">
-                  <td className="py-1.5">
-                    {l.label}
-                    {l.note ? <span className="text-fg-3"> · {l.note}</span> : null}
-                  </td>
-                  <td className="py-1.5 text-fg-3">
-                    {l.origin === "rule" ? `regla ${l.ruleRef}` : l.origin === "input" ? "dato" : "cálculo"}
-                  </td>
-                  <td className="py-1.5 text-right num">{formatMoney(l.amount)}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="text-left text-fg-3 text-[11px] uppercase tracking-[0.12em]">
+                  <th className="py-1 font-normal">Concepto</th>
+                  <th className="py-1 font-normal">Origen</th>
+                  <th className="py-1 font-normal text-right">Importe</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {base.costLines.map((l) => (
+                  <tr key={l.key} className="border-t border-line">
+                    <td className="py-1.5">
+                      {l.label}
+                      {l.note ? <span className="text-fg-3"> · {l.note}</span> : null}
+                    </td>
+                    <td className="py-1.5 text-fg-3">
+                      {l.origin === "rule" ? `regla ${l.ruleRef}` : l.origin === "input" ? "dato" : "cálculo"}
+                    </td>
+                    <td className="py-1.5 text-right num">{formatMoney(l.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {Object.values(base.metrics).map((m) => (
               <div key={m.key} className="rounded-[var(--radius-sm)] bg-bg-2 p-2.5 text-[12px]">

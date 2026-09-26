@@ -395,7 +395,16 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
     for (const sm of s.months) push(sm.month, 0, sm.payment);
     if (s.outstandingAtExit > 0) push(duration, 0, s.outstandingAtExit, `Cancelación ${s.instrument.label}`);
   }
-  for (const p of partnerCapital) push(p.f.drawMonth, p.amount, 0, `Aportación ${p.f.label}`, p.amount);
+  // Partner capital comes in at draw and goes back at exit together with the agreed profit share.
+  const provisionalNet =
+    exit.kind === "sale"
+      ? exit.salePrice - saleCosts - totalProjectCost
+      : rentNet + exit.terminalValue - saleCosts - totalProjectCost;
+  for (const p of partnerCapital) {
+    push(p.f.drawMonth, p.amount, 0, `Aportación ${p.f.label}`, p.amount);
+    const share = round2(Math.max(0, provisionalNet) * (p.f.profitShare ?? 0));
+    push(duration, 0, round2(p.amount + share), `Devolución ${p.f.label}`);
+  }
   if (exit.kind === "sale") {
     push(duration, exit.salePrice, saleCosts + exitTaxes, "Venta");
   } else {
@@ -696,7 +705,31 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
   };
 }
 
+function validateNumericLeaves(value: unknown, path: string) {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new FinancialEngineError(`${path} must be finite`, "INVALID_INPUT");
+    if (value < 0) throw new FinancialEngineError(`${path} must be non-negative`, "INVALID_INPUT");
+    const leaf = path.split(".").at(-1) ?? "";
+    if (/(Rate|Share|vacancy|opex)$/i.test(leaf) && value >= 1 && !/^annualRate$/.test(leaf))
+      throw new FinancialEngineError(`${path} must be below 1 (100 %)`, "INVALID_INPUT");
+    return;
+  }
+  if (Array.isArray(value)) value.forEach((v, idx) => validateNumericLeaves(v, `${path}.${idx}`));
+  else if (value && typeof value === "object")
+    for (const [k, v] of Object.entries(value)) validateNumericLeaves(v, path ? `${path}.${k}` : k);
+}
+
 function validate(i: FinancialInputs) {
+  validateNumericLeaves(
+    {
+      acquisition: i.acquisition,
+      transformation: i.transformation,
+      holding: i.holding,
+      financing: i.financing,
+      exit: i.exit,
+    },
+    "",
+  );
   const nonNeg: Array<[string, number]> = [
     ["purchasePrice", i.acquisition.purchasePrice],
     ["renovationBudget", i.transformation.renovationBudget],

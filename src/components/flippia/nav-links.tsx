@@ -8,14 +8,15 @@ export const NAV = [
   { href: "/app", label: "Pulse", short: "Pulse", icon: "◉" },
   { href: "/app/deals", label: "Deals", short: "Deals", icon: "▤" },
   { href: "/app/radar", label: "Radar", short: "Radar", icon: "◎" },
-  { href: "/app/watch", label: "Vigilancia", short: "Watch", icon: "◷" },
+  { href: "/app/watch", label: "Vigilancia", short: "Vigilar", icon: "◷" },
   { href: "/app/onboarding", label: "Investor DNA", short: "DNA", icon: "◈" },
   { href: "/app/observability", label: "Agentes", short: "Agentes", icon: "⌁" },
 ];
 
-export function NavLinks({ mobile }: { mobile?: boolean }) {
+export function NavLinks({ mobile, admin }: { mobile?: boolean; admin?: boolean }) {
   const pathname = usePathname();
-  const items = mobile ? NAV.slice(0, 5) : NAV;
+  const visible = admin ? NAV : NAV.filter((n) => n.href !== "/app/observability");
+  const items = mobile ? visible.slice(0, 5) : visible;
   return (
     <ul className={cn(mobile ? "grid grid-cols-5" : "space-y-0.5")}>
       {items.map((n) => {

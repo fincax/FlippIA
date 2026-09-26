@@ -123,13 +123,11 @@ export function buildPassport(
       key: "regulatory",
       title: "Normativa aplicada",
       status: "INFERRED",
-      rows: analysis.regulatory.entries
-        .slice(0, 12)
-        .map((e) => ({
-          label: e.shortName,
-          value: `${e.status} desde ${e.effectiveFrom}`,
-          note: `${e.sourceName} · ${e.verificationStatus}`,
-        })),
+      rows: analysis.regulatory.entries.slice(0, 12).map((e) => ({
+        label: e.shortName,
+        value: `${e.status} desde ${e.effectiveFrom}`,
+        note: `${e.sourceName} · ${e.verificationStatus}`,
+      })),
     },
     {
       key: "architecture",

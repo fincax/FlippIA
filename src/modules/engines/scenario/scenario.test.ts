@@ -72,3 +72,32 @@ describe("scenario set", () => {
     expect(rows[0]!.metrics.netProfit).not.toBeNull();
   });
 });
+
+describe("paths — safety", () => {
+  it("refuses prototype-polluting paths", () => {
+    expect(() => setPath({ a: 1 }, "__proto__.polluted", "yes")).toThrow(/Unsafe/);
+    expect(() => applyOverrides({ a: 1 }, { "constructor.prototype.x": 1 })).toThrow(/Unsafe/);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+  it("marks user overrides as inferred, not verified", () => {
+    const set = buildScenarioSet({
+      dealId: "deal_y",
+      strategyId: "flip",
+      base: baseSaleInputs(),
+      assumptions: [
+        {
+          path: "exit.salePrice",
+          label: "Venta",
+          value: 310_000,
+          unit: "currency",
+          source: "engine",
+          evidenceIds: [],
+          status: "INFERRED",
+        },
+      ],
+    });
+    const { set: next } = updateBase(set, { "exit.salePrice": 320_000 });
+    expect(next.assumptions[0]?.status).toBe("INFERRED");
+    expect(next.assumptions[0]?.source).toBe("user");
+  });
+});

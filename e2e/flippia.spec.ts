@@ -18,7 +18,9 @@ test("onboarding → analyze → scenarios → stress → passport → watch", a
   await expect(page.getByText("Investor DNA guardado.")).toBeVisible();
 
   await page.goto("/app");
-  await page.getByLabel("Qué quieres descubrir").fill("Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 255.000 €");
+  await page
+    .getByLabel("Qué quieres descubrir")
+    .fill("Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 255.000 €");
   await page.getByRole("button", { name: "Descubrir" }).click();
   await page.waitForURL("**/app/analyze?**");
   await expect(page.getByText("LIA está construyendo el caso")).toBeVisible();
@@ -44,8 +46,8 @@ test("onboarding → analyze → scenarios → stress → passport → watch", a
   await expect(page.getByText("Deal Passport · documento vivo")).toBeVisible();
 
   await page.goto(dealUrl);
-  await page.getByRole("button", { name: "Watch this deal" }).click();
-  await expect(page.getByRole("button", { name: "Vigilando ✓" })).toBeVisible();
+  await page.getByRole("button", { name: "Vigilar este deal" }).click();
+  await expect(page.getByRole("button", { name: "Vigilando" })).toBeVisible();
 
   await page.goto(`${dealUrl}/lia`);
   await page.getByRole("button", { name: "¿Hasta cuánto puedo pagar?" }).click();

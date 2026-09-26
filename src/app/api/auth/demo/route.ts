@@ -14,7 +14,6 @@ export const POST = handle(async (req: Request) => {
     password: process.env.DEMO_USER_PASSWORD ?? "flippia-demo",
     userAgent: req.headers.get("user-agent") ?? undefined,
   });
-  if (!r.ok)
-    return jsonError("DEMO_NOT_SEEDED", "La demo no está inicializada. Ejecuta `pnpm db:seed`.", 503);
+  if (!r.ok) return jsonError("DEMO_NOT_SEEDED", "La demo no está inicializada en este entorno.", 503);
   return withSessionCookie(jsonOk({ userId: r.userId }), r.token, r.expiresAt);
 });

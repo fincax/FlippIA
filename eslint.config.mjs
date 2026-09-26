@@ -5,7 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "out/**", "node_modules/**", "playwright-report/**", "test-results/**", "drizzle/**"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "node_modules/**",
+    "playwright-report/**",
+    "test-results/**",
+    "drizzle/**",
+  ]),
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",

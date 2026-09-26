@@ -17,7 +17,8 @@ export function AuthForm({
   const router = useRouter();
   const [loading, setLoading] = useState<null | "form" | "demo">(null);
   const [error, setError] = useState<string | null>(null);
-  const target = next && next.startsWith("/") ? next : "/app";
+  // Only same-origin absolute paths: rejects "//evil.com" and "/\evil.com".
+  const target = next && /^\/(?![/\\])/.test(next) ? next : "/app";
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

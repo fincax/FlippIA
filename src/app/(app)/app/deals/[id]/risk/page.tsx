@@ -1,3 +1,5 @@
+import { labelRisk, labelSeverity } from "@/lib/labels";
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, Money, Pct, SectionTitle, Surface, Tornado } from "@/components/ds";
 import { formatMoney } from "@/lib/format";
 import { loadDeal } from "@/server/deal-page";
@@ -11,8 +13,8 @@ const SEV: Record<string, "danger" | "warning" | "info" | "neutral"> = {
 
 export default async function RiskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const strategies = analysis.strategies.filter((s) => s.stress);
   return (
     <div className="space-y-6">
@@ -29,7 +31,7 @@ export default async function RiskPage({ params }: { params: Promise<{ id: strin
                     : "success"
               }
             >
-              riesgo {analysis.risk.overall}
+              riesgo {labelRisk(analysis.risk.overall)}
             </Badge>
           }
         >
@@ -116,7 +118,7 @@ export default async function RiskPage({ params }: { params: Promise<{ id: strin
               className="flex gap-3 items-start border-t border-line pt-2 first:border-0 first:pt-0"
             >
               <Badge tone={SEV[f.severity] ?? "neutral"} className="mt-0.5 shrink-0">
-                {f.severity}
+                {labelSeverity(f.severity)}
               </Badge>
               <div className="min-w-0">
                 <div className="text-sm text-fg">

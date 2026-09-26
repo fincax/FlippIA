@@ -11,9 +11,17 @@ import { NotFoundError, requireRole, type TenantContext } from "../context";
 import { logActivity } from "./deals";
 import { z } from "zod";
 
+const FORBIDDEN_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
+const ROOTS = new Set(["acquisition", "transformation", "holding", "financing", "exit"]);
+
+/** Override keys are dot paths inside FinancialInputs; never prototype keys, never outside the known roots. */
 export const overridesSchema = z
   .record(
-    z.string().regex(/^[a-zA-Z0-9_.]{1,64}$/),
+    z
+      .string()
+      .regex(/^[a-zA-Z0-9_.]{1,64}$/)
+      .refine((k) => k.split(".").every((seg) => seg !== "" && !FORBIDDEN_SEGMENTS.has(seg)), "Unsafe path")
+      .refine((k) => ROOTS.has(k.split(".")[0]!), "Unknown input path"),
     z.union([z.number().finite(), z.string().max(64), z.boolean()]),
   )
   .refine((o) => Object.keys(o).length <= 20, "Too many overrides");

@@ -1,11 +1,12 @@
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, BarList, EvidenceBadge, SectionTitle, Surface } from "@/components/ds";
 import { formatMoney } from "@/lib/format";
 import { loadDeal } from "@/server/deal-page";
 
 export default async function ArchitecturePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const a = analysis.architecture;
   return (
     <div className="space-y-6">
@@ -67,19 +68,21 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ i
             <div>
               <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3 mb-2">Partidas</div>
               <div className="max-h-72 overflow-y-auto pr-1">
-                <table className="w-full text-[12px]">
-                  <tbody>
-                    {alt.estimate.lines.map((l) => (
-                      <tr key={l.id} className="border-t border-line">
-                        <td className="py-1 pr-2">{l.label}</td>
-                        <td className="py-1 pr-2 num text-fg-3 whitespace-nowrap">
-                          {l.quantity} {l.unit} × {l.unitCost} €
-                        </td>
-                        <td className="py-1 num text-right whitespace-nowrap">{formatMoney(l.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <tbody>
+                      {alt.estimate.lines.map((l) => (
+                        <tr key={l.id} className="border-t border-line">
+                          <td className="py-1 pr-2">{l.label}</td>
+                          <td className="py-1 pr-2 num text-fg-3 whitespace-nowrap">
+                            {l.quantity} {l.unit} × {l.unitCost} €
+                          </td>
+                          <td className="py-1 num text-right whitespace-nowrap">{formatMoney(l.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               {alt.requiredChecks.length ? (
                 <ul className="mt-3 text-[12px] text-warning list-disc pl-4">

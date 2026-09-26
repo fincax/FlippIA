@@ -63,6 +63,14 @@ export function estimateValue(params: {
       continue;
     }
     const age = monthsBetween(c.date, params.analysisDate);
+    if (!Number.isFinite(age)) {
+      rejected.push({ id: c.id, reason: `Fecha no válida (${c.date}).` });
+      continue;
+    }
+    if (age < 0) {
+      rejected.push({ id: c.id, reason: `Fecha posterior a la fecha de análisis (${c.date}).` });
+      continue;
+    }
     if (age > adj.maxAgeMonths) {
       rejected.push({ id: c.id, reason: `Antigüedad ${age} meses, superior a ${adj.maxAgeMonths}.` });
       continue;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, Field, Input, Money, SectionTitle, Select, Surface } from "@/components/ds";
 import { api } from "@/lib/client";
 import type { MaxPriceResult } from "@/modules/engines/financial";
-import { labelConstraint } from "@/modules/lia/ask";
+import { labelConstraint } from "@/lib/labels";
 
 /** ¿Hasta cuánto puedo pagar? — deterministic maximum acquisition price. */
 export function MaxPricePanel({
@@ -24,6 +24,7 @@ export function MaxPricePanel({
   const [duration, setDuration] = useState(String(investor.horizonMonths));
   const [result, setResult] = useState<MaxPriceResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const num = (s: string) => {
     const v = Number(s.replace(/[^\d.]/g, ""));
     return Number.isFinite(v) && s.trim() !== "" ? v : undefined;
@@ -67,23 +68,31 @@ export function MaxPricePanel({
           className="lg:col-span-1"
           onClick={async () => {
             setBusy(true);
+            setError(null);
+            const months = num(duration);
             const constraints = {
               minimumRoe: num(roe) !== undefined ? num(roe)! / 100 : undefined,
               minimumProfit: num(profit),
               maximumCapital: num(capital),
               maximumLtc: num(ltc) !== undefined ? num(ltc)! / 100 : undefined,
-              maximumDuration: num(duration),
+              maximumDuration: months !== undefined ? Math.max(1, Math.round(months)) : undefined,
             };
             const r = await api<MaxPriceResult>(`/api/deals/${dealId}/max-price`, {
               body: { strategyId, constraints },
             });
             setBusy(false);
             if (r.ok && r.data) setResult(r.data);
+            else setError(r.error?.message ?? "No hemos podido calcular el precio máximo.");
           }}
         >
           Calcular
         </Button>
       </div>
+      {error ? (
+        <p role="alert" className="mt-3 text-[13px] text-danger">
+          {error}
+        </p>
+      ) : null}
       {result ? (
         <div className="mt-5 anim-rise grid gap-4 md:grid-cols-[auto_1fr] items-start">
           <div>

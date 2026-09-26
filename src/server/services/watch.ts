@@ -1,11 +1,12 @@
 import { and, desc, eq } from "drizzle-orm";
-import { alerts, opportunityListings, watches, type WatchRule } from "@/db/schema";
+import { alerts, watches, type WatchRule } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import { eventBus } from "@/modules/core/events";
 import { evaluateWatch } from "@/modules/watch/rules";
-import { requireRole, type TenantContext } from "../context";
-import { logActivity } from "./deals";
+import { NotFoundError, requireRole, type TenantContext } from "../context";
+import { getDeal, logActivity } from "./deals";
 import { getInvestorDNA } from "./investor";
+import { getListing } from "./radar";
 import { z } from "zod";
 
 export const watchRuleSchema = z.object({
@@ -27,6 +28,10 @@ export async function createWatch(
 ) {
   requireRole(ctx, "analyst");
   const rules = z.array(watchRuleSchema).min(1).max(10).parse(input.rules);
+  // Referenced records must be visible to this tenant.
+  if (input.dealId) await getDeal(ctx, input.dealId);
+  if (input.listingId && !(await getListing(ctx, input.listingId)))
+    throw new NotFoundError("Listado no encontrado");
   const [row] = await ctx.db
     .insert(watches)
     .values({
@@ -68,33 +73,27 @@ export async function evaluateWatches(ctx: TenantContext): Promise<{ evaluated: 
   let triggered = 0;
   for (const w of rows) {
     if (!w.listingId) continue;
-    const [l] = await ctx.db
-      .select()
-      .from(opportunityListings)
-      .where(eq(opportunityListings.id, w.listingId))
-      .limit(1);
-    if (!l) continue;
-    const ev = evaluateWatch(w.rules, l.data, dna);
+    const listing = await getListing(ctx, w.listingId);
+    if (!listing) continue;
+    const ev = evaluateWatch(w.rules, listing, dna);
     await ctx.db
       .update(watches)
       .set({ lastEvaluatedAt: new Date(), status: ev.triggered ? "triggered" : "active" })
-      .where(eq(watches.id, w.id));
+      .where(and(eq(watches.id, w.id), eq(watches.organizationId, ctx.organizationId)));
     if (ev.triggered) {
       triggered++;
       for (const e of ev.events) {
-        await ctx.db
-          .insert(alerts)
-          .values({
-            id: newId("alr"),
-            organizationId: ctx.organizationId,
-            userId: w.userId,
-            dealId: w.dealId,
-            kind: `watch.${e.rule}`,
-            severity: e.severity,
-            title: e.title,
-            body: e.body,
-            payload: { watchId: w.id, listingId: w.listingId },
-          });
+        await ctx.db.insert(alerts).values({
+          id: newId("alr"),
+          organizationId: ctx.organizationId,
+          userId: w.userId,
+          dealId: w.dealId,
+          kind: `watch.${e.rule}`,
+          severity: e.severity,
+          title: e.title,
+          body: e.body,
+          payload: { watchId: w.id, listingId: w.listingId },
+        });
       }
       await eventBus().emit({
         id: newId("evt"),

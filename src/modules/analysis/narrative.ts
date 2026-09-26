@@ -1,3 +1,4 @@
+import { introducesNoNewNumbers } from "@/modules/ai/guard";
 import type { AIProvider } from "@/modules/ai/provider";
 import { logger } from "@/modules/core/logger";
 import type {
@@ -61,6 +62,10 @@ export async function narrateSynthesis(
       maxTokens: 600,
     });
     if (!res || res.text.length < 40) return template;
+    if (!introducesNoNewNumbers(res.text, JSON.stringify(payload), [template.thesis, template.headline])) {
+      logger.warn("narrative.rejected", { reason: "model introduced figures not in the facts" });
+      return template;
+    }
     return { ...template, thesis: res.text, narrativeSource: "model" };
   } catch (e) {
     logger.warn("narrative.failed", { error: e instanceof Error ? e.message : String(e) });

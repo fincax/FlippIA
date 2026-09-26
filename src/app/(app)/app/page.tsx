@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <section>
           <SectionTitle
-            kicker="Now"
+            kicker="Ahora"
             right={alerts.length ? <Badge tone="accent">{p.unreadAlerts} sin leer</Badge> : null}
           >
             Qué necesita mi atención
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
 
       <section>
         <SectionTitle
-          kicker="Portfolio"
+          kicker="Cartera"
           right={
             <Link href="/app/deals" className="text-sm text-fg-2 hover:text-fg">
               Todos los deals →

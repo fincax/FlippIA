@@ -87,20 +87,23 @@ export async function updateDealStatus(
 }
 
 export async function markAnalyzing(ctx: TenantContext, dealId: string): Promise<string> {
+  requireRole(ctx, "analyst");
   const analysisId = newId("an");
-  await ctx.db
-    .insert(analyses)
-    .values({
+  await ctx.db.transaction(async (tx) => {
+    const updated = await tx
+      .update(deals)
+      .set({ status: "analyzing", updatedAt: new Date() })
+      .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)))
+      .returning({ id: deals.id });
+    if (!updated.length) throw new NotFoundError("Deal no encontrado");
+    await tx.insert(analyses).values({
       id: analysisId,
       organizationId: ctx.organizationId,
       dealId,
       status: "running",
       analysisDate: new Date().toISOString().slice(0, 10),
     });
-  await ctx.db
-    .update(deals)
-    .set({ status: "analyzing", updatedAt: new Date() })
-    .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)));
+  });
   return analysisId;
 }
 
@@ -140,7 +143,9 @@ export async function persistAnalysis(
         microzoneId: p.microzoneId ?? null,
         cadastralRef: p.cadastralRef ?? null,
         address: p.address.raw,
-        location: p.coordinates ? { x: p.coordinates.lng, y: p.coordinates.lat } : null,
+        location: p.coordinates
+          ? sql`ST_SetSRID(ST_MakePoint(${p.coordinates.lng}, ${p.coordinates.lat}), 4326)`
+          : null,
         data: p,
         demo: p.demo,
       })
@@ -177,84 +182,74 @@ export async function persistAnalysis(
       })
       .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)));
     if (result.agentRuns.length) {
-      await tx
-        .insert(agentRuns)
-        .values(
-          result.agentRuns.map((r) => ({
-            id: r.id,
-            organizationId: ctx.organizationId,
-            analysisId,
-            dealId,
-            agentType: r.agentType,
-            domain: r.domain,
-            label: r.label,
-            parentRunId: r.parentRunId ?? null,
-            orchestratorRunId: r.orchestratorRunId,
-            status: r.status,
-            record: { ...r, analysisId, dealId },
-            latencyMs: r.latencyMs,
-            startedAt: new Date(r.startedAt),
-            completedAt: r.completedAt ? new Date(r.completedAt) : null,
-          })),
-        );
+      await tx.insert(agentRuns).values(
+        result.agentRuns.map((r) => ({
+          id: r.id,
+          organizationId: ctx.organizationId,
+          analysisId,
+          dealId,
+          agentType: r.agentType,
+          domain: r.domain,
+          label: r.label,
+          parentRunId: r.parentRunId ?? null,
+          orchestratorRunId: r.orchestratorRunId,
+          status: r.status,
+          record: { ...r, analysisId, dealId },
+          latencyMs: r.latencyMs,
+          startedAt: new Date(r.startedAt),
+          completedAt: r.completedAt ? new Date(r.completedAt) : null,
+        })),
+      );
     }
     if (result.evidence.length) {
-      await tx
-        .insert(evidenceTable)
-        .values(
-          result.evidence.map((e) => ({
-            id: e.id,
-            organizationId: ctx.organizationId,
-            dealId,
-            analysisId,
-            sourceType: e.sourceType,
-            sourceId: e.sourceId,
-            verificationStatus: e.verificationStatus,
-            demo: e.demo,
-            record: e,
-            retrievedAt: new Date(e.retrievedAt),
-          })),
-        );
+      await tx.insert(evidenceTable).values(
+        result.evidence.map((e) => ({
+          id: e.id,
+          organizationId: ctx.organizationId,
+          dealId,
+          analysisId,
+          sourceType: e.sourceType,
+          sourceId: e.sourceId,
+          verificationStatus: e.verificationStatus,
+          demo: e.demo,
+          record: e,
+          retrievedAt: new Date(e.retrievedAt),
+        })),
+      );
     }
-    await tx
-      .insert(regulatorySnapshots)
-      .values({
-        id: result.regulatory.id,
-        organizationId: ctx.organizationId,
-        dealId,
-        analysisId,
-        analysisDate: result.regulatory.analysisDate,
-        fingerprint: result.regulatory.fingerprint,
-        snapshot: result.regulatory,
-      });
+    await tx.insert(regulatorySnapshots).values({
+      id: result.regulatory.id,
+      organizationId: ctx.organizationId,
+      dealId,
+      analysisId,
+      analysisDate: result.regulatory.analysisDate,
+      fingerprint: result.regulatory.fingerprint,
+      snapshot: result.regulatory,
+    });
     await tx
       .delete(scenarioSets)
       .where(and(eq(scenarioSets.dealId, dealId), eq(scenarioSets.organizationId, ctx.organizationId)));
     if (result.strategies.length) {
-      await tx
-        .insert(scenarioSets)
-        .values(
-          result.strategies.map((s) => ({
-            id: newId("sset"),
-            organizationId: ctx.organizationId,
-            dealId,
-            strategyId: s.id,
-            set: { ...s.scenarioSet, dealId },
-            version: 1,
-          })),
-        );
+      await tx.insert(scenarioSets).values(
+        result.strategies.map((s) => ({
+          id: newId("sset"),
+          organizationId: ctx.organizationId,
+          dealId,
+          strategyId: s.id,
+          set: { ...s.scenarioSet, dealId },
+          version: 1,
+        })),
+      );
     }
-    await tx
-      .insert(activities)
-      .values({
-        id: newId("act"),
-        organizationId: ctx.organizationId,
-        dealId,
-        userId: ctx.userId,
-        kind: "analysis.completed",
-        title: result.synthesis.headline,
-        payload: { analysisId, strategies: result.strategies.length, demo: result.demo },
-      });
+    await tx.insert(activities).values({
+      id: newId("act"),
+      organizationId: ctx.organizationId,
+      dealId,
+      userId: ctx.userId,
+      kind: "analysis.completed",
+      title: result.synthesis.headline,
+      payload: { analysisId, strategies: result.strategies.length, demo: result.demo },
+    });
   });
   await eventBus().emit({
     id: newId("evt"),
@@ -294,17 +289,15 @@ export async function logActivity(
   title: string,
   payload: Record<string, unknown> = {},
 ): Promise<void> {
-  await ctx.db
-    .insert(activities)
-    .values({
-      id: newId("act"),
-      organizationId: ctx.organizationId,
-      dealId,
-      userId: ctx.userId,
-      kind,
-      title,
-      payload,
-    });
+  await ctx.db.insert(activities).values({
+    id: newId("act"),
+    organizationId: ctx.organizationId,
+    dealId,
+    userId: ctx.userId,
+    kind,
+    title,
+    payload,
+  });
 }
 
 export async function dealCounts(ctx: TenantContext): Promise<Record<string, number>> {

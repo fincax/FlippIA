@@ -1,3 +1,5 @@
+import { labelLevel } from "@/lib/labels";
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, EvidenceBadge, SectionTitle, Surface } from "@/components/ds";
 import { MicrozoneMap } from "@/components/flippia/microzone-map";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -5,8 +7,8 @@ import { loadDeal } from "@/server/deal-page";
 
 export default async function MarketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const m = analysis.market;
   const v = m.valuationRenovated;
   return (
@@ -58,8 +60,9 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
               .join(" · ")}
           </div>
           <div className="mt-2 text-[12px] text-fg-2">
-            {m.askingVsValue.note} Liquidez {m.liquidity.level}, demanda {m.liquidity.demand},{" "}
-            {m.liquidity.daysToSell} días de venta. {m.snapshot.stats.confidenceNote}
+            {m.askingVsValue.note} Liquidez {labelLevel(m.liquidity.level)}, demanda{" "}
+            {labelLevel(m.liquidity.demand)}, {m.liquidity.daysToSell} días de venta.{" "}
+            {m.snapshot.stats.confidenceNote}
           </div>
         </Surface>
         <Surface className="p-5">

@@ -6,7 +6,8 @@ export * from "./types";
 export { MarketDemoAdapter };
 export type MarketAdapter = DataSourceAdapter<MarketQuery, MarketSnapshot>;
 
-export function createMarketAdapter(_mode = process.env.MARKET_SOURCE_MODE ?? "demo"): MarketAdapter {
-  // partner feeds plug in here (MARKET_SOURCE_MODE=partner) once credentials exist.
-  return new MarketDemoAdapter();
+export function createMarketAdapter(mode = process.env.MARKET_SOURCE_MODE ?? "demo"): MarketAdapter {
+  // Partner feeds plug in here (MARKET_SOURCE_MODE=partner) once an authorised source exists.
+  if (mode === "demo") return new MarketDemoAdapter();
+  throw new Error(`MARKET_SOURCE_MODE "${mode}" is not implemented yet (demo)`);
 }

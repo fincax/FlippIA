@@ -40,6 +40,8 @@ export class DeterministicProvider implements AIProvider {
   }
 }
 
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS ?? 15_000);
+
 export class AnthropicProvider implements AIProvider {
   id = "anthropic";
   available = true;
@@ -49,9 +51,19 @@ export class AnthropicProvider implements AIProvider {
     private readonly defaultMaxTokens = Number(process.env.AI_MAX_TOKENS ?? 1200),
   ) {}
 
+  private client?: import("@anthropic-ai/sdk").default;
+
+  private async getClient() {
+    if (!this.client) {
+      const { default: Anthropic } = await import("@anthropic-ai/sdk");
+      // Bounded: narrative is optional, the analysis must never hang on it.
+      this.client = new Anthropic({ apiKey: this.apiKey, timeout: AI_TIMEOUT_MS, maxRetries: 1 });
+    }
+    return this.client;
+  }
+
   async complete(req: AICompletionRequest): Promise<AICompletion | null> {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic({ apiKey: this.apiKey });
+    const client = await this.getClient();
     const started = Date.now();
     const res = await client.messages.create({
       model: this.model,

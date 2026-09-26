@@ -1,10 +1,13 @@
+import { formatNumber } from "@/lib/format";
+import { labelConstraint } from "@/lib/labels";
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, EvidenceBadge, FinancialMetric, Money, Pct, Surface } from "@/components/ds";
 import { loadDeal } from "@/server/deal-page";
 
 export default async function StrategiesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   return (
     <div className="space-y-6">
       <p className="text-sm text-fg-2 max-w-3xl">
@@ -20,10 +23,7 @@ export default async function StrategiesPage({ params }: { params: Promise<{ id:
                 <div className="text-[11px] num text-accent">
                   {String(s.rank).padStart(2, "0")} · score {s.score}
                 </div>
-                <h2 className="font-display text-2xl">
-                  {s.label}
-                  {s.applicability.conditional ? " *" : ""}
-                </h2>
+                <h2 className="font-display text-2xl">{s.label}</h2>
                 <p className="text-sm text-fg-2 mt-1 max-w-2xl">{s.description}</p>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -98,7 +98,7 @@ export default async function StrategiesPage({ params }: { params: Promise<{ id:
                 {s.maxPrice ? (
                   <div className="mt-1 text-[13px] text-fg-2">
                     Precio máximo para tus objetivos: <Money value={s.maxPrice.maximumPrice} /> (
-                    {s.maxPrice.bindingConstraint})
+                    {labelConstraint(s.maxPrice.bindingConstraint)})
                   </div>
                 ) : null}
               </div>
@@ -120,7 +120,7 @@ export default async function StrategiesPage({ params }: { params: Promise<{ id:
                             ? `${Math.round(a.value * 1000) / 10} %`
                             : a.unit === "months"
                               ? `${a.value} m`
-                              : a.value.toLocaleString("es-ES") + (a.unit === "currency" ? " €" : "")
+                              : formatNumber(a.value) + (a.unit === "currency" ? " €" : "")
                           : String(a.value)}
                       </span>
                       <EvidenceBadge status={a.status} />

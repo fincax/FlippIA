@@ -28,7 +28,23 @@ export const financingAgent: AgentDefinition<FinanceAssessment> = {
         assetUse: profile.property.assetUse,
       }),
     );
-    if (!res.ok) throw new Error(res.error.message);
+    if (!res.ok) {
+      ctx.progress(`Proveedor de financiación no disponible: ${res.error.message}`);
+      return {
+        offers: [],
+        stacks: [
+          {
+            id: "stack_equity",
+            label: "100 % capital propio",
+            instruments: [],
+            description: "Sin ofertas de financiación disponibles: se analiza sin deuda.",
+          },
+        ],
+        recommendedStackId: "stack_equity",
+        summary: "Fuente de financiación no disponible; estructuras con deuda no evaluadas.",
+        demo: false,
+      };
+    }
     ctx.evidence.addMany(res.value.evidence);
     const offers = res.value.data;
     const mortgage = offers.find((o) => o.instrument.kind === "mortgage");

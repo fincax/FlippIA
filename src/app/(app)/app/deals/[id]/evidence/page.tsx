@@ -1,11 +1,12 @@
+import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, EvidenceBadge, SectionTitle, Surface } from "@/components/ds";
 import { formatDate } from "@/lib/format";
 import { loadDeal } from "@/server/deal-page";
 
 export default async function EvidencePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { analysis } = await loadDeal(id);
-  if (!analysis) return null;
+  const { deal, analysis } = await loadDeal(id);
+  if (!analysis) return <NoAnalysis deal={deal} />;
   const groups = new Map<string, typeof analysis.evidence>();
   for (const e of analysis.evidence) groups.set(e.sourceName, [...(groups.get(e.sourceName) ?? []), e]);
   return (

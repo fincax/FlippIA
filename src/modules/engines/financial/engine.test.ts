@@ -210,3 +210,45 @@ describe("stress test", () => {
     expect(report.survivalRate).toBeLessThanOrEqual(1);
   });
 });
+
+describe("computeFinancials — input validation", () => {
+  it("rejects NaN, negative and out-of-range rates anywhere in the inputs", () => {
+    const nan = baseSaleInputs();
+    nan.holding.monthlyCommunityFees = Number.NaN;
+    expect(() => computeFinancials(nan)).toThrow(FinancialEngineError);
+    const negative = baseSaleInputs();
+    negative.acquisition.agencyFee = -1;
+    expect(() => computeFinancials(negative)).toThrow(FinancialEngineError);
+    const rate = baseSaleInputs();
+    rate.transformation.contingencyRate = 1.5;
+    expect(() => computeFinancials(rate)).toThrow(FinancialEngineError);
+  });
+});
+
+describe("computeFinancials — partner equity", () => {
+  it("returns the partner's capital and share at exit, so the IRR stays realistic", () => {
+    const solo = computeFinancials(baseSaleInputs());
+    const inputs = baseSaleInputs();
+    inputs.financing = [
+      {
+        kind: "co_investment",
+        label: "Socio",
+        sizing: { type: "ltc", ratio: 0.4 },
+        annualRate: 0,
+        termMonths: inputs.holding.durationMonths,
+        interestOnly: true,
+        arrangementFeeRate: 0,
+        drawMonth: 0,
+        profitShare: 0.4,
+      },
+    ];
+    const withPartner = computeFinancials(inputs);
+    const sumNet = withPartner.cashflows.reduce((a, c) => a + c.net, 0);
+    expect(sumNet).toBeCloseTo(withPartner.metrics.netProfitAfterTax.value ?? Number.NaN, 0);
+    const soloIrr = solo.metrics.irr.value ?? 0;
+    const partnerIrr = withPartner.metrics.irr.value ?? 0;
+    expect(partnerIrr).toBeGreaterThan(0);
+    expect(partnerIrr).toBeLessThan(soloIrr * 3);
+    expect(withPartner.cashflows.some((c) => c.label?.includes("Devolución"))).toBe(true);
+  });
+});

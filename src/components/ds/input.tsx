@@ -7,7 +7,7 @@ import {
 import { cn } from "@/lib/cn";
 
 const base =
-  "w-full rounded-[var(--radius-md)] border border-line bg-bg-2 px-3 text-sm text-fg placeholder:text-fg-3 focus:border-accent focus:outline-none disabled:opacity-50";
+  "w-full rounded-[var(--radius-md)] border border-line bg-bg-2 px-3 text-sm text-fg placeholder:text-fg-3 focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
   { className, ...rest },

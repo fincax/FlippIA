@@ -1,3 +1,4 @@
+import { labelRunStatus } from "@/lib/labels";
 import { Badge, SectionTitle, Surface } from "@/components/ds";
 import { formatDate } from "@/lib/format";
 import { sourceStatuses } from "@/modules/adapters/registry";
@@ -10,6 +11,15 @@ export const dynamic = "force-dynamic";
 
 export default async function ObservabilityPage() {
   const { ctx } = await tenantContext();
+  if (ctx.role !== "owner" && ctx.role !== "admin") {
+    return (
+      <Surface className="p-8 max-w-xl">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-fg-3">Agentes</div>
+        <h1 className="font-display text-xl mt-2">Este panel es solo para administradores.</h1>
+        <p className="text-sm text-fg-2 mt-2">Pide acceso a la persona responsable de tu organización.</p>
+      </Surface>
+    );
+  }
   const [stats, sources] = await Promise.all([agentStats(ctx), sourceStatuses()]);
   const ai = aiProvider();
   const flags = enabledFlags();
@@ -61,32 +71,34 @@ export default async function ObservabilityPage() {
       </div>
       <Surface className="p-5">
         <SectionTitle kicker="Últimos 30 días">Por agente</SectionTitle>
-        <table className="w-full text-[12px]">
-          <thead>
-            <tr className="text-left text-fg-3">
-              <th className="py-1 font-normal">Agente</th>
-              <th className="py-1 font-normal">Dominio</th>
-              <th className="py-1 font-normal text-right">Runs</th>
-              <th className="py-1 font-normal text-right">Fallos</th>
-              <th className="py-1 font-normal text-right">Latencia media</th>
-              <th className="py-1 font-normal text-right">Tools</th>
-              <th className="py-1 font-normal text-right">Evidencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.byAgent.map((r) => (
-              <tr key={r.agentType} className="border-t border-line">
-                <td className="py-1 font-mono">{r.agentType}</td>
-                <td className="py-1">{r.domain}</td>
-                <td className="py-1 text-right num">{r.runs}</td>
-                <td className={`py-1 text-right num ${r.failures ? "text-danger" : ""}`}>{r.failures}</td>
-                <td className="py-1 text-right num">{r.avgLatency} ms</td>
-                <td className="py-1 text-right num">{r.tools}</td>
-                <td className="py-1 text-right num">{r.evidence}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="text-left text-fg-3">
+                <th className="py-1 font-normal">Agente</th>
+                <th className="py-1 font-normal">Dominio</th>
+                <th className="py-1 font-normal text-right">Runs</th>
+                <th className="py-1 font-normal text-right">Fallos</th>
+                <th className="py-1 font-normal text-right">Latencia media</th>
+                <th className="py-1 font-normal text-right">Tools</th>
+                <th className="py-1 font-normal text-right">Evidencia</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {stats.byAgent.map((r) => (
+                <tr key={r.agentType} className="border-t border-line">
+                  <td className="py-1 font-mono">{r.agentType}</td>
+                  <td className="py-1">{r.domain}</td>
+                  <td className="py-1 text-right num">{r.runs}</td>
+                  <td className={`py-1 text-right num ${r.failures ? "text-danger" : ""}`}>{r.failures}</td>
+                  <td className="py-1 text-right num">{r.avgLatency} ms</td>
+                  <td className="py-1 text-right num">{r.tools}</td>
+                  <td className="py-1 text-right num">{r.evidence}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {!stats.byAgent.length ? (
           <p className="text-sm text-fg-2">
             Sin ejecuciones todavía. Analiza un inmueble para ver a la organización trabajar.
@@ -100,7 +112,9 @@ export default async function ObservabilityPage() {
             <li key={r.id} className="flex flex-wrap gap-2 border-t border-line py-1">
               <span className="num text-fg-3">{formatDate(r.startedAt)}</span>
               <span className="font-mono">{r.agentType}</span>
-              <span className={r.status === "completed" ? "text-success" : "text-danger"}>{r.status}</span>
+              <span className={r.status === "completed" ? "text-success" : "text-danger"}>
+                {labelRunStatus(r.status)}
+              </span>
               <span className="num text-fg-3">{r.latencyMs} ms</span>
               <span className="text-fg-3 truncate">{r.dealId ?? ""}</span>
             </li>
