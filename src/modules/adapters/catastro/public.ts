@@ -5,8 +5,15 @@ import type { AssetUse } from "@/modules/engines/financial/types";
 import type { NewEvidence } from "@/modules/evidence/store";
 import type { AdapterResponse, DataSourceAdapter } from "../types";
 import { CATASTRO_USE_LABELS, type CatastroParcelInfo, type CatastroQuery, type CatastroUnit } from "./types";
+import { parseOvcBody } from "./xml";
 
 const OVC_BASE = "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero";
+/**
+ * The JSON (WCF) services only accept their parameter names for the address
+ * and numerero methods; reference and coordinate lookups use the classic XML
+ * `.asmx` services, which honour the documented `RC` / `Coordenada_X` names.
+ */
+const OVC_XML_BASE = "https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC";
 const TIMEOUT_MS = 8_000;
 
 /**
@@ -76,7 +83,7 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       });
       clearTimeout(t);
       if (!res.ok) return undefined;
-      return parseCoordinates((await res.json()) as unknown);
+      return parseCoordinates(parseOvcBody(await res.text()));
     } catch (e) {
       logger.warn("catastro.public.coordinates_failed", {
         error: e instanceof Error ? e.message : String(e),
@@ -133,7 +140,7 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       const text = await res.text();
       this.options.debug?.(`catastro ${res.status} ${url}\n      ${text.slice(0, 400)}`);
       if (!res.ok) return null;
-      const json = JSON.parse(text) as unknown;
+      const json = parseOvcBody(text);
       const parsed = parseOvc(json, q);
       if (!parsed) {
         const e = ovcError(json);
@@ -163,7 +170,7 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
         );
       const text = await res.text();
       this.options.debug?.(`catastro ${res.status} ${url}\n      ${text.slice(0, 400)}`);
-      const json = JSON.parse(text) as unknown;
+      const json = parseOvcBody(text);
       let parsed = parseOvc(json, input);
       const notes: string[] = [];
       if (!parsed) {
@@ -277,7 +284,8 @@ export function ovcError(json: unknown): { code: string; message: string } | und
   const cuerr = num(get(root, "control", "cuerr"));
   if (!cuerr) return undefined;
   const list = get(root, "lerr") as unknown;
-  const first = Array.isArray(list) ? list[0] : list;
+  const inner = (Array.isArray(list) ? list[0] : (get(list, "err") ?? list)) as unknown;
+  const first = Array.isArray(inner) ? inner[0] : inner;
   return { code: str(get(first, "cod")) ?? "?", message: str(get(first, "des")) ?? "error del Catastro" };
 }
 
@@ -325,7 +333,7 @@ export function buildCoordinatesUrl(cadastralRef: string, province: string, muni
   p.set("Municipio", municipality);
   p.set("SRS", "EPSG:4326");
   p.set("RC", cadastralRef.slice(0, 14).toUpperCase());
-  return `${OVC_BASE}/COVCCoordenadas.svc/json/Consulta_CPMRC?${p.toString()}`;
+  return `${OVC_XML_BASE}/OVCCoordenadas.asmx/Consulta_CPMRC?${p.toString()}`;
 }
 
 /** Parse `Consulta_CPMRC`: `coordenadas.coord[0].geo.{xcen,ycen}` in the requested SRS (lon/lat for EPSG:4326). */
@@ -343,8 +351,8 @@ export function buildUrl(q: CatastroQuery): string | null {
   if (q.kind === "cadastralRef") {
     p.set("Provincia", q.province ?? "");
     p.set("Municipio", q.municipality ?? "");
-    p.set("RC", q.cadastralRef);
-    return `${OVC_BASE}/COVCCallejero.svc/json/Consulta_DNPRC?${p.toString()}`;
+    p.set("RC", q.cadastralRef.toUpperCase());
+    return `${OVC_XML_BASE}/OVCCallejero.asmx/Consulta_DNPRC?${p.toString()}`;
   }
   if (q.kind === "address") {
     p.set("Provincia", q.province);
@@ -358,7 +366,7 @@ export function buildUrl(q: CatastroQuery): string | null {
     p.set("SRS", "EPSG:4326");
     p.set("Coordenada_X", String(q.point.lng));
     p.set("Coordenada_Y", String(q.point.lat));
-    return `${OVC_BASE}/COVCCoordenadas.svc/json/Consulta_RCCOOR?${p.toString()}`;
+    return `${OVC_XML_BASE}/OVCCoordenadas.asmx/Consulta_RCCOOR?${p.toString()}`;
   }
   return null;
 }

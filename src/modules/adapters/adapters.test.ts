@@ -408,3 +408,69 @@ describe("Catastro public point queries via the municipal parcel layer", () => {
     expect(r.value.evidence[0]?.excerpt).toContain("parcelario municipal");
   });
 });
+
+describe("Catastro XML (asmx) services", () => {
+  const DNPRC_XML = `<?xml version="1.0" encoding="utf-8"?>
+<consulta_dnp xmlns="http://www.catastro.meh.es/"><control><cudnp>1</cudnp><cucons>1</cucons></control>
+<bico><bi><idbi><cn>UR</cn><rc><pc1>4219020</pc1><pc2>TG3441N</pc2><car>0001</car><cc1>A</cc1><cc2>B</cc2></rc></idbi>
+<dt><np>SEVILLA</np><nm>SEVILLA</nm><locs><lous><lourb><dir><tv>CL</tv><nv>PUREZA</nv><pnp>23</pnp></dir><loint><es>1</es><pt>01</pt><pu>A</pu></loint></lourb></lous></locs></dt>
+<ldt>CL PUREZA 23 Es:1 Pl:01 Pt:A 41010 SEVILLA</ldt><debi><luso>Residencial</luso><sfc>95</sfc><ant>1903</ant></debi></bi></bico></consulta_dnp>`;
+  const CPMRC_XML = `<?xml version="1.0" encoding="utf-8"?>
+<consulta_coordenadas xmlns="http://www.catastro.meh.es/"><control><cucoor>1</cucoor></control>
+<coordenadas><coord><pc><pc1>4219020</pc1><pc2>TG3441N</pc2></pc><geo><xcen>-6.00340</xcen><ycen>37.38380</ycen><srs>EPSG:4326</srs></geo><ldt>CL PUREZA 23 SEVILLA</ldt></coord></coordenadas></consulta_coordenadas>`;
+  const RCCOOR_ERR_XML = `<?xml version="1.0" encoding="utf-8"?>
+<consulta_coordenadas xmlns="http://www.catastro.meh.es/"><control><cucoor>0</cucoor><cuerr>1</cuerr></control><lerr><err><cod>16</cod><des>NO HAY PARCELA EN ESAS COORDENADAS</des></err></lerr></consulta_coordenadas>`;
+  const xml = (body: string) =>
+    new Response(body, { status: 200, headers: { "content-type": "text/xml; charset=utf-8" } });
+
+  it("queries a reference through the asmx service and geolocates it", async () => {
+    const { buildUrl, CatastroPublicAdapter, ovcError } = await import("./catastro/public");
+    const url = buildUrl({
+      kind: "cadastralRef",
+      cadastralRef: "4219020tg3441n",
+      province: "SEVILLA",
+      municipality: "SEVILLA",
+    })!;
+    expect(url).toContain(
+      "OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=SEVILLA&Municipio=SEVILLA&RC=4219020TG3441N",
+    );
+    const { parseOvcBody } = await import("./catastro/xml");
+    expect(ovcError(parseOvcBody(RCCOOR_ERR_XML))).toEqual({
+      code: "16",
+      message: "NO HAY PARCELA EN ESAS COORDENADAS",
+    });
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const u = String(input);
+      if (u.includes("Consulta_DNPRC")) return xml(DNPRC_XML);
+      if (u.includes("Consulta_CPMRC")) return xml(CPMRC_XML);
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const r = await new CatastroPublicAdapter(fetchImpl).query({
+      kind: "cadastralRef",
+      cadastralRef: "4219020TG3441N",
+      province: "SEVILLA",
+      municipality: "SEVILLA",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.data.address).toBe("CL PUREZA 23");
+    expect(r.value.data.builtAreaM2).toBe(95);
+    expect(r.value.data.yearBuilt).toBe(1903);
+    expect(r.value.data.useCode).toBe("V");
+    expect(r.value.data.coordinates).toEqual({ lat: 37.3838, lng: -6.0034 });
+    expect(r.value.evidence[0]?.verificationStatus).toBe("VERIFIED");
+  });
+  it("uses the xml coordinate service for points and reports its errors", async () => {
+    const { buildUrl, CatastroPublicAdapter } = await import("./catastro/public");
+    expect(buildUrl({ kind: "point", point: { lat: 37.3838, lng: -6.0034 } })).toContain(
+      "OVCCoordenadas.asmx/Consulta_RCCOOR?SRS=EPSG%3A4326&Coordenada_X=-6.0034&Coordenada_Y=37.3838",
+    );
+    const r = await new CatastroPublicAdapter((async () => xml(RCCOOR_ERR_XML)) as typeof fetch).query({
+      kind: "point",
+      point: { lat: 1, lng: 2 },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.message).toContain("NO HAY PARCELA EN ESAS COORDENADAS");
+  });
+});
