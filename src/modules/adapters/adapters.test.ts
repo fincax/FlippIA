@@ -474,3 +474,46 @@ describe("Catastro XML (asmx) services", () => {
     expect(r.error.message).toContain("NO HAY PARCELA EN ESAS COORDENADAS");
   });
 });
+
+describe("Catastro multi-unit parcels", () => {
+  const LIST_XML = `<?xml version="1.0" encoding="utf-8"?>
+<consulta_dnp xmlns="http://www.catastro.meh.es/"><control><cudnp>2</cudnp></control><lrcdnp>
+<rcdnp><rc><pc1>4419020</pc1><pc2>TG3441N</pc2><car>0001</car><cc1>Z</cc1><cc2>A</cc2></rc><dt><np>SEVILLA</np><nm>SEVILLA</nm><locs><lous><lourb><dir><tv>CL</tv><nv>PUREZA</nv><pnp>45</pnp></dir><loint><pt>00</pt><pu>01</pu></loint></lourb></lous></locs></dt></rcdnp>
+<rcdnp><rc><pc1>4419020</pc1><pc2>TG3441N</pc2><car>0002</car><cc1>Z</cc1><cc2>B</cc2></rc><dt><np>SEVILLA</np><nm>SEVILLA</nm><locs><lous><lourb><dir><tv>CL</tv><nv>PUREZA</nv><pnp>45</pnp></dir><loint><pt>01</pt><pu>01</pu></loint></lourb></lous></locs></dt></rcdnp>
+</lrcdnp></consulta_dnp>`;
+  const unitXml = (
+    car: string,
+    sfc: number,
+    luso: string,
+    ant: number,
+  ) => `<?xml version="1.0" encoding="utf-8"?>
+<consulta_dnp xmlns="http://www.catastro.meh.es/"><control><cudnp>1</cudnp></control><bico><bi><idbi><rc><pc1>4419020</pc1><pc2>TG3441N</pc2><car>${car}</car><cc1>Z</cc1><cc2>A</cc2></rc></idbi>
+<dt><np>SEVILLA</np><nm>SEVILLA</nm><locs><lous><lourb><dir><tv>CL</tv><nv>PUREZA</nv><pnp>45</pnp></dir></lourb></lous></locs></dt><debi><luso>${luso}</luso><sfc>${sfc}</sfc><ant>${ant}</ant></debi></bi></bico></consulta_dnp>`;
+  const xml = (body: string) => new Response(body, { status: 200, headers: { "content-type": "text/xml" } });
+
+  it("aggregates area, use and year across the units of a parcel", async () => {
+    const { CatastroPublicAdapter } = await import("./catastro/public");
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const u = String(input);
+      if (u.includes("RC=4419020TG3441N0001ZA")) return xml(unitXml("0001", 80, "Comercial", 1930));
+      if (u.includes("RC=4419020TG3441N0002ZB")) return xml(unitXml("0002", 95, "Residencial", 1925));
+      if (u.includes("Consulta_DNPRC") && u.includes("RC=4419020TG3441N")) return xml(LIST_XML);
+      if (u.includes("Consulta_CPMRC")) return new Response("{}", { status: 500 });
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const r = await new CatastroPublicAdapter(fetchImpl).query({
+      kind: "cadastralRef",
+      cadastralRef: "4419020TG3441N",
+      province: "SEVILLA",
+      municipality: "SEVILLA",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const d = r.value.data;
+    expect(d.builtAreaM2).toBe(175);
+    expect(d.yearBuilt).toBe(1925);
+    expect(["V", "C"]).toContain(d.useCode);
+    expect(d.units).toHaveLength(2);
+    expect(r.value.evidence[0]?.excerpt).toContain("Parcela con 2 inmuebles");
+  });
+});

@@ -93,6 +93,77 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
   }
 
   /**
+   * Reads the units (20-character references) of a parcel and aggregates built
+   * area, use and year. Returns notes describing what was aggregated.
+   */
+  async enrichUnits(parsed: CatastroParcelInfo): Promise<string[]> {
+    try {
+      let units = parsed.units.filter((u) => u.cadastralRef.length >= 20);
+      const parcelRef = parsed.cadastralRef.slice(0, 14);
+      if (units.length === 0 && parcelRef.length === 14) {
+        const list = await this.fetchParsed({ kind: "cadastralRef", cadastralRef: parcelRef });
+        if (!list) return [];
+        if (list.builtAreaM2 && list.units.length <= 1) {
+          // A single building: the parcel answer already carries the details.
+          Object.assign(parsed, {
+            builtAreaM2: list.builtAreaM2,
+            yearBuilt: parsed.yearBuilt ?? list.yearBuilt,
+            useCode: parsed.useCode || list.useCode,
+            useLabel: parsed.useLabel || list.useLabel,
+            units: list.units,
+            address: parsed.address || list.address,
+          });
+          return [];
+        }
+        units = list.units.filter((u) => u.cadastralRef.length >= 20);
+      }
+      // Units already answered in full (same reference as the query) bring nothing new.
+      units = units.filter(
+        (u) => u.cadastralRef.toUpperCase() !== parsed.cadastralRef.toUpperCase() || !parsed.units.length,
+      );
+      if (units.length === 0) return [];
+      const sample = units.slice(0, MAX_UNITS_DETAILED);
+      const details = (
+        await Promise.all(
+          sample.map((u) => this.fetchParsed({ kind: "cadastralRef", cadastralRef: u.cadastralRef })),
+        )
+      ).filter((d): d is CatastroParcelInfo => d !== null);
+      if (details.length === 0) return [];
+      const detailed: CatastroUnit[] = details.map((d, i) => ({
+        ...sample[i]!,
+        builtAreaM2: d.builtAreaM2 ?? 0,
+        yearBuilt: d.yearBuilt,
+        useCode: d.useCode ?? sample[i]!.useCode,
+        useLabel: d.useLabel ?? sample[i]!.useLabel,
+      }));
+      const totalArea = detailed.reduce((a, u) => a + (u.builtAreaM2 || 0), 0);
+      const years = detailed
+        .map((u) => u.yearBuilt)
+        .filter((y): y is number => typeof y === "number" && y > 0);
+      const useCounts = new Map<string, number>();
+      for (const u of detailed) if (u.useCode) useCounts.set(u.useCode, (useCounts.get(u.useCode) ?? 0) + 1);
+      const mainUse = [...useCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      parsed.units = [...detailed, ...units.slice(MAX_UNITS_DETAILED)];
+      if (!parsed.builtAreaM2 && totalArea > 0) parsed.builtAreaM2 = totalArea;
+      if (!parsed.yearBuilt && years.length) parsed.yearBuilt = Math.min(...years);
+      if (!parsed.useCode && mainUse) {
+        parsed.useCode = mainUse;
+        parsed.useLabel = CATASTRO_USE_LABELS[mainUse] ?? parsed.useLabel;
+      }
+      const covered = detailed.length;
+      if (totalArea === 0 && !mainUse && years.length === 0) return [];
+      return [
+        `Parcela con ${units.length} inmuebles en el Catastro; superficie agregada de ${covered} ${covered === 1 ? "inmueble" : "inmuebles"} (${Math.round(totalArea)} m²)${
+          covered < units.length ? ", el resto no se ha consultado" : ""
+        }.`,
+      ];
+    } catch (e) {
+      logger.warn("catastro.public.units_failed", { error: e instanceof Error ? e.message : String(e) });
+      return [];
+    }
+  }
+
+  /**
    * `ObtenerNumerero` lists the numbers the cadastre knows around the requested
    * one on that street; the closest parcel is then read by cadastral reference.
    */
@@ -209,6 +280,9 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
             ),
           );
       }
+      // A parcel answer (list of units, or a bare reference from the coordinate
+      // service) carries no area/use/year: read the units and aggregate them.
+      if (!parsed.builtAreaM2 || !parsed.useCode) notes.push(...(await this.enrichUnits(parsed)));
       if (!parsed.coordinates && parsed.cadastralRef) {
         // Free geolocation of the parcel: lets the planning connector query the geoservices.
         parsed.coordinates = await this.coordinatesFor(
@@ -272,6 +346,8 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
 export const OVC_NUMBER_NOT_FOUND = "43";
 /** How far (in street numbers) the nearest-number fallback may go. */
 const MAX_NUMBER_DISTANCE = 6;
+/** Units read in detail when a parcel has several (each is one OVC request). */
+const MAX_UNITS_DETAILED = 6;
 
 /** Structured error envelope of the OVC JSON services (`control.cuerr` + `lerr[]`). */
 export function ovcError(json: unknown): { code: string; message: string } | undefined {
