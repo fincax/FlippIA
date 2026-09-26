@@ -22,17 +22,24 @@ async function main() {
   if (!text) throw new Error('Uso: pnpm sources:check "<dirección | referencia catastral | lat,lng>"');
   const urbanism = new UrbanismoPublicConnector();
   const parcel = urbanism.config.parcel;
-  const catastro = new CatastroPublicAdapter(fetch, async (pt) => {
-    if (!parcel?.fields.cadastralRef) return undefined;
-    const r = await queryLayer(
-      parcel.source,
-      { point: pt, maxFeatures: 1, distanceM: 8 },
-      { timeoutMs: 10_000 },
-    );
-    const v = r.features[0]?.attributes[parcel.fields.cadastralRef];
-    console.warn(`   parcelario municipal por punto: ${v ? String(v) : "sin parcela"} (${r.url})`);
-    return v ? String(v).toUpperCase() : undefined;
-  });
+  const catastro = new CatastroPublicAdapter(
+    fetch,
+    async (pt) => {
+      if (!parcel?.fields.cadastralRef) return undefined;
+      const field = parcel.fields.cadastralRef;
+      const exact = await queryLayer(parcel.source, { point: pt, maxFeatures: 1 }, { timeoutMs: 10_000 });
+      const r = exact.features.length
+        ? exact
+        : await queryLayer(parcel.source, { point: pt, maxFeatures: 1, distanceM: 8 }, { timeoutMs: 10_000 });
+      const v = r.features[0]?.attributes[field];
+      console.warn(`   parcelario municipal por punto: ${v ? String(v) : "sin parcela"} (${r.url})`);
+      return v ? String(v).toUpperCase() : undefined;
+    },
+    {
+      defaults: { province: "SEVILLA", municipality: "SEVILLA" },
+      debug: (line) => console.warn(`   · ${line}`),
+    },
+  );
   const point = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
   const rc = text.match(/^[0-9A-Z]{14}([0-9A-Z]{6})?$/i);
   const intake = parseIntake(text);

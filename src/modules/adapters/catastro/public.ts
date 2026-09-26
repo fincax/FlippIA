@@ -30,7 +30,22 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
   constructor(
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly pointResolver?: (point: { lat: number; lng: number }) => Promise<string | undefined>,
+    private readonly options: {
+      /** Province and municipality used for reference lookups that do not carry them. */
+      defaults?: { province: string; municipality: string };
+      /** Diagnostic sink: every internal OVC call is reported here. */
+      debug?: (line: string) => void;
+    } = {},
   ) {}
+
+  private withDefaults(q: CatastroQuery): CatastroQuery {
+    if (q.kind !== "cadastralRef") return q;
+    return {
+      ...q,
+      province: q.province ?? this.options.defaults?.province,
+      municipality: q.municipality ?? this.options.defaults?.municipality,
+    };
+  }
 
   async isAvailable() {
     try {
@@ -86,7 +101,9 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       });
       clearTimeout(t);
       if (!res.ok) return undefined;
-      const candidates = parseNumerero((await res.json()) as unknown);
+      const numereroText = await res.text();
+      this.options.debug?.(`catastro numerero ${res.status}: ${numereroText.slice(0, 300)}`);
+      const candidates = parseNumerero(JSON.parse(numereroText) as unknown);
       const wanted = Number(input.number.replace(/\D/g, ""));
       const best = candidates
         .filter((c) => Number.isFinite(c.number))
@@ -105,21 +122,31 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
     }
   }
 
-  private async fetchParsed(q: CatastroQuery): Promise<CatastroParcelInfo | null> {
+  private async fetchParsed(query: CatastroQuery): Promise<CatastroParcelInfo | null> {
+    const q = this.withDefaults(query);
     const url = buildUrl(q);
     if (!url) return null;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       const res = await this.fetchImpl(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
+      const text = await res.text();
+      this.options.debug?.(`catastro ${res.status} ${url}\n      ${text.slice(0, 400)}`);
       if (!res.ok) return null;
-      return parseOvc((await res.json()) as unknown, q);
+      const json = JSON.parse(text) as unknown;
+      const parsed = parseOvc(json, q);
+      if (!parsed) {
+        const e = ovcError(json);
+        if (e) logger.warn("catastro.public.lookup_error", { code: e.code, message: e.message });
+      }
+      return parsed;
     } finally {
       clearTimeout(t);
     }
   }
 
-  async query(input: CatastroQuery) {
+  async query(rawInput: CatastroQuery) {
+    const input = this.withDefaults(rawInput);
     const url = buildUrl(input);
     if (!url)
       return err(
@@ -134,7 +161,9 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
         return err(
           appError("SOURCE_HTTP_ERROR", `Catastro respondió ${res.status}.`, { status: res.status }),
         );
-      const json = (await res.json()) as unknown;
+      const text = await res.text();
+      this.options.debug?.(`catastro ${res.status} ${url}\n      ${text.slice(0, 400)}`);
+      const json = JSON.parse(text) as unknown;
       let parsed = parseOvc(json, input);
       const notes: string[] = [];
       if (!parsed) {

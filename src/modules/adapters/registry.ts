@@ -20,7 +20,10 @@ let cached: AdapterSet | undefined;
 /** Adapters are chosen by environment; the rest of the system never knows which implementation is active. */
 export function adapters(): AdapterSet {
   cached ??= {
-    catastro: createCatastroAdapter(undefined, parcelResolverFromCity()),
+    catastro: createCatastroAdapter(undefined, parcelResolverFromCity(), {
+      province: defaultCity().province.toUpperCase(),
+      municipality: defaultCity().name.toUpperCase(),
+    }),
     urbanism: createUrbanismAdapter(),
     market: createMarketAdapter(),
     financing: createFinancingAdapter(),
