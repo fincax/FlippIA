@@ -290,6 +290,7 @@ export const SEVILLA: CityProfile = {
   country: "ES",
   region: "ES-AN",
   province: "ES-SE",
+  cadastre: { province: "SEVILLA", municipality: "SEVILLA" },
   municipalityCode: "41091",
   locale: "es-ES",
   currency: "EUR",

@@ -1,3 +1,10 @@
+import type { CityProfile } from "@/modules/city/types";
+
+/** Province and municipality as the Catastro spells them for the city under analysis. */
+function cadastreNames(city: CityProfile): { province: string; municipality: string } {
+  return city.cadastre ?? { province: city.name.toUpperCase(), municipality: city.name.toUpperCase() };
+}
+
 import type { PropertyProfile } from "@/modules/analysis/types";
 import type { CatastroQuery } from "@/modules/adapters/catastro/types";
 import { microzoneFromPoint } from "@/modules/city/registry";
@@ -26,16 +33,14 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
       ? {
           kind: "cadastralRef",
           cadastralRef: draft.cadastralRef,
-          municipality: "SEVILLA",
-          province: "SEVILLA",
+          ...cadastreNames(ctx.city),
         }
       : draft.coordinates
         ? { kind: "point", point: draft.coordinates }
         : draft.address.raw
           ? {
               kind: "address",
-              municipality: "SEVILLA",
-              province: "SEVILLA",
+              ...cadastreNames(ctx.city),
               street:
                 draft.address.raw
                   .replace(/\d.*$/, "")

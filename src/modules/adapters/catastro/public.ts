@@ -101,7 +101,12 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       let units = parsed.units.filter((u) => u.cadastralRef.length >= 20);
       const parcelRef = parsed.cadastralRef.slice(0, 14);
       if (units.length === 0 && parcelRef.length === 14) {
-        const list = await this.fetchParsed({ kind: "cadastralRef", cadastralRef: parcelRef });
+        const list = await this.fetchParsed({
+          kind: "cadastralRef",
+          cadastralRef: parcelRef,
+          province: parsed.province || undefined,
+          municipality: parsed.municipality || undefined,
+        });
         if (!list) return [];
         if (list.builtAreaM2 && list.units.length <= 1) {
           // A single building: the parcel answer already carries the details.
@@ -125,7 +130,14 @@ export class CatastroPublicAdapter implements DataSourceAdapter<CatastroQuery, C
       const sample = units.slice(0, MAX_UNITS_DETAILED);
       const details = (
         await Promise.all(
-          sample.map((u) => this.fetchParsed({ kind: "cadastralRef", cadastralRef: u.cadastralRef })),
+          sample.map((u) =>
+            this.fetchParsed({
+              kind: "cadastralRef",
+              cadastralRef: u.cadastralRef,
+              province: parsed.province || undefined,
+              municipality: parsed.municipality || undefined,
+            }),
+          ),
         )
       ).filter((d): d is CatastroParcelInfo => d !== null);
       if (details.length === 0) return [];

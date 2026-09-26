@@ -5,6 +5,7 @@ import { DemoListingsSource, type SourceAdapter } from "./sources";
 import type { SourceStatus } from "./types";
 import { createUrbanismAdapter, type UrbanismAdapter } from "./urbanismo-sevilla";
 import { defaultCity } from "@/modules/city/registry";
+import type { CityProfile } from "@/modules/city/types";
 import { queryLayer } from "./geoservices";
 
 export interface AdapterSet {
@@ -20,16 +21,18 @@ let cached: AdapterSet | undefined;
 /** Adapters are chosen by environment; the rest of the system never knows which implementation is active. */
 export function adapters(): AdapterSet {
   cached ??= {
-    catastro: createCatastroAdapter(undefined, parcelResolverFromCity(), {
-      province: defaultCity().province.toUpperCase(),
-      municipality: defaultCity().name.toUpperCase(),
-    }),
+    catastro: createCatastroAdapter(undefined, parcelResolverFromCity(), cadastreNames(defaultCity())),
     urbanism: createUrbanismAdapter(),
     market: createMarketAdapter(),
     financing: createFinancingAdapter(),
     sources: [new DemoListingsSource()],
   };
   return cached;
+}
+
+/** Province and municipality as the Catastro spells them for a city. */
+function cadastreNames(city: CityProfile): { province: string; municipality: string } {
+  return city.cadastre ?? { province: city.name.toUpperCase(), municipality: city.name.toUpperCase() };
 }
 
 /** Cadastral reference under a point via the city's public parcel layer (when configured). */

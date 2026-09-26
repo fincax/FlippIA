@@ -70,5 +70,7 @@ export interface CityProfile {
   urbanism: CityUrbanismProfile;
   microzones: Microzone[];
   adapters: { catastro: string; urbanism: string; market: string; financing: string };
+  /** Names the Catastro (OVC) expects for this municipality. */
+  cadastre?: { province: string; municipality: string };
   demo: boolean;
 }
