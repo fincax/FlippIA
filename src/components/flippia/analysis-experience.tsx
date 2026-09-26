@@ -27,7 +27,6 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const currentDeal = useRef<string | undefined>(dealId);
-  const started = useRef(false);
   const queue = useRef<Array<() => void>>([]);
   const draining = useRef(false);
   const reduced =
@@ -49,11 +48,13 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   }
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    // Deferred by a tick: React's development double-mount runs effect → cleanup → effect
+    // synchronously, so the first (immediately cancelled) mount never issues a request.
     const ctrl = new AbortController();
+    let cancelled = false;
     let settled = false;
-    (async () => {
+    const start = async () => {
+      if (cancelled) return;
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json", "x-csrf-token": csrfToken() },
@@ -119,17 +120,24 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
           }
         }
       }
-      if (!settled)
+      if (!settled && !cancelled)
         enqueue(() => {
           setError("Conexión interrumpida antes de terminar el análisis.");
           setStatus("error");
         });
-    })().catch((e) => {
-      if ((e as Error).name === "AbortError") return;
-      setStatus("error");
-      setError("Conexión interrumpida.");
-    });
-    return () => ctrl.abort();
+    };
+    const timer = setTimeout(() => {
+      start().catch((e) => {
+        if ((e as Error).name === "AbortError" || cancelled) return;
+        setStatus("error");
+        setError("Conexión interrumpida.");
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      ctrl.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
@@ -138,7 +146,6 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
     setError(null);
     setDone(null);
     setStatus("connecting");
-    started.current = false;
     setAttempt((a) => a + 1);
   }
 
