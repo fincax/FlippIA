@@ -6,7 +6,7 @@ PostgreSQL 16 + PostGIS (+ pgvector opcional). Drizzle ORM; migraciones en `driz
 
 - `scripts/migrate.ts` crea `postgis` y `pgcrypto` (y `vector` si existe) antes de aplicar `drizzle/`. En Postgres gestionado esto requiere un rol con permiso para `CREATE EXTENSION`; si no, créalas una vez a mano y ejecuta después `pnpm db:migrate`.
 - `0000_init.sql`: esquema inicial. `0001_investor_unique_profile.sql`: índice único `(organization_id, user_id)` en `investor_profiles` (deduplica antes) y `properties.location` pasa a `geometry(Point, 4326)`; el servicio escribe con `ST_SetSRID(ST_MakePoint(lng, lat), 4326)`.
-- Tablas históricas (`agent_runs`, `evidence`, `regulatory_snapshots`, `scenario_sets`, `watches`, `alerts`, `human_reviews`, `documents`, `activities`, `conversations`, `messages`) guardan `organization_id` sin FK a `organizations`; el borrado de una organización (GDPR) necesita un servicio explícito que las limpie en orden. Pendiente: FKs con `ON DELETE CASCADE` en una migración futura.
+- `0002_cascade_fks_rate_limits.sql`: FKs `ON DELETE CASCADE` hacia `organizations`, `deals` y `analyses` en todas las tablas de negocio (`agent_runs`, `evidence`, `regulatory_snapshots`, `scenario_sets`, `watches`, `alerts`, `human_reviews`, `documents`, `activities`, `conversations`, `messages`, `audit_events`, `opportunity_listings`, `partners`, `projects`, `milestones`) y tabla `rate_limits` (contadores compartidos). `deleteOrganization` (`src/server/services/organization.ts`) se apoya en estas cascadas.
 
 ## Conexión
 
@@ -22,6 +22,7 @@ PostgreSQL 16 + PostGIS (+ pgvector opcional). Drizzle ORM; migraciones en `driz
 - `agent_runs` (registro completo por agente), `evidence` (procedencia), `regulatory_snapshots`
 - `scenario_sets` (Digital Investment Twin por deal y estrategia, versión)
 - `watches` (reglas), `alerts`, `human_reviews`, `documents`, `activities`
+- `rate_limits` (contador por clave y ventana, compartido entre instancias)
 - `conversations`, `messages` (LIA)
 - `opportunity_listings` (org null = compartido/DEMO), `regulation_versions`
 - `partners`, `projects`, `milestones` (Execution mode / Partner Network: preparados)

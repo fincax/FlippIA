@@ -18,7 +18,8 @@ export async function visibleListings(ctx: TenantContext): Promise<OpportunityLi
           eq(opportunityListings.organizationId, ctx.organizationId),
         ),
       ),
-    );
+    )
+    .limit(500);
   return rows.map((r) => r.data);
 }
 

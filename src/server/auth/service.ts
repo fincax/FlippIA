@@ -3,7 +3,7 @@ import type { Database } from "@/db/client";
 import { auditEvents, investorProfiles, memberships, organizations, users } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import { DEFAULT_INVESTOR_DNA } from "@/modules/investor/types";
-import { hashPassword, validatePasswordStrength, verifyPassword } from "./password";
+import { hashPassword, needsRehash, validatePasswordStrength, verifyPassword } from "./password";
 import { createSession } from "./session";
 
 export interface RegisterInput {
@@ -82,7 +82,13 @@ export async function login(
   if (!row || !ok) return { ok: false, error: "Email o contraseña incorrectos." };
   const membership = (await d.select().from(memberships).where(eq(memberships.userId, row.id)).limit(1))[0];
   if (!membership) return { ok: false, error: "El usuario no pertenece a ninguna organización." };
-  await d.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, row.id));
+  await d
+    .update(users)
+    .set({
+      lastLoginAt: new Date(),
+      ...(needsRehash(row.passwordHash) ? { passwordHash: await hashPassword(input.password) } : {}),
+    })
+    .where(eq(users.id, row.id));
   await d.insert(auditEvents).values({
     id: newId("aud"),
     organizationId: membership.organizationId,

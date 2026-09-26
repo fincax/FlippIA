@@ -63,7 +63,6 @@ export function CommandPalette() {
       { label: "Comparar escenarios", hint: "dentro de un deal", run: go("/app/deals") },
       { label: "Investor DNA", run: go("/app/onboarding") },
       { label: "Panel de agentes", run: go("/app/observability") },
-      { label: "Buscar documento", hint: "próximamente", run: go("/app/deals") },
     ];
     const n = q.trim().toLowerCase();
     if (!n) return base;

@@ -8,6 +8,7 @@ import { rateLimit } from "@/server/auth";
 import { requireMutation } from "@/server/auth/current";
 import { requireRole } from "@/server/context";
 import {
+  countRunningAnalyses,
   createDeal,
   getDeal,
   markAnalysisFailed,
@@ -24,7 +25,6 @@ export const maxDuration = 120;
 
 /** Concurrent analyses per organization (the hourly limit alone lets one org hold many 90 s runs). */
 const MAX_CONCURRENT_PER_ORG = 3;
-const running = new Map<string, number>();
 
 /**
  * Streams the agentic analysis as Server-Sent Events. The client renders
@@ -44,9 +44,9 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return jsonError("FORBIDDEN", "Tu rol no permite lanzar análisis.", 403);
   }
-  const rl = rateLimit(`analyze:${ctx.organizationId}`, 30, 60 * 60 * 1000);
+  const rl = await rateLimit(ctx.db, `analyze:${ctx.organizationId}`, 30, 60 * 60 * 1000);
   if (!rl.allowed) return jsonError("RATE_LIMITED", "Límite de análisis por hora alcanzado.", 429);
-  if ((running.get(ctx.organizationId) ?? 0) >= MAX_CONCURRENT_PER_ORG)
+  if ((await countRunningAnalyses(ctx)) >= MAX_CONCURRENT_PER_ORG)
     return jsonError("BUSY", "Ya hay varios análisis en curso. Espera a que terminen.", 429);
   const body = schema.safeParse(await readJson(req).catch(() => null));
   if (!body.success) return jsonError("VALIDATION", "Petición no válida.", 422);
@@ -66,9 +66,6 @@ export async function POST(req: Request): Promise<Response> {
   const abort = new AbortController();
   req.signal.addEventListener("abort", () => abort.abort(new Error("Cliente desconectado")), { once: true });
 
-  running.set(ctx.organizationId, (running.get(ctx.organizationId) ?? 0) + 1);
-  const release = () =>
-    running.set(ctx.organizationId, Math.max(0, (running.get(ctx.organizationId) ?? 1) - 1));
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -118,7 +115,6 @@ export async function POST(req: Request): Promise<Response> {
             "No hemos podido completar el análisis. Las fuentes consultadas y el resto de la aplicación siguen disponibles.",
         });
       } finally {
-        release();
         if (!closed) {
           closed = true;
           try {

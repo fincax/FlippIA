@@ -3,27 +3,10 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === "production";
 
 /**
- * Content Security Policy. Kept strict: no remote scripts. Inline styles are
- * required by Next.js streaming; scripts use nonces in production via middleware
- * only when that is enabled. Map tiles / fonts are self-hosted or disabled.
+ * Static security headers. The Content-Security-Policy is not here: it needs a
+ * per-request nonce and is set by `src/proxy.ts` (see `src/lib/csp.ts`).
  */
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' ${isProd ? "" : "'unsafe-eval'"} 'unsafe-inline'`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-]
-  .join("; ")
-  .replace(/\s+/g, " ");
-
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

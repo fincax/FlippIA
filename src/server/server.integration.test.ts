@@ -1,4 +1,9 @@
+import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { agentRuns, organizations, sessions, users } from "@/db/schema";
+import { needsRehash } from "@/server/auth/password";
+import { purgeRateLimits, rateLimit } from "@/server/auth/rate-limit";
+import { deleteOrganization } from "@/server/services/organization";
 import { runAnalysis } from "@/modules/analysis/run-analysis";
 import { parseIntake } from "@/modules/property/intake";
 import { login, register } from "@/server/auth/service";
@@ -19,10 +24,10 @@ import {
   updateScenarioBase,
   whatIf,
 } from "@/server/services/scenarios";
-import { createWatch, evaluateWatches, listWatches } from "@/server/services/watch";
+import { createWatch, evaluateAllWatches, evaluateWatches, listWatches } from "@/server/services/watch";
 import { pulse } from "@/server/services/alerts";
 import { recordReview, listReviews } from "@/server/services/reviews";
-import { runRadar } from "@/server/services/radar";
+import { runRadar, visibleListings } from "@/server/services/radar";
 import { seedDemo, DEMO_ORG_ID } from "@/db/seed";
 import { DEFAULT_INVESTOR_DNA } from "@/modules/investor/types";
 import { ctxFor, getTestDb } from "@/test/db";
@@ -167,3 +172,91 @@ describe("seed, radar, watch and pulse", () => {
     expect(p.lines.length).toBeGreaterThan(0);
   }, 60_000);
 });
+
+describe("shared rate limiter, sessions and password upgrade", () => {
+  it("counts requests across the database window and purges old counters", async () => {
+    const key = `test:${Date.now()}`;
+    const first = await rateLimit(d(), key, 2, 60_000);
+    const second = await rateLimit(d(), key, 2, 60_000);
+    const third = await rateLimit(d(), key, 2, 60_000);
+    expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(true);
+    expect(third.allowed).toBe(false);
+    const later = await rateLimit(d(), key, 2, 60_000, new Date(Date.now() + 61_000));
+    expect(later.allowed).toBe(true);
+    await purgeRateLimits(d(), new Date(Date.now() + 3 * 86_400_000));
+    const fresh = await rateLimit(d(), key, 2, 60_000);
+    expect(fresh.remaining).toBe(1);
+  });
+  it("rehashes a legacy scrypt hash on login and slides the session expiry", async () => {
+    const r = await register(d(), { email: "legacy@example.com", name: "L", password: "legacy-pass-2026" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const legacy = await scryptLegacyHash("legacy-pass-2026");
+    await d().update(users).set({ passwordHash: legacy }).where(eq(users.id, r.userId));
+    expect(needsRehash(legacy)).toBe(true);
+    const login1 = await login(d(), { email: "legacy@example.com", password: "legacy-pass-2026" });
+    expect(login1.ok).toBe(true);
+    const [row] = await d().select({ hash: users.passwordHash }).from(users).where(eq(users.id, r.userId));
+    expect(needsRehash(row!.hash)).toBe(false);
+    if (!login1.ok) return;
+    await d()
+      .update(sessions)
+      .set({ expiresAt: new Date(Date.now() + 1000) })
+      .where(eq(sessions.userId, r.userId));
+    const s = await resolveSession(d(), login1.token);
+    expect(s?.expiresAt.getTime()).toBeGreaterThan(Date.now() + 86_400_000);
+  });
+});
+
+describe("scheduled watcher and organization deletion", () => {
+  it("evaluates every organization's watches and deletes an organization with all its data", async () => {
+    const r = await register(d(), { email: "owner@delete.example", name: "O", password: "owner-pass-2026" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const ctx = ctxFor(r.organizationId, r.userId, "owner");
+    const intake = parseIntake("Analiza Calle Betis 10, Triana, 80 m2 por 240.000 €");
+    const deal = await createDeal(ctx, intake);
+    const analysisId = await markAnalyzing(ctx, deal.id);
+    const result = await runAnalysis({
+      intake,
+      organizationId: r.organizationId,
+      userId: r.userId,
+      dealId: deal.id,
+      analysisDate: "2026-01-15",
+    });
+    await persistAnalysis(ctx, analysisId, deal.id, result);
+    const listings = await visibleListings(ctx);
+    await createWatch(ctx, {
+      dealId: deal.id,
+      listingId: listings[0]?.id,
+      label: "cron",
+      rules: [{ kind: "meets_criteria" }],
+    });
+    const cron = await evaluateAllWatches(d());
+    expect(cron.organizations).toBeGreaterThanOrEqual(1);
+    expect(cron.evaluated).toBeGreaterThanOrEqual(1);
+
+    await expect(deleteOrganization(ctx, "wrong-slug")).rejects.toThrow(ForbiddenError);
+    const [org] = await d()
+      .select({ slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.id, r.organizationId));
+    const out = await deleteOrganization(ctx, org!.slug);
+    expect(out.deletedUsers).toBe(1);
+    expect(await resolveSession(d(), r.token)).toBeNull();
+    const [runs] = await d()
+      .select({ n: sql<number>`count(*)::int` })
+      .from(agentRuns)
+      .where(eq(agentRuns.organizationId, r.organizationId));
+    expect(runs?.n).toBe(0);
+    expect((await d().select({ id: users.id }).from(users).where(eq(users.id, r.userId))).length).toBe(0);
+  });
+});
+
+async function scryptLegacyHash(password: string): Promise<string> {
+  const { randomBytes, scryptSync } = await import("node:crypto");
+  const salt = randomBytes(16);
+  const hash = scryptSync(password.normalize("NFKC"), salt, 64, { N: 16384, r: 8, p: 1 });
+  return `scrypt$16384$8$1$${salt.toString("base64")}$${hash.toString("base64")}`;
+}

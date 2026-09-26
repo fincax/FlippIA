@@ -1,4 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
+import type { Database } from "@/db/client";
 import { alerts, watches, type WatchRule } from "@/db/schema";
 import { newId } from "@/modules/core/ids";
 import { eventBus } from "@/modules/core/events";
@@ -55,12 +56,35 @@ export async function listWatches(ctx: TenantContext) {
     .select()
     .from(watches)
     .where(eq(watches.organizationId, ctx.organizationId))
-    .orderBy(desc(watches.createdAt));
+    .orderBy(desc(watches.createdAt))
+    .limit(200);
 }
 
 export async function deleteWatch(ctx: TenantContext, id: string) {
   requireRole(ctx, "analyst");
   await ctx.db.delete(watches).where(and(eq(watches.id, id), eq(watches.organizationId, ctx.organizationId)));
+}
+
+/**
+ * Scheduled Smart Watcher: evaluates the active watches of every organization,
+ * grouped by the user who created them (Investor DNA is per user).
+ */
+export async function evaluateAllWatches(
+  d: Database,
+): Promise<{ organizations: number; evaluated: number; triggered: number }> {
+  const groups = await d
+    .selectDistinct({ organizationId: watches.organizationId, userId: watches.userId })
+    .from(watches)
+    .where(eq(watches.status, "active"));
+  let evaluated = 0;
+  let triggered = 0;
+  for (const g of groups) {
+    const ctx: TenantContext = { organizationId: g.organizationId, userId: g.userId, role: "analyst", db: d };
+    const r = await evaluateWatches(ctx);
+    evaluated += r.evaluated;
+    triggered += r.triggered;
+  }
+  return { organizations: new Set(groups.map((g) => g.organizationId)).size, evaluated, triggered };
 }
 
 /** Smart Watcher pass: evaluate every active watch against current listing state; create alerts. */

@@ -60,7 +60,9 @@ export const auditEvents = pgTable(
   "audit_events",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id"),
     action: text("action").notNull(),
     targetType: text("target_type"),
@@ -70,3 +72,10 @@ export const auditEvents = pgTable(
   },
   (t) => [index("audit_org_created").on(t.organizationId, t.createdAt)],
 );
+
+/** Fixed-window request counters shared by every instance (login, register, demo, analyses). */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull().default(0),
+});

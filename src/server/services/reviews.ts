@@ -70,5 +70,6 @@ export async function listReviews(ctx: TenantContext, dealId: string) {
     .select()
     .from(humanReviews)
     .where(and(eq(humanReviews.organizationId, ctx.organizationId), eq(humanReviews.dealId, dealId)))
-    .orderBy(desc(humanReviews.createdAt));
+    .orderBy(desc(humanReviews.createdAt))
+    .limit(100);
 }

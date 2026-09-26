@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import {
   activities,
   agentRuns,
@@ -84,6 +84,21 @@ export async function updateDealStatus(
     })
     .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)));
   await logActivity(ctx, dealId, "deal.status", `Estado: ${status}`);
+}
+
+/** Analyses started in the last few minutes and not finished: the concurrency signal shared by all instances. */
+export async function countRunningAnalyses(ctx: TenantContext, windowMs = 3 * 60 * 1000): Promise<number> {
+  const [row] = await ctx.db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(analyses)
+    .where(
+      and(
+        eq(analyses.organizationId, ctx.organizationId),
+        eq(analyses.status, "running"),
+        gt(analyses.createdAt, new Date(Date.now() - windowMs)),
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 export async function markAnalyzing(ctx: TenantContext, dealId: string): Promise<string> {

@@ -1,5 +1,7 @@
 import { boolean, doublePrecision, index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { OpportunityListing } from "@/modules/adapters/sources/types";
+import { organizations } from "./core";
+import { deals } from "./deals";
 import type { RegulationVersion } from "@/modules/regulatory/types";
 
 /** Listings from authorised sources. organization_id null = shared (demo / public feeds). */
@@ -7,7 +9,7 @@ export const opportunityListings = pgTable(
   "opportunity_listings",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id"),
+    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
     sourceId: text("source_id").notNull(),
     microzoneId: text("microzone_id"),
     assetUse: text("asset_use").notNull(),
@@ -38,7 +40,9 @@ export const regulationVersions = pgTable(
 
 export const partners = pgTable("partners", {
   id: text("id").primaryKey(),
-  organizationId: text("organization_id").notNull(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   kind: text("kind")
     .$type<"architect" | "broker" | "agent" | "contractor" | "lawyer" | "lender" | "other">()
     .notNull(),
@@ -50,8 +54,12 @@ export const partners = pgTable("partners", {
 
 export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
-  organizationId: text("organization_id").notNull(),
-  dealId: text("deal_id").notNull(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  dealId: text("deal_id")
+    .notNull()
+    .references(() => deals.id, { onDelete: "cascade" }),
   status: text("status")
     .$type<"planning" | "licensing" | "works" | "commercialization" | "completed">()
     .notNull()
@@ -63,7 +71,9 @@ export const projects = pgTable("projects", {
 
 export const milestones = pgTable("milestones", {
   id: text("id").primaryKey(),
-  organizationId: text("organization_id").notNull(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   projectId: text("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),

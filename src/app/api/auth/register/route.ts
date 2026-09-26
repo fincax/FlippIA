@@ -12,7 +12,7 @@ const schema = z.object({
 });
 
 export const POST = handle(async (req: Request) => {
-  const rl = rateLimit(`register:${clientKey(req)}`, 5, 60 * 60 * 1000);
+  const rl = await rateLimit(db(), `register:${clientKey(req)}`, 5, 60 * 60 * 1000);
   if (!rl.allowed) return jsonError("RATE_LIMITED", "Demasiados registros desde esta conexión.", 429);
   const body = schema.parse(await readJson(req));
   const r = await register(db(), { ...body, userAgent: req.headers.get("user-agent") ?? undefined });

@@ -115,9 +115,13 @@ export const agentRuns = pgTable(
   "agent_runs",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    analysisId: text("analysis_id").notNull(),
-    dealId: text("deal_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    analysisId: text("analysis_id")
+      .notNull()
+      .references(() => analyses.id, { onDelete: "cascade" }),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     agentType: text("agent_type").notNull(),
     domain: text("domain").notNull(),
     label: text("label").notNull(),
@@ -139,9 +143,11 @@ export const evidence = pgTable(
   "evidence",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id"),
-    analysisId: text("analysis_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
+    analysisId: text("analysis_id").references(() => analyses.id, { onDelete: "cascade" }),
     sourceType: text("source_type").notNull(),
     sourceId: text("source_id").notNull(),
     verificationStatus: text("verification_status").notNull(),
@@ -156,9 +162,11 @@ export const regulatorySnapshots = pgTable(
   "regulatory_snapshots",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id"),
-    analysisId: text("analysis_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
+    analysisId: text("analysis_id").references(() => analyses.id, { onDelete: "cascade" }),
     analysisDate: text("analysis_date").notNull(),
     fingerprint: text("fingerprint").notNull(),
     snapshot: jsonb("snapshot").$type<RegulatorySnapshot>().notNull(),
@@ -171,7 +179,9 @@ export const scenarioSets = pgTable(
   "scenario_sets",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     dealId: text("deal_id")
       .notNull()
       .references(() => deals.id, { onDelete: "cascade" }),
@@ -199,7 +209,9 @@ export const watches = pgTable(
   "watches",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     listingId: text("listing_id"),
     userId: text("user_id").notNull(),
@@ -216,9 +228,11 @@ export const alerts = pgTable(
   "alerts",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id"),
-    dealId: text("deal_id"),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
     severity: text("severity").$type<"info" | "opportunity" | "risk">().notNull().default("info"),
     title: text("title").notNull(),
@@ -234,9 +248,13 @@ export const humanReviews = pgTable(
   "human_reviews",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id").notNull(),
-    analysisId: text("analysis_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    analysisId: text("analysis_id").references(() => analyses.id, { onDelete: "cascade" }),
     reviewerUserId: text("reviewer_user_id").notNull(),
     role: text("role")
       .$type<"ai_precheck" | "technical" | "architect" | "real_estate" | "legal" | "tax">()
@@ -255,8 +273,10 @@ export const documents = pgTable(
   "documents",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     kind: text("kind").notNull().default("other"),
     mime: text("mime").notNull(),
@@ -273,8 +293,10 @@ export const activities = pgTable(
   "activities",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull(),
-    dealId: text("deal_id"),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: text("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     userId: text("user_id"),
     kind: text("kind").notNull(),
     title: text("title").notNull(),

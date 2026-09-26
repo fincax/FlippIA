@@ -7,7 +7,7 @@ import { clientKey, withSessionCookie } from "../_shared";
 export const POST = handle(async (req: Request) => {
   if (process.env.DEMO_MODE !== "true")
     return jsonError("DISABLED", "La demo no está habilitada en este entorno.", 403);
-  const rl = rateLimit(`demo:${clientKey(req)}`, 20, 10 * 60 * 1000);
+  const rl = await rateLimit(db(), `demo:${clientKey(req)}`, 20, 10 * 60 * 1000);
   if (!rl.allowed) return jsonError("RATE_LIMITED", "Demasiados intentos.", 429);
   const r = await login(db(), {
     email: process.env.DEMO_USER_EMAIL ?? "demo@flippia.local",

@@ -55,6 +55,12 @@ export async function resolveSession(d: Database, token: string | undefined): Pr
     .limit(1);
   const row = rows[0];
   if (!row) return null;
+  // Sliding expiry: an active session is extended once less than half the TTL remains.
+  let expiresAt = row.session.expiresAt;
+  if (expiresAt.getTime() - Date.now() < SESSION_TTL_MS / 2) {
+    expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+    await d.update(sessions).set({ expiresAt }).where(eq(sessions.id, row.session.id));
+  }
   return {
     sessionId: row.session.id,
     userId: row.user.id,
@@ -62,8 +68,13 @@ export async function resolveSession(d: Database, token: string | undefined): Pr
     role: row.membership.role,
     user: { id: row.user.id, email: row.user.email, name: row.user.name, locale: row.user.locale },
     organization: { id: row.org.id, name: row.org.name, slug: row.org.slug, demo: row.org.demo === 1 },
-    expiresAt: row.session.expiresAt,
+    expiresAt,
   };
+}
+
+/** "Log out everywhere": revokes every session of a user (password change, account deletion). */
+export async function revokeAllSessionsForUser(d: Database, userId: string): Promise<void> {
+  await d.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 export async function revokeSession(d: Database, token: string): Promise<void> {

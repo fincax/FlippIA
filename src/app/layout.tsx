@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The CSP nonce is generated per request by `src/proxy.ts` and injected by
+  // Next.js at render time, so every page must render dynamically: a page
+  // prerendered at build time would ship scripts without a nonce.
+  await connection();
   return (
     <html lang="es" suppressHydrationWarning>
       <body className="min-h-dvh antialiased">{children}</body>
