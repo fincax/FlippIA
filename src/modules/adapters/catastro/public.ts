@@ -157,7 +157,7 @@ export function parseCoordinates(json: unknown): { lat: number; lng: number } | 
   return { lat, lng };
 }
 
-function buildUrl(q: CatastroQuery): string | null {
+export function buildUrl(q: CatastroQuery): string | null {
   const p = new URLSearchParams();
   if (q.kind === "cadastralRef") {
     p.set("Provincia", q.province ?? "");

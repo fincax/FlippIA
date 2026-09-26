@@ -19,20 +19,46 @@ export interface PublicPlanningConfig {
   publisherUrl: string;
   /** Last update of the datasets as far as we know (ISO date). */
   lastKnownUpdate?: string;
-  /** Parcel layer: resolves a cadastral reference to a centroid when no coordinates are known. */
-  parcel?: PlanningLayer<"cadastralRef">;
+  /**
+   * Parcel layer: resolves a cadastral reference to a centroid when no
+   * coordinates are known; may also carry parcel-level flags (tourist limits, district).
+   */
+  parcel?: PlanningLayer<"cadastralRef" | "flag" | "district">;
   /** Land classification (clasificación): urban consolidated, non-consolidated, developable… */
   classification?: PlanningLayer<"class" | "category" | "code">;
-  /** Zoning / ordinance (calificación): ordinance code, label, max floors, use. */
-  zoning?: PlanningLayer<"code" | "label" | "maxFloors" | "use" | "ordinance">;
+  /**
+   * Zoning / ordinance (calificación). Besides code/label/height/use, some
+   * publishers carry the historic-centre flag, the catalogue level and the
+   * link to the particular norms in the same polygon.
+   */
+  zoning?: PlanningLayer<
+    | "code"
+    | "label"
+    | "maxFloors"
+    | "use"
+    | "ordinance"
+    | "detail"
+    | "historicCentre"
+    | "catalogue"
+    | "sheet"
+    | "normsUrl"
+  >;
   /** Heritage catalogue: protection level per building/parcel. */
-  catalogue?: PlanningLayer<"level" | "sheet" | "name">;
+  catalogue?: PlanningLayer<"level" | "sheet" | "name" | "height">;
   /** Historic centre (conjunto histórico) sectors. */
-  historicCentre?: PlanningLayer<"sector" | "name">;
+  historicCentre?: PlanningLayer<"sector" | "name" | "instrument" | "status">;
+  /** Declared heritage assets (BIC): the parcel itself is a monument. */
+  heritageAsset?: PlanningLayer<"name" | "type" | "registration">;
+  /** Protection surroundings of a BIC (entorno): works are conditioned. */
+  heritageSurroundings?: PlanningLayer<"name" | "type">;
+  /** Archaeological protection catalogue. */
+  archaeology?: PlanningLayer<"level" | "category" | "name" | "sheet">;
+  /** Sectorial constraints (airport, railway, flood, servitudes…). */
+  constraints?: PlanningLayer<"name" | "url">;
   /** Areas where tourist rental (VUT) is saturated or restricted. */
   touristSaturation?: PlanningLayer<"flag" | "district" | "name">;
-  /** Development planning in process (planes especiales, modificaciones). */
-  developmentPlanning?: PlanningLayer<"name" | "status" | "instrument" | "category">;
+  /** Development planning (planes especiales, estudios de detalle, modificaciones) and its status. */
+  developmentPlanning?: PlanningLayer<"name" | "status" | "instrument" | "category" | "approvedAt">;
   /** Municipal files (licences, orders) keyed by cadastral reference, when published. */
   files?: PlanningLayer<"cadastralRef" | "type" | "reference" | "status" | "date">;
 }
@@ -48,6 +74,10 @@ export const PLANNING_LAYER_ROLES: PlanningLayerRole[] = [
   "zoning",
   "catalogue",
   "historicCentre",
+  "heritageAsset",
+  "heritageSurroundings",
+  "archaeology",
+  "constraints",
   "touristSaturation",
   "developmentPlanning",
   "files",

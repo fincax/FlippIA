@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { CatastroPublicAdapter } from "@/modules/adapters/catastro/public";
+import { buildUrl, CatastroPublicAdapter } from "@/modules/adapters/catastro/public";
+import type { CatastroQuery } from "@/modules/adapters/catastro/types";
 import { UrbanismoPublicConnector } from "@/modules/adapters/urbanismo-sevilla/public";
 import { parseIntake } from "@/modules/property/intake";
 
@@ -10,6 +11,9 @@ import { parseIntake } from "@/modules/property/intake";
  *   pnpm sources:check "Calle Pureza 45, Sevilla"
  *   pnpm sources:check 4219020TG3441N
  *   pnpm sources:check 37.3826,-5.9963
+ *
+ * Prints every request URL and, when a source answers nothing, the raw body so
+ * the parser can be adjusted without guessing.
  */
 async function main() {
   const text = process.argv.slice(2).join(" ").trim();
@@ -19,16 +23,16 @@ async function main() {
   const point = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
   const rc = text.match(/^[0-9A-Z]{14}([0-9A-Z]{6})?$/i);
   const intake = parseIntake(text);
-  const query = point
-    ? ({ kind: "point", point: { lat: Number(point[1]), lng: Number(point[2]) } } as const)
+  const query: CatastroQuery = point
+    ? { kind: "point", point: { lat: Number(point[1]), lng: Number(point[2]) } }
     : rc
-      ? ({
+      ? {
           kind: "cadastralRef",
           cadastralRef: text.toUpperCase(),
           municipality: "SEVILLA",
           province: "SEVILLA",
-        } as const)
-      : ({
+        }
+      : {
           kind: "address",
           municipality: "SEVILLA",
           province: "SEVILLA",
@@ -36,14 +40,17 @@ async function main() {
             (intake.property?.address ?? text)
               .replace(/\d.*$/, "")
               .replace(/^(calle|c\/|avenida|avda\.?|plaza)\s+/i, "")
+              .replace(/,.*$/, "")
               .trim() || text,
           number: text.match(/\d{1,4}/)?.[0] ?? "1",
-        } as const);
+        };
 
   console.warn(`\n1. Catastro público (${query.kind})`);
+  console.warn(`   URL: ${buildUrl(query)}`);
   const c = await catastro.query(query);
   if (!c.ok) {
     console.warn(`   ✗ ${c.error.code}: ${c.error.message}`);
+    await dumpRaw(buildUrl(query));
   } else {
     const d = c.value.data;
     console.warn(
@@ -70,16 +77,33 @@ async function main() {
   } else {
     const p = u.value.data;
     console.warn(
-      `   ✓ estado ${p.status} · ${p.zoningCode || "sin calificación"} ${p.zoningLabel} · plantas ${p.maxFloors ?? "n/d"}`,
+      `   ✓ estado ${p.status} · ${p.zoningCode || "sin código"} · ${p.zoningLabel} · plantas ${p.maxFloors ?? "n/d"} · planta baja residencial ${p.groundFloorResidential}`,
     );
     console.warn(
-      `     protección ${p.protectionLevel} · conjunto histórico ${p.inHistoricCentre} ${p.heritageSector ?? ""}`,
+      `     protección ${p.protectionLevel} · catalogado ${p.catalogued} · conjunto histórico ${p.inHistoricCentre}${p.heritageSector ? ` (${p.heritageSector})` : ""}`,
     );
+    if (p.allowedUses.length) console.warn(`     usos: ${p.allowedUses.join("; ")}`);
     if (p.conditionedUses.length) console.warn(`     condicionados: ${p.conditionedUses.join("; ")}`);
     for (const n of p.notes) console.warn(`     nota: ${n}`);
-    for (const e of u.value.evidence) console.warn(`     evidencia: ${e.sourceName} → ${e.excerpt}`);
+    console.warn("     evidencias:");
+    for (const e of u.value.evidence) {
+      console.warn(`       - ${e.sourceName}`);
+      console.warn(`         ${e.excerpt}`);
+      console.warn(`         ${e.sourceUrl}`);
+    }
   }
   process.exit(0);
+}
+
+async function dumpRaw(url: string | null) {
+  if (!url) return;
+  try {
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const body = await res.text();
+    console.warn(`   respuesta cruda (${res.status}, ${body.length} bytes): ${body.slice(0, 1200)}`);
+  } catch (e) {
+    console.warn(`   no se pudo leer la respuesta cruda: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 main().catch((e) => {
