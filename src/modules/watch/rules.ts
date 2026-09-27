@@ -1,7 +1,12 @@
 import type { OpportunityListing } from "@/modules/adapters/sources/types";
 import type { WatchRule } from "@/db/schema/deals";
 import type { InvestorDNA } from "@/modules/investor/types";
-import { quickUnderwrite } from "@/modules/radar/underwrite";
+import { quickUnderwrite, radarStrategySet, type RadarSearchOptions } from "@/modules/radar/underwrite";
+import {
+  isStrategyUnderwriting,
+  quickUnderwriteStrategies,
+  type StrategyQuickResult,
+} from "@/modules/radar/strategies";
 
 export interface WatchEvaluation {
   triggered: boolean;
@@ -79,27 +84,46 @@ export interface Autopsy {
   reasons: string[];
   reentryPrice: number | null;
   suggestion: string;
+  /** Every strategy evaluated when the autopsy ran the MultiExit quick pass. */
+  strategies?: StrategyQuickResult[];
+  bestStrategyId?: string | null;
 }
 
 /** Opportunity Autopsy: why a deal fails the investor's criteria and when it would work again. */
-export function autopsy(listing: OpportunityListing, investor: InvestorDNA): Autopsy {
-  const u = quickUnderwrite(listing, investor);
+export function autopsy(
+  listing: OpportunityListing,
+  investor: InvestorDNA,
+  opts: Pick<RadarSearchOptions, "brief" | "strategyIds"> = {},
+): Autopsy {
+  const strategyIds = radarStrategySet(investor, opts);
+  const u = strategyIds
+    ? quickUnderwriteStrategies(listing, investor, { strategyIds, constraints: opts.brief?.asset })
+    : quickUnderwrite(listing, investor, { constraints: opts.brief?.asset });
   if (!u)
     return { headline: "No se pudo evaluar el activo.", reasons: [], reentryPrice: null, suggestion: "" };
+  const multi = isStrategyUnderwriting(u)
+    ? { strategies: u.strategies, bestStrategyId: u.bestStrategyId }
+    : {};
+  const best = isStrategyUnderwriting(u)
+    ? u.strategies.find((s) => s.strategyId === u.bestStrategyId)
+    : undefined;
+  const via = best ? ` La mejor vía es ${best.label.toLowerCase()}.` : "";
   if (u.meetsCriteria)
     return {
-      headline: "Esta operación cumple actualmente tus criterios.",
+      headline: `Esta operación cumple actualmente tus criterios.${via}`,
       reasons: [],
       reentryPrice: u.reentryPrice,
       suggestion: "Puedes lanzar el análisis completo.",
+      ...multi,
     };
   return {
-    headline: "Esta operación no cumple actualmente tus criterios.",
+    headline: `Esta operación no cumple actualmente tus criterios.${best ? ` La vía más cercana es ${best.label.toLowerCase()}.` : ""}`,
     reasons: u.failedCriteria,
     reentryPrice: u.reentryPrice,
     suggestion:
       u.reentryPrice > 0 && u.reentryPrice < listing.askingPrice
         ? `Volvería a cumplir tus parámetros aproximadamente por debajo de ${u.reentryPrice.toLocaleString("es-ES")} €. Puedes vigilarla.`
         : "Los criterios no se cumplen ni a precio cero: el plazo o el capital son el límite.",
+    ...multi,
   };
 }

@@ -20,90 +20,7 @@ export class FinancingDemoAdapter implements DataSourceAdapter<FinancingQuery, F
   }
 
   async query(q: FinancingQuery) {
-    const residential = q.assetUse === "residential";
-    const offers: FinancingOffer[] = [
-      {
-        id: "off_mortgage",
-        providerId: "demo-bank",
-        providerName: "Entidad bancaria (DEMO)",
-        instrument: {
-          kind: "mortgage",
-          label: "Hipoteca",
-          sizing: { type: "ltv", ratio: residential ? 0.7 : 0.6 },
-          annualRate: residential ? 0.034 : 0.042,
-          termMonths: 300,
-          interestOnly: false,
-          arrangementFeeRate: 0.005,
-          drawMonth: 0,
-        },
-        maxAmount: Math.round(q.purchasePrice * (residential ? 0.7 : 0.6)),
-        conditions: ["Tasación oficial", "Seguro de hogar", "Vinculación básica"],
-        indicative: true,
-        demo: true,
-      },
-      {
-        id: "off_bridge",
-        providerId: "demo-private",
-        providerName: "Financiación puente (DEMO)",
-        instrument: {
-          kind: "bridge",
-          label: "Préstamo puente",
-          sizing: { type: "ltc", ratio: 0.65 },
-          annualRate: 0.095,
-          termMonths: Math.max(6, q.durationMonths),
-          interestOnly: true,
-          arrangementFeeRate: 0.02,
-          drawMonth: 0,
-        },
-        maxAmount: Math.round(q.totalCost * 0.65),
-        conditions: [
-          "Garantía hipotecaria primer rango",
-          "Plazo máximo 18 meses",
-          "Salida por venta o refinanciación",
-        ],
-        indicative: true,
-        demo: true,
-      },
-      {
-        id: "off_reno",
-        providerId: "demo-bank",
-        providerName: "Línea de reforma (DEMO)",
-        instrument: {
-          kind: "renovation_facility",
-          label: "Línea de reforma",
-          sizing: { type: "amount", amount: Math.round(q.totalCost * 0.15) },
-          annualRate: 0.065,
-          termMonths: 84,
-          interestOnly: false,
-          arrangementFeeRate: 0.01,
-          drawMonth: 1,
-        },
-        maxAmount: Math.round(q.totalCost * 0.15),
-        conditions: ["Presupuesto y licencia", "Disposición contra certificaciones"],
-        indicative: true,
-        demo: true,
-      },
-      {
-        id: "off_partner",
-        providerId: "demo-coinvest",
-        providerName: "Co-inversión (DEMO)",
-        instrument: {
-          kind: "co_investment",
-          label: "Socio capitalista",
-          sizing: { type: "ltc", ratio: 0.4 },
-          annualRate: 0,
-          termMonths: q.durationMonths,
-          interestOnly: true,
-          arrangementFeeRate: 0,
-          drawMonth: 0,
-          profitShare: 0.4,
-        },
-        maxAmount: Math.round(q.totalCost * 0.4),
-        conditions: ["Reparto de beneficio 60/40", "Pacto de socios"],
-        indicative: true,
-        demo: true,
-      },
-    ];
+    const offers = indicativeOffers(q);
     const retrievedAt = new Date().toISOString();
     const evidence: NewEvidence[] = [
       {
@@ -123,4 +40,97 @@ export class FinancingDemoAdapter implements DataSourceAdapter<FinancingQuery, F
     const response: AdapterResponse<FinancingOffer[]> = { data: offers, evidence, retrievedAt, mode: "demo" };
     return ok(response);
   }
+}
+
+/**
+ * Indicative DEMO structures (mortgage, bridge, renovation facility,
+ * co-investment). Pure: the adapter wraps it with evidence and the Radar's
+ * quick pass reuses it so both speak the same terms.
+ */
+export function indicativeOffers(q: FinancingQuery): FinancingOffer[] {
+  const residential = q.assetUse === "residential";
+  const offers: FinancingOffer[] = [
+    {
+      id: "off_mortgage",
+      providerId: "demo-bank",
+      providerName: "Entidad bancaria (DEMO)",
+      instrument: {
+        kind: "mortgage",
+        label: "Hipoteca",
+        sizing: { type: "ltv", ratio: residential ? 0.7 : 0.6 },
+        annualRate: residential ? 0.034 : 0.042,
+        termMonths: 300,
+        interestOnly: false,
+        arrangementFeeRate: 0.005,
+        drawMonth: 0,
+      },
+      maxAmount: Math.round(q.purchasePrice * (residential ? 0.7 : 0.6)),
+      conditions: ["Tasación oficial", "Seguro de hogar", "Vinculación básica"],
+      indicative: true,
+      demo: true,
+    },
+    {
+      id: "off_bridge",
+      providerId: "demo-private",
+      providerName: "Financiación puente (DEMO)",
+      instrument: {
+        kind: "bridge",
+        label: "Préstamo puente",
+        sizing: { type: "ltc", ratio: 0.65 },
+        annualRate: 0.095,
+        termMonths: Math.max(6, q.durationMonths),
+        interestOnly: true,
+        arrangementFeeRate: 0.02,
+        drawMonth: 0,
+      },
+      maxAmount: Math.round(q.totalCost * 0.65),
+      conditions: [
+        "Garantía hipotecaria primer rango",
+        "Plazo máximo 18 meses",
+        "Salida por venta o refinanciación",
+      ],
+      indicative: true,
+      demo: true,
+    },
+    {
+      id: "off_reno",
+      providerId: "demo-bank",
+      providerName: "Línea de reforma (DEMO)",
+      instrument: {
+        kind: "renovation_facility",
+        label: "Línea de reforma",
+        sizing: { type: "amount", amount: Math.round(q.totalCost * 0.15) },
+        annualRate: 0.065,
+        termMonths: 84,
+        interestOnly: false,
+        arrangementFeeRate: 0.01,
+        drawMonth: 1,
+      },
+      maxAmount: Math.round(q.totalCost * 0.15),
+      conditions: ["Presupuesto y licencia", "Disposición contra certificaciones"],
+      indicative: true,
+      demo: true,
+    },
+    {
+      id: "off_partner",
+      providerId: "demo-coinvest",
+      providerName: "Co-inversión (DEMO)",
+      instrument: {
+        kind: "co_investment",
+        label: "Socio capitalista",
+        sizing: { type: "ltc", ratio: 0.4 },
+        annualRate: 0,
+        termMonths: q.durationMonths,
+        interestOnly: true,
+        arrangementFeeRate: 0,
+        drawMonth: 0,
+        profitShare: 0.4,
+      },
+      maxAmount: Math.round(q.totalCost * 0.4),
+      conditions: ["Reparto de beneficio 60/40", "Pacto de socios"],
+      indicative: true,
+      demo: true,
+    },
+  ];
+  return offers;
 }

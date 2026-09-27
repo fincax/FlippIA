@@ -14,7 +14,8 @@ Todas las rutas devuelven `{ ok: true, data }` o `{ ok: false, error: { code, me
 | POST     | `/api/deals/:id/status`                                                   | `{ status }`                                                                                                     |
 | GET/POST | `/api/watches` · DELETE `/api/watches/:id` · POST `/api/watches/evaluate` | Smart Watcher                                                                                                    |
 | GET/POST | `/api/investor`                                                           | Investor DNA                                                                                                     |
-| GET      | `/api/radar?include=all`                                                  | Radar                                                                                                            |
+| GET      | `/api/radar?include=all&q=`                                               | Radar; `q` = objetivo o proyecto hablado (brief) → añade `bestStrategyId` y `strategies` por hit                 |
+| GET/POST | `/api/radar/listings` · DELETE `/api/radar/listings/:id`                  | Listados propios de la organización (`{ listings: [...] }`, ≤ 500); DELETE los retira del Radar                  |
 | POST     | `/api/alerts/:id/read`                                                    | Alertas                                                                                                          |
 | POST     | `/api/reviews`                                                            | Revisión humana                                                                                                  |
 | GET      | `/api/sources`                                                            | Estado de fuentes (admin/owner)                                                                                  |

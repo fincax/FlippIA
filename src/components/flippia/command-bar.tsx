@@ -19,6 +19,10 @@ const ACTIONS = [
     label: "Tengo capital",
     fill: "Tengo 300.000 €. Quiero aportar máximo 120.000 €. Sevilla. Horizonte inferior a 12 meses.",
   },
+  {
+    label: "Buscar para un proyecto",
+    fill: "Busco un local en Triana o la Alameda de hasta 200.000 € para convertirlo en vivienda",
+  },
   { label: "Optimizar inversión", fill: "Optimiza mi última operación" },
 ];
 
