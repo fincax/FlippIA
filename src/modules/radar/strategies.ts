@@ -30,6 +30,8 @@ export interface StrategyQuickResult {
 export interface StrategyUnderwriting extends QuickUnderwriting {
   strategies: StrategyQuickResult[];
   bestStrategyId: string | null;
+  /** The asset is what the brief asks for and at least one requested strategy applies to it. */
+  projectFit: boolean;
 }
 
 export function isStrategyUnderwriting(u: QuickUnderwriting): u is StrategyUnderwriting {
@@ -84,13 +86,16 @@ export function quickUnderwriteStrategies(
     const netProfit = Math.round(r.metrics.netProfit.value ?? 0);
     const equityRequired = Math.round(r.metrics.equityRequired.value ?? 0);
     const durationMonths = ev.inputs.holding.durationMonths;
+    // An income project holds the asset by definition: the horizon governs capital rotation, not a rental.
+    const ignoreDuration = ev.exitKind === "rent" && investor.objective !== "capital_gain";
     const failed = [
-      ...investorCriteriaFailures(listing, zone, investor, {
-        roe,
-        netProfit,
-        equityRequired,
-        durationMonths,
-      }),
+      ...investorCriteriaFailures(
+        listing,
+        zone,
+        investor,
+        { roe, netProfit, equityRequired, durationMonths },
+        { ignoreDuration },
+      ),
       ...assetFailures,
     ];
     const max = computeMaximumAcquisitionPrice(ev.inputs, constraints);
@@ -150,6 +155,7 @@ export function quickUnderwriteStrategies(
       demo: listing.demo,
       strategies: [],
       bestStrategyId: null,
+      projectFit: false,
     };
   }
 
@@ -173,5 +179,6 @@ export function quickUnderwriteStrategies(
     demo: listing.demo,
     strategies,
     bestStrategyId: best.result.strategyId,
+    projectFit: assetFailures.length === 0,
   };
 }

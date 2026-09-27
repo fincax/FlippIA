@@ -5,6 +5,7 @@ import { WatchButton } from "@/components/flippia/watch-button";
 import { formatMoney } from "@/lib/format";
 import { applyBriefToDna, parseProjectBrief } from "@/modules/radar/brief";
 import type { StrategyQuickResult } from "@/modules/radar/strategies";
+import { isStrategyUnderwriting } from "@/modules/radar/strategies";
 import { radarStrategySet } from "@/modules/radar/underwrite";
 import { STRATEGY_PLUGINS } from "@/modules/strategies/plugins";
 import { autopsy } from "@/modules/watch/rules";
@@ -33,12 +34,17 @@ export default async function RadarPage({
   const strategySet = radarStrategySet(dna, { brief });
   const hits = await runRadar(ctx, dna, { includeNonMatching: true, brief });
   const matching = hits.filter((h) => h.underwriting.meetsCriteria);
+  // Nearly-there first: assets that fit the project, then fewest failed criteria, then score.
+  const fits = (h: Hit) => (isStrategyUnderwriting(h.underwriting) ? Number(h.underwriting.projectFit) : 1);
   const others = hits
     .filter((h) => !h.underwriting.meetsCriteria)
     .sort(
       (a, b) =>
-        a.underwriting.failedCriteria.length - b.underwriting.failedCriteria.length || b.score - a.score,
+        fits(b) - fits(a) ||
+        a.underwriting.failedCriteria.length - b.underwriting.failedCriteria.length ||
+        b.score - a.score,
     );
+  const fitting = strategySet ? hits.filter((h) => fits(h) === 1).length : null;
   const focus = focusId ? hits.find((h) => h.listing.id === focusId) : undefined;
   const focusAutopsy = focus ? autopsy(focus.listing, dna, { brief }) : null;
   const hasOwn = hits.some((h) => !h.listing.demo);
@@ -61,7 +67,9 @@ export default async function RadarPage({
           {formatMoney(dna.maxEquityPerDeal)}, horizonte {dna.horizonMonths} meses, beneficio ≥{" "}
           {formatMoney(dna.targetProfit)}, ROE ≥ {Math.round(dna.targetRoe * 100)} %
           {brief?.asset.maxPrice ? <>, precio ≤ {formatMoney(brief.asset.maxPrice)}</> : null}.{" "}
-          {matching.length} de {hits.length} activos cumplen.
+          {fitting !== null && brief?.hasProject
+            ? `${fitting} de ${hits.length} activos encajan con el proyecto; ${matching.length} cumplen además tus criterios.`
+            : `${matching.length} de ${hits.length} activos cumplen.`}
           {!completed ? " Completa tu Investor DNA para afinar." : ""}
         </p>
         {strategySet ? (
@@ -218,6 +226,30 @@ function StrategyTable({
 function HitCard({ hit, q }: { hit: Hit; q?: string }) {
   const u = hit.underwriting;
   const okStrategies = hit.strategies?.filter((s) => s.meetsCriteria).length ?? 0;
+  if (hit.strategies && hit.strategies.length === 0) {
+    // Nothing to underwrite: the asset is not what the project asks for, or no requested way applies to it.
+    return (
+      <Surface className="p-4 opacity-80">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm text-fg">
+              {hit.listing.title}{" "}
+              {hit.listing.demo ? (
+                <Badge tone="warning" className="ml-1">
+                  DEMO
+                </Badge>
+              ) : null}
+            </div>
+            <div className="text-[12px] text-fg-3">
+              {hit.listing.address} · {hit.listing.builtAreaM2} m²
+            </div>
+          </div>
+          <div className="font-display text-xl num">{formatMoney(hit.listing.askingPrice)}</div>
+        </div>
+        <p className="mt-2 text-[12px] text-fg-2">Fuera del proyecto: {u.failedCriteria.join(" · ")}.</p>
+      </Surface>
+    );
+  }
   return (
     <Surface className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

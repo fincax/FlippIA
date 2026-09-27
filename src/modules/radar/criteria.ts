@@ -20,6 +20,7 @@ export function investorCriteriaFailures(
   zone: Microzone,
   investor: InvestorDNA,
   f: QuickFigures,
+  opts: { ignoreDuration?: boolean } = {},
 ): string[] {
   const failed: string[] = [];
   if (f.roe === null || f.roe < investor.targetRoe)
@@ -34,7 +35,7 @@ export function investorCriteriaFailures(
     failed.push(
       `Capital ${Math.round(f.equityRequired).toLocaleString("es-ES")} € > máximo ${investor.maxEquityPerDeal.toLocaleString("es-ES")} €`,
     );
-  if (f.durationMonths > investor.horizonMonths)
+  if (!opts.ignoreDuration && f.durationMonths > investor.horizonMonths)
     failed.push(`Duración ${f.durationMonths} meses > horizonte ${investor.horizonMonths}`);
   if (investor.zones.length && !investor.zones.includes(zone.id))
     failed.push(`Zona ${zone.name} fuera de tus zonas`);
