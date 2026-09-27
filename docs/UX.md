@@ -21,6 +21,10 @@ La ciudad se cierra sobre el barrio y la parcela a medida que avanza el trabajo 
 
 Overview (HE ENCONTRADO · N · FUTUROS POSIBLES, tesis con SHOW EVIDENCE, árbol de posibilidades, Opportunity Gap con palancas, vista explosionada VALOR · FINANCIACIÓN · REFORMA · ARQUITECTURA · URBANISMO · ACTIVO, escenario base, DNA, evidencia, Haz magia) · Estrategias (matriz de comparación capital · plazo · retorno · riesgo · complejidad, después la capa técnica: ranking explicado, comprobaciones, estrés, hipótesis con semáforo) · Escenarios (switcher, comparación, curva de caja, costes, what-if → aplicar a base / guardar) · Finanzas (precio máximo, desglose completo con fórmulas, capital stack) · Riesgo (Risk Mode: supervivencia, capital en riesgo, tornado de estrés, hallazgos adversariales) · Urbanismo (Urban Digital Layer + Urban Check con estados de evidencia, envolvente conceptual, hallazgos, comprobaciones, snapshot normativo con fechas y fuentes) · Arquitectura (Architecture Lab: lo que es ↔ lo que podría ser, y por alternativa PLAN/MODEL · STRATEGY · COST · VALUE · REGULATION) · Mercado (valoración, mapa, comparables usados/descartados) · Evidencia (estado de fuentes, evidencias agrupadas) · Passport (imprimible, revisiones humanas) · Actividad (timeline + runs) · LIA (Ask this property).
 
+## Radar y cartera
+
+Radar como control de tráfico aéreo: plan de vuelo (criterios del Investor DNA o del objetivo dicho), scope (`RadarScope`: la ciudad con anillos, barrido y un blip por activo del Radar Engine, posición esquemática por microzona) y tablero de tiras («En criterio» / «No cumplen (todavía)») con precio, descuento as-is, beneficio rápido, ROE, capital, plazo, score y motivos. Cartera: dossiers numerados con estado, vía principal, beneficio, ROE, DNA y riesgo.
+
 ## Estados
 
 - Empty states que enseñan ("Todavía no estás vigilando ninguna zona…").

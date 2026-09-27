@@ -16,6 +16,26 @@ import { SEVILLA } from "@/modules/city/sevilla";
 
 export type CityFocus = { lat: number; lng: number } | { microzoneId: string };
 
+export interface CityBlip {
+  id: string;
+  microzoneId: string;
+  /** 0..1 — drives the size and the intensity of the blip. */
+  intensity: number;
+  /** Matching hits are drawn in the accent; the rest in the axis colour. */
+  active: boolean;
+  label?: string;
+}
+
+/** Deterministic position of a blip around its microzone centroid. */
+export function blipPosition(blip: CityBlip, index: number): { x: number; y: number } | null {
+  const z = SEVILLA.microzones.find((m) => m.id === blip.microzoneId);
+  if (!z) return null;
+  const r = rng(hash(blip.id));
+  const a = r() * Math.PI * 2 + index * 1.7;
+  const d = (0.25 + r() * 0.6) * z.radiusM * PX_PER_M;
+  return { x: projectLng(z.centroid.lng) + Math.cos(a) * d, y: projectLat(z.centroid.lat) + Math.sin(a) * d };
+}
+
 const W = 1000;
 const H = 1000;
 const [MIN_LNG, MIN_LAT, MAX_LNG, MAX_LAT] = SEVILLA.bbox;
@@ -253,6 +273,7 @@ export function CityCanvas({
   labels = true,
   marker = false,
   scanning = false,
+  blips,
   className,
   title,
 }: {
@@ -265,6 +286,8 @@ export function CityCanvas({
   marker?: boolean;
   /** Sweep a scan line over the drawing. */
   scanning?: boolean;
+  /** Radar blips: one per hit, placed around its microzone centroid (schematic, not geocoded). */
+  blips?: CityBlip[];
   className?: string;
   /** Accessible title. Without it the canvas is decorative. */
   title?: string;
@@ -344,6 +367,48 @@ export function CityCanvas({
               </text>
             ))
           : null}
+        {blips?.map((b, i) => {
+          const pos = blipPosition(b, i);
+          if (!pos) return null;
+          const tone = b.active ? "var(--color-accent)" : "var(--viz-axis)";
+          const rr = (3 + b.intensity * 5) / Math.sqrt(zoom);
+          return (
+            <g key={b.id}>
+              {b.active ? (
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={rr * 2.4}
+                  fill={tone}
+                  className="anim-breathe"
+                  style={{ transformOrigin: `${pos.x}px ${pos.y}px`, animationDelay: `${(i % 5) * 400}ms` }}
+                />
+              ) : null}
+              <circle cx={pos.x} cy={pos.y} r={rr} fill={tone} fillOpacity={b.active ? 1 : 0.7} />
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r={rr * 1.8}
+                fill="none"
+                stroke={tone}
+                strokeWidth={0.8 / zoom}
+                strokeOpacity={0.6}
+              />
+              {b.label ? (
+                <text
+                  x={pos.x + rr * 2.4}
+                  y={pos.y + 3 / zoom}
+                  fontSize={8 / Math.sqrt(zoom)}
+                  fontFamily="var(--font-mono)"
+                  letterSpacing="0.1em"
+                  fill={tone}
+                >
+                  {b.label}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
         {f && marker ? (
           <g>
             <line
