@@ -32,6 +32,21 @@ export function microzoneFromText(city: CityProfile, text: string): Microzone | 
   return best?.zone;
 }
 
+/** Every microzone named in a free text ("Triana y Los Remedios"), longest alias first. */
+export function microzonesFromText(city: CityProfile, text: string): Microzone[] {
+  const t = normalizeText(text);
+  const found: Array<{ zone: Microzone; len: number }> = [];
+  for (const zone of city.microzones) {
+    let len = 0;
+    for (const alias of zone.aliases) {
+      const a = normalizeText(alias);
+      if (t.includes(a) && a.length > len) len = a.length;
+    }
+    if (len > 0) found.push({ zone, len });
+  }
+  return found.sort((a, b) => b.len - a.len).map((f) => f.zone);
+}
+
 export function haversineM(a: LatLng, b: LatLng): number {
   const R = 6_371_000;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;

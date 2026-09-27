@@ -1,4 +1,5 @@
 import { parseIntake, type IntakeRequest } from "@/modules/property/intake";
+import { parseProjectBrief } from "@/modules/radar/brief";
 import { formatMoney } from "@/lib/format";
 
 export type LiaAction =
@@ -22,14 +23,18 @@ export function routeCommand(text: string): LiaAction {
         message: `Voy a construir el caso de ${intake.property?.address ?? intake.property?.cadastralRef ?? "este activo"}${intake.price ? ` a ${formatMoney(intake.price)}` : ""}.`,
       };
     case "capital_available":
-    case "find_opportunity":
+    case "find_opportunity": {
+      const brief = parseProjectBrief(text);
       return {
         kind: "radar",
         intake,
-        message: intake.investor?.capital
-          ? `Busco oportunidades compatibles con ${formatMoney(intake.investor.capital)}${intake.investor.horizonMonths ? ` y un horizonte de ${intake.investor.horizonMonths} meses` : ""}.`
-          : "Busco oportunidades compatibles con tu Investor DNA.",
+        message: brief.hasProject
+          ? `Busco ${brief.summary} y evalúo cada activo con las vías que encajan.`
+          : intake.investor?.capital
+            ? `Busco oportunidades compatibles con ${formatMoney(intake.investor.capital)}${intake.investor.horizonMonths ? ` y un horizonte de ${intake.investor.horizonMonths} meses` : ""}.`
+            : "Busco oportunidades compatibles con tu Investor DNA.",
       };
+    }
     case "optimize_investment":
       return {
         kind: "clarify",

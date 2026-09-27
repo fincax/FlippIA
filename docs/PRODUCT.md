@@ -13,7 +13,7 @@
 ## Momentos mágicos
 
 1. **Dirección → tesis**: `/app/analyze` en streaming, "He encontrado N posibles futuros".
-2. **"Tengo 250.000 €. Encuentra algo."** → `/app/radar?q=` con criterios hablados.
+2. **"Tengo 250.000 €. Encuentra algo."** → `/app/radar?q=` con criterios hablados. **"Busco un local en Triana de hasta 200.000 € para convertirlo en vivienda"** → el mismo Radar con proyecto: zonas, tope y la vía MultiExit pedida, evaluada activo por activo (`ProjectBrief`).
 3. **Aviso**: "Esta propiedad que descartamos ha bajado de precio; vuelve a cumplir tus criterios" → Smart Watcher + Pulse.
 4. **La obvia no es la mejor**: ranking explicable; la síntesis lo dice cuando la estrategia obvia queda atrás.
 

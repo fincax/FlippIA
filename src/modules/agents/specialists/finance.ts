@@ -4,6 +4,7 @@ import type {
   MarketAssessment,
   PropertyProfile,
 } from "@/modules/analysis/types";
+import type { FinancingOffer } from "@/modules/adapters/financing/types";
 import type { AgentDefinition } from "../runtime/types";
 import { output } from "../runtime/types";
 
@@ -47,65 +48,77 @@ export const financingAgent: AgentDefinition<FinanceAssessment> = {
     }
     ctx.evidence.addMany(res.value.evidence);
     const offers = res.value.data;
-    const mortgage = offers.find((o) => o.instrument.kind === "mortgage");
-    const bridge = offers.find((o) => o.instrument.kind === "bridge");
-    const reno = offers.find((o) => o.instrument.kind === "renovation_facility");
-    const partner = offers.find((o) => o.instrument.kind === "co_investment");
-    const stacks: CapitalStack[] = [
-      {
-        id: "stack_equity",
-        label: "100 % capital propio",
-        instruments: [],
-        description: "Sin deuda: máxima simplicidad, menor ROE.",
-      },
-      ...(mortgage
-        ? [
-            {
-              id: "stack_mortgage",
-              label: "Hipoteca + capital",
-              instruments: [mortgage.instrument],
-              description: `Hipoteca al ${Math.round(mortgage.instrument.annualRate * 1000) / 10} % sobre el ${Math.round((mortgage.instrument.sizing.type === "ltv" ? mortgage.instrument.sizing.ratio : 0) * 100)} % del precio.`,
-            },
-          ]
-        : []),
-      ...(mortgage && reno
-        ? [
-            {
-              id: "stack_mortgage_reno",
-              label: "Hipoteca + línea de reforma",
-              instruments: [mortgage.instrument, reno.instrument],
-              description: "Financia también parte de la obra; menor capital, más coste financiero.",
-            },
-          ]
-        : []),
-      ...(bridge
-        ? [
-            {
-              id: "stack_bridge",
-              label: "Préstamo puente",
-              instruments: [bridge.instrument],
-              description: `Puente al ${Math.round(bridge.instrument.annualRate * 1000) / 10} % sobre el 65 % del coste; rápido, caro.`,
-            },
-          ]
-        : []),
-      ...(partner
-        ? [
-            {
-              id: "stack_partner",
-              label: "Co-inversión",
-              instruments: [partner.instrument],
-              description: "Socio aporta 40 % del coste a cambio del 40 % del beneficio.",
-            },
-          ]
-        : []),
-    ];
+    const { stacks, recommendedStackId } = buildCapitalStacks(offers);
     ctx.progress(`${offers.length} ofertas, ${stacks.length} estructuras`);
     return {
       offers,
       stacks,
-      recommendedStackId: mortgage ? "stack_mortgage" : "stack_equity",
+      recommendedStackId,
       summary: `${offers.length} ofertas indicativas; ${stacks.length} estructuras de capital comparables.`,
       demo: res.value.mode === "demo",
     };
   },
 };
+
+/**
+ * Comparable capital structures from a set of offers. Pure: the Finance
+ * agent and the Radar's quick pass build the same stacks.
+ */
+export function buildCapitalStacks(offers: FinancingOffer[]): {
+  stacks: CapitalStack[];
+  recommendedStackId: string;
+} {
+  const mortgage = offers.find((o) => o.instrument.kind === "mortgage");
+  const bridge = offers.find((o) => o.instrument.kind === "bridge");
+  const reno = offers.find((o) => o.instrument.kind === "renovation_facility");
+  const partner = offers.find((o) => o.instrument.kind === "co_investment");
+  const stacks: CapitalStack[] = [
+    {
+      id: "stack_equity",
+      label: "100 % capital propio",
+      instruments: [],
+      description: "Sin deuda: máxima simplicidad, menor ROE.",
+    },
+    ...(mortgage
+      ? [
+          {
+            id: "stack_mortgage",
+            label: "Hipoteca + capital",
+            instruments: [mortgage.instrument],
+            description: `Hipoteca al ${Math.round(mortgage.instrument.annualRate * 1000) / 10} % sobre el ${Math.round((mortgage.instrument.sizing.type === "ltv" ? mortgage.instrument.sizing.ratio : 0) * 100)} % del precio.`,
+          },
+        ]
+      : []),
+    ...(mortgage && reno
+      ? [
+          {
+            id: "stack_mortgage_reno",
+            label: "Hipoteca + línea de reforma",
+            instruments: [mortgage.instrument, reno.instrument],
+            description: "Financia también parte de la obra; menor capital, más coste financiero.",
+          },
+        ]
+      : []),
+    ...(bridge
+      ? [
+          {
+            id: "stack_bridge",
+            label: "Préstamo puente",
+            instruments: [bridge.instrument],
+            description: `Puente al ${Math.round(bridge.instrument.annualRate * 1000) / 10} % sobre el 65 % del coste; rápido, caro.`,
+          },
+        ]
+      : []),
+    ...(partner
+      ? [
+          {
+            id: "stack_partner",
+            label: "Co-inversión",
+            instruments: [partner.instrument],
+            description: "Socio aporta 40 % del coste a cambio del 40 % del beneficio.",
+          },
+        ]
+      : []),
+  ];
+  return { stacks, recommendedStackId: mortgage ? "stack_mortgage" : "stack_equity" };
+}

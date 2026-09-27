@@ -2,7 +2,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { opportunityListings } from "@/db/schema";
 import type { OpportunityListing } from "@/modules/adapters/sources/types";
 import type { InvestorDNA } from "@/modules/investor/types";
-import { radarSearch, type RadarHit } from "@/modules/radar/underwrite";
+import { radarSearch, type RadarHit, type RadarSearchOptions } from "@/modules/radar/underwrite";
 import type { TenantContext } from "../context";
 
 /** Listings visible to a tenant: its own plus shared (demo/public) ones. */
@@ -43,8 +43,8 @@ export async function getListing(ctx: TenantContext, id: string): Promise<Opport
 export async function runRadar(
   ctx: TenantContext,
   investor: InvestorDNA,
-  opts: { includeNonMatching?: boolean } = {},
+  opts: Pick<RadarSearchOptions, "includeNonMatching" | "brief" | "strategyIds"> = {},
 ): Promise<RadarHit[]> {
   const listings = await visibleListings(ctx);
-  return radarSearch(listings, investor, { includeNonMatching: opts.includeNonMatching });
+  return radarSearch(listings, investor, opts);
 }
