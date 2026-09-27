@@ -64,6 +64,21 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
             {labelLevel(m.liquidity.demand)}, {m.liquidity.daysToSell} días de venta.{" "}
             {m.snapshot.stats.confidenceNote}
           </div>
+          {m.snapshot.sources?.length ? (
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[12px] text-fg-3">
+              <span className="uppercase tracking-[0.12em] text-[11px]">Fuentes</span>
+              {m.snapshot.sources.map((s) => (
+                <span key={s.sourceId} className="rounded border border-line px-1.5 py-0.5">
+                  {s.name}: {s.sale} venta · {s.rent} alquiler
+                  {s.demo ? (
+                    <Badge tone="warning" className="ml-1">
+                      DEMO
+                    </Badge>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </Surface>
         <Surface className="p-5">
           <SectionTitle kicker="Mapa">Oportunidades, no solo inmuebles</SectionTitle>

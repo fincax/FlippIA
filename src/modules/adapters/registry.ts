@@ -1,6 +1,6 @@
 import { createCatastroAdapter, type CatastroAdapter } from "./catastro";
 import { createFinancingAdapter, type FinancingProviderAdapter } from "./financing";
-import { createMarketAdapter, type MarketAdapter } from "./market";
+import { CompositeMarketAdapter, createMarketAdapter, type MarketAdapter } from "./market";
 import { DemoListingsSource, type SourceAdapter } from "./sources";
 import type { SourceStatus } from "./types";
 import { createUrbanismAdapter, type UrbanismAdapter } from "./urbanismo-sevilla";
@@ -60,7 +60,11 @@ export function overrideAdapters(set: Partial<AdapterSet>) {
 }
 
 export async function sourceStatuses(set = adapters()): Promise<SourceStatus[]> {
-  const entries = [set.catastro, set.urbanism, set.market, set.financing];
+  const market =
+    set.market instanceof CompositeMarketAdapter
+      ? [...set.market.providers, ...(set.market.fallback ? [set.market.fallback] : [])]
+      : [set.market];
+  const entries = [set.catastro, set.urbanism, ...market, set.financing];
   const statuses = await Promise.all(
     entries.map(async (a) => ({
       sourceId: a.sourceId,
@@ -73,7 +77,9 @@ export async function sourceStatuses(set = adapters()): Promise<SourceStatus[]> 
           ? "Datos sintéticos de demostración. Sustituible por la fuente real sin cambios en la aplicación."
           : a.mode === "unavailable"
             ? "Fuente no configurada."
-            : "Fuente pública.",
+            : a.mode === "partner"
+              ? "Fuente autorizada (API con credenciales o datos propios de la organización)."
+              : "Fuente pública.",
       demo: a.mode === "demo",
     })),
   );

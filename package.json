@@ -28,6 +28,8 @@
     "db:studio": "drizzle-kit studio",
     "urbanismo:discover": "tsx scripts/urbanismo-discover.ts",
     "sources:check": "tsx scripts/sources-check.ts",
+    "market:check": "tsx scripts/market-check.ts",
+    "comparables:import": "tsx scripts/comparables-import.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {

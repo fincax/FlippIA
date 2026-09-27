@@ -28,6 +28,14 @@ import { createWatch, evaluateAllWatches, evaluateWatches, listWatches } from "@
 import { pulse } from "@/server/services/alerts";
 import { recordReview, listReviews } from "@/server/services/reviews";
 import { runRadar, visibleListings } from "@/server/services/radar";
+import {
+  addComparables,
+  comparablesRepository,
+  deleteComparable,
+  listComparables,
+  tenantAdapters,
+} from "@/server/services/comparables";
+import { CompositeMarketAdapter, OwnComparablesAdapter } from "@/modules/adapters/market";
 import { seedDemo, DEMO_ORG_ID } from "@/db/seed";
 import { DEFAULT_INVESTOR_DNA } from "@/modules/investor/types";
 import { ctxFor, getTestDb } from "@/test/db";
@@ -260,3 +268,116 @@ async function scryptLegacyHash(password: string): Promise<string> {
   const hash = scryptSync(password.normalize("NFKC"), salt, 64, { N: 16384, r: 8, p: 1 });
   return `scrypt$16384$8$1$${salt.toString("base64")}$${hash.toString("base64")}`;
 }
+
+describe("own market comparables", () => {
+  it("stores comparables per organisation, feeds the market adapter and never leaks across tenants", async () => {
+    const a = await register(d(), { email: "cmp-a@example.com", name: "A", password: "long-enough-99" });
+    const b = await register(d(), { email: "cmp-b@example.com", name: "B", password: "long-enough-99" });
+    if (!a.ok || !b.ok) throw new Error("register failed");
+    const ctxA = ctxFor(a.organizationId, a.userId);
+    const ctxB = ctxFor(b.organizationId, b.userId);
+    const rows = await addComparables(ctxA, [
+      {
+        kind: "sale",
+        type: "transaction",
+        price: 245_000,
+        areaM2: 92,
+        date: "2026-05-10",
+        lat: 37.3826,
+        lng: -5.9963,
+        condition: "renovated",
+        assetUse: "residential",
+        reference: "not-1",
+      },
+      {
+        kind: "sale",
+        type: "professional",
+        price: 190_000,
+        areaM2: 88,
+        date: "2026-04-02",
+        lat: 37.3831,
+        lng: -5.9958,
+        condition: "unrenovated",
+        assetUse: "residential",
+      },
+      {
+        kind: "rent",
+        type: "verified",
+        price: 950,
+        areaM2: 70,
+        date: "2026-07-01",
+        lat: 37.383,
+        lng: -5.997,
+        condition: "unknown",
+        assetUse: "residential",
+      },
+      {
+        kind: "sale",
+        type: "transaction",
+        price: 300_000,
+        areaM2: 100,
+        date: "2026-05-10",
+        lat: 37.39,
+        lng: -5.97,
+        condition: "renovated",
+        assetUse: "commercial",
+      },
+    ]);
+    expect(rows).toHaveLength(4);
+    const zoneId = rows[0]?.microzoneId;
+    expect(zoneId).toBeTruthy();
+    expect((await listComparables(ctxA)).length).toBe(4);
+    expect((await listComparables(ctxA, { kind: "rent" })).length).toBe(1);
+    expect(await listComparables(ctxB)).toEqual([]);
+
+    const repo = comparablesRepository(ctxA);
+    const near = await repo.list({
+      microzoneId: zoneId!,
+      point: { lat: 37.3826, lng: -5.9963 },
+      radiusM: 1_500,
+      assetUse: "residential",
+    });
+    expect(near.map((c) => c.type).sort()).toEqual(["professional", "transaction", "verified"]);
+    const snapshot = await new OwnComparablesAdapter(repo).query({
+      microzoneId: zoneId!,
+      point: { lat: 37.3826, lng: -5.9963 },
+      assetUse: "residential",
+      areaM2: 90,
+      analysisDate: "2026-09-27",
+    });
+    expect(snapshot.ok && snapshot.value.data.comparablesSale).toHaveLength(2);
+    expect(snapshot.ok && snapshot.value.data.comparablesRent).toHaveLength(1);
+    expect(snapshot.ok && snapshot.value.data.demo).toBe(false);
+    const other = await comparablesRepository(ctxB).list({
+      microzoneId: zoneId!,
+      point: { lat: 37.3826, lng: -5.9963 },
+      radiusM: 1_500,
+      assetUse: "residential",
+    });
+    expect(other).toEqual([]);
+
+    await expect(deleteComparable(ctxB, rows[0]!.id)).rejects.toBeInstanceOf(NotFoundError);
+    await deleteComparable(ctxA, rows[0]!.id);
+    expect((await listComparables(ctxA)).length).toBe(3);
+    const viewer = ctxFor(a.organizationId, a.userId, "viewer");
+    await expect(addComparables(viewer, [])).rejects.toBeInstanceOf(ForbiddenError);
+  });
+  it("tenantAdapters only builds the own-comparables provider when MARKET_SOURCE_MODE asks for it", async () => {
+    const a = await register(d(), { email: "cmp-c@example.com", name: "C", password: "long-enough-99" });
+    if (!a.ok) throw new Error("register failed");
+    const ctx = ctxFor(a.organizationId, a.userId);
+    const previous = process.env.MARKET_SOURCE_MODE;
+    try {
+      process.env.MARKET_SOURCE_MODE = "demo";
+      expect(tenantAdapters(ctx).market.sourceId).toBe("market-demo");
+      process.env.MARKET_SOURCE_MODE = "own,demo";
+      const set = tenantAdapters(ctx);
+      expect(set.market).toBeInstanceOf(CompositeMarketAdapter);
+      expect((set.market as CompositeMarketAdapter).providers[0]).toBeInstanceOf(OwnComparablesAdapter);
+      expect((set.market as CompositeMarketAdapter).fallback?.sourceId).toBe("market-demo");
+    } finally {
+      if (previous === undefined) delete process.env.MARKET_SOURCE_MODE;
+      else process.env.MARKET_SOURCE_MODE = previous;
+    }
+  });
+});

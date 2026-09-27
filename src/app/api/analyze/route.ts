@@ -15,6 +15,7 @@ import {
   markAnalyzing,
   persistAnalysis,
 } from "@/server/services/deals";
+import { tenantAdapters } from "@/server/services/comparables";
 import { getInvestorDNA } from "@/server/services/investor";
 
 const schema = z.object({ text: z.string().min(2).max(2000), dealId: z.string().optional() });
@@ -92,6 +93,7 @@ export async function POST(req: Request): Promise<Response> {
           userId: ctx.userId,
           dealId,
           investor: dna,
+          adapters: tenantAdapters(ctx),
           signal: abort.signal,
           emit: (e: AnalysisEvent) => send("agent", stripPartial(e)),
         });

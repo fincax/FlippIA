@@ -1,4 +1,5 @@
 import { logger } from "@/modules/core/logger";
+import { MARKET_SOURCE_MODES, parseMarketModes } from "@/modules/adapters/market";
 
 const isProduction = () => process.env.NODE_ENV === "production";
 const MIN_SECRET_LENGTH = 32;
@@ -38,13 +39,22 @@ export function productionEnvProblems(env: NodeJS.ProcessEnv = process.env): str
   const modes: Array<[string, string | undefined, string[]]> = [
     ["CATASTRO_MODE", env.CATASTRO_MODE, ["demo", "public"]],
     ["URBANISMO_SEVILLA_MODE", env.URBANISMO_SEVILLA_MODE, ["demo", "public", "official"]],
-    ["MARKET_SOURCE_MODE", env.MARKET_SOURCE_MODE, ["demo"]],
     ["FINANCING_PROVIDER_MODE", env.FINANCING_PROVIDER_MODE, ["demo"]],
   ];
   for (const [name, value, allowed] of modes) {
     if (value && !allowed.includes(value))
       problems.push(`${name}=${value} is not supported (${allowed.join(" | ")})`);
   }
+  const marketModes = parseMarketModes(env.MARKET_SOURCE_MODE);
+  const badMarket = marketModes.filter((m) => !(MARKET_SOURCE_MODES as readonly string[]).includes(m));
+  if (badMarket.length)
+    problems.push(
+      `MARKET_SOURCE_MODE=${env.MARKET_SOURCE_MODE} is not supported (${MARKET_SOURCE_MODES.join(" | ")}, comma separated)`,
+    );
+  if (marketModes.includes("idealista") && !(env.IDEALISTA_API_KEY && env.IDEALISTA_API_SECRET))
+    problems.push(
+      "MARKET_SOURCE_MODE includes idealista but IDEALISTA_API_KEY / IDEALISTA_API_SECRET are not set",
+    );
   if (env.URBANISMO_SEVILLA_MODE === "official" && !env.URBANISMO_SEVILLA_ENDPOINT)
     problems.push("URBANISMO_SEVILLA_MODE=official requires URBANISMO_SEVILLA_ENDPOINT");
   return problems;

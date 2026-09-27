@@ -68,3 +68,8 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 
 - **Motivo**: la información de planeamiento debe obtenerse de la parte pública de la Gerencia sin coste ni convenio, y sin acoplar Sevilla al core.
 - **Consecuencias**: `src/modules/adapters/geoservices` habla ArcGIS REST y WFS; `CityProfile.urbanism.publicSources` declara capas por rol (parcelario, clasificación, calificación, catálogo, conjunto histórico, VUT, planeamiento en trámite, expedientes); cada capa que responde es una evidencia `official_planning` con la URL de la consulta; las que faltan se declaran, nunca se inventan. `pnpm urbanismo:discover` y `pnpm sources:check` verifican el mapeo contra el publicador.
+
+## ADR-014 Comparables reales: testigos propios + API oficial de Idealista, combinados (2026-09-27)
+
+- **Motivo**: la valoración se apoyaba solo en comparables sintéticos. Las transacciones reales no tienen fuente gratuita; los anuncios sí (API oficial de Idealista, sin scraping) y la organización acumula sus propios testigos.
+- **Consecuencias**: `MARKET_SOURCE_MODE` es una lista (`own,idealista,demo`); `CompositeMarketAdapter` combina proveedores y solo recurre a DEMO, marcándolo, si la muestra real es insuficiente y `demo` está en la lista; tabla `market_comparables` por organización con API y CSV; el adaptador de testigos se inyecta por petición (`tenantAdapters`), nunca desde el registro global. Liquidez y días de venta se etiquetan como referencia por nivel de profundidad de mercado, no como medición.
