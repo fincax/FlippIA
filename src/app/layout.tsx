@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0d10",
+  themeColor: "#0c0c0b",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -24,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // prerendered at build time would ship scripts without a nonce.
   await connection();
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

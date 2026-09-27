@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/client";
 import type { LiaAction } from "@/modules/lia/router";
+import { LIAPulse } from "./visual/lia-pulse";
 
 const ACTIONS = [
   {
@@ -60,6 +61,7 @@ export function FlippIACommand({
     setReply({ message: a.message, suggestions: a.suggestions });
   }
 
+  const lg = size === "lg";
   return (
     <div className={cn("w-full", className)}>
       <form
@@ -68,25 +70,25 @@ export function FlippIACommand({
           void submit();
         }}
         className={cn(
-          "group relative flex items-center rounded-[var(--radius-lg)] border border-line-strong bg-surface shadow-[var(--shadow-soft)] focus-within:border-accent transition-colors",
-          size === "lg" ? "h-16 md:h-[76px] px-4 md:px-6" : "h-12 px-4",
+          "frame group relative flex items-center border bg-bg/85 backdrop-blur-md transition-colors",
+          "border-line-strong focus-within:border-accent",
+          lg ? "h-16 md:h-20 pl-3 pr-2 md:pl-5 md:pr-3" : "h-12 pl-3 pr-1.5",
         )}
       >
-        <span
-          aria-hidden
-          className={cn("mr-3 text-accent anim-pulse", size === "lg" ? "text-xl" : "text-base")}
-        >
-          ◆
-        </span>
+        <LIAPulse
+          state={busy ? "processing" : text ? "listening" : "idle"}
+          size={lg ? 9 : 6}
+          className="mr-2"
+        />
         <input
           aria-label="Qué quieres descubrir"
           autoFocus={autoFocus}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Dirección, referencia catastral, inmueble o dime qué inversión buscas…"
+          placeholder="Dirección · referencia catastral · inmueble · o dime qué buscas"
           className={cn(
-            "flex-1 bg-transparent outline-none text-fg placeholder:text-fg-3 min-w-0",
-            size === "lg" ? "text-base md:text-xl" : "text-sm",
+            "flex-1 bg-transparent outline-none text-fg placeholder:text-fg-3 min-w-0 font-display font-normal tracking-[-0.01em]",
+            lg ? "text-base md:text-xl" : "text-sm",
           )}
           autoComplete="off"
           spellCheck={false}
@@ -95,16 +97,16 @@ export function FlippIACommand({
           type="submit"
           disabled={busy}
           className={cn(
-            "ml-3 shrink-0 rounded-[var(--radius-md)] bg-fg text-bg font-medium disabled:opacity-60",
-            size === "lg" ? "h-10 px-4 text-sm" : "h-8 px-3 text-[13px]",
+            "ml-3 shrink-0 bg-fg text-bg font-mono uppercase tracking-[0.16em] disabled:opacity-60 hover:bg-accent hover:text-accent-ink transition-colors",
+            lg ? "h-10 md:h-12 px-4 md:px-5 text-[11px]" : "h-8 px-3 text-[10px]",
           )}
         >
-          {busy ? "…" : "Descubrir"}
+          {busy ? "···" : "Descubrir"}
         </button>
       </form>
       {showActions ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {ACTIONS.map((a) => (
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+          {ACTIONS.map((a, i) => (
             <button
               key={a.label}
               type="button"
@@ -112,8 +114,11 @@ export function FlippIACommand({
                 setText(a.fill);
                 void submit(a.fill);
               }}
-              className="rounded-full border border-line px-3 py-1.5 text-[13px] text-fg-2 hover:text-fg hover:border-line-strong transition-colors"
+              className="group/act inline-flex items-center gap-2 py-1 text-[13px] text-fg-2 hover:text-fg transition-colors"
             >
+              <span className="kicker num text-fg-3 group-hover/act:text-accent transition-colors">
+                {String(i + 1).padStart(2, "0")}
+              </span>
               {a.label}
             </button>
           ))}
@@ -121,10 +126,13 @@ export function FlippIACommand({
       ) : null}
       {reply ? (
         <div
-          className="mt-4 rounded-[var(--radius-md)] border border-line bg-surface p-4 anim-rise"
+          className="mt-4 frame border border-line bg-surface/90 backdrop-blur p-4 anim-rise"
           role="status"
         >
-          <div className="text-[11px] uppercase tracking-[0.18em] text-accent mb-1">LIA</div>
+          <div className="flex items-center gap-2 mb-2">
+            <LIAPulse state="revealing" size={6} />
+            <span className="kicker text-accent">LIA</span>
+          </div>
           <p className="text-sm text-fg">{reply.message}</p>
           {reply.suggestions?.length ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -136,7 +144,7 @@ export function FlippIACommand({
                     setText(s);
                     void submit(s);
                   }}
-                  className="rounded-full border border-line px-3 py-1 text-[12px] text-fg-2 hover:text-fg"
+                  className="border border-line px-3 py-1 text-[12px] text-fg-2 hover:text-fg hover:border-line-strong"
                 >
                   {s}
                 </button>

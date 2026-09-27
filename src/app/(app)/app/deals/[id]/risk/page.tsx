@@ -1,6 +1,8 @@
 import { labelRisk, labelSeverity } from "@/lib/labels";
 import { NoAnalysis } from "@/components/flippia/no-analysis";
-import { Badge, Money, Pct, SectionTitle, Surface, Tornado } from "@/components/ds";
+import { Badge, Money, SectionTitle, Surface, Tornado } from "@/components/ds";
+import { LIAPulse } from "@/components/flippia/visual/lia-pulse";
+import { StressGauge } from "@/components/flippia/visual/stress-gauge";
 import { formatMoney } from "@/lib/format";
 import { loadDeal } from "@/server/deal-page";
 
@@ -17,8 +19,12 @@ export default async function RiskPage({ params }: { params: Promise<{ id: strin
   if (!analysis) return <NoAnalysis deal={deal} />;
   const strategies = analysis.strategies.filter((s) => s.stress);
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6" data-mode="stress">
+      <div className="frame border border-danger/40 bg-[color-mix(in_srgb,var(--color-danger)_6%,var(--color-surface))] p-5 md:p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <LIAPulse state="alert" size={7} />
+          <span className="kicker text-danger">Risk mode</span>
+        </div>
         <SectionTitle
           kicker="¿Qué puede salir mal?"
           right={
@@ -58,43 +64,36 @@ export default async function RiskPage({ params }: { params: Promise<{ id: strin
             >
               Stress test
             </SectionTitle>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-5 text-[13px]">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">Break-even</div>
-                <div className="font-display text-lg">
-                  <Money value={st.breakEvenPrice} />
+            <div className="grid gap-6 md:grid-cols-[auto_minmax(0,1fr)] mb-5 items-start">
+              <StressGauge
+                survivalRate={st.survivalRate}
+                capitalAtRisk={st.capitalAtRisk}
+                marginOfSafety={st.marginOfSafety}
+              />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[13px]">
+                <div>
+                  <div className="kicker">Break-even</div>
+                  <div className="font-display text-lg">
+                    <Money value={st.breakEvenPrice} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">Margen de seguridad</div>
-                <div className="font-display text-lg">
-                  <Pct value={st.marginOfSafety} />
+                <div>
+                  <div className="kicker">Reforma máxima</div>
+                  <div className="font-display text-lg">
+                    <Money value={st.maximumRenovation} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">Reforma máxima</div>
-                <div className="font-display text-lg">
-                  <Money value={st.maximumRenovation} />
+                <div>
+                  <div className="kicker">Precio mínimo de salida</div>
+                  <div className="font-display text-lg">
+                    <Money value={st.minimumExitPrice} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">
-                  Precio mínimo de salida
-                </div>
-                <div className="font-display text-lg">
-                  <Money value={st.minimumExitPrice} />
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">Compra máxima</div>
-                <div className="font-display text-lg">
-                  <Money value={st.maximumAcquisition} />
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">Capital en riesgo</div>
-                <div className="font-display text-lg text-danger">
-                  <Money value={st.capitalAtRisk} />
+                <div>
+                  <div className="kicker">Compra máxima</div>
+                  <div className="font-display text-lg">
+                    <Money value={st.maximumAcquisition} />
+                  </div>
                 </div>
               </div>
             </div>

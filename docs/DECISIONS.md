@@ -68,3 +68,9 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 
 - **Motivo**: la información de planeamiento debe obtenerse de la parte pública de la Gerencia sin coste ni convenio, y sin acoplar Sevilla al core.
 - **Consecuencias**: `src/modules/adapters/geoservices` habla ArcGIS REST y WFS; `CityProfile.urbanism.publicSources` declara capas por rol (parcelario, clasificación, calificación, catálogo, conjunto histórico, VUT, planeamiento en trámite, expedientes); cada capa que responde es una evidencia `official_planning` con la URL de la consulta; las que faltan se declaran, nunca se inventan. `pnpm urbanismo:discover` y `pnpm sources:check` verifican el mapeo contra el publicador.
+
+## ADR-014 Universo visual "Mineral + Digital" sobre el sistema funcional intacto (2026-09-27)
+
+- **Motivo**: FlippIA parecía otro dashboard PropTech. El rediseño debía hacer visible la inteligencia que ya existe sin tocar backend, motores, agentes, datos ni contratos.
+- **Decisión**: capa de presentación nueva (tokens, Geist Sans/Mono autohospedadas, componentes presentacionales en `src/components/flippia/visual`) que consume los contratos existentes. Un único acento (naranja arquitectónico) significa POTENCIAL. LIA es presencia (pulso), no rostro. La ciudad de fondo es esquemática y determinista, marcada como tal.
+- **Consecuencias**: ningún componente visual llama a APIs ni calcula; las cifras siguen saliendo de los motores. Las limitaciones que el diseño no puede resolver sin cambios funcionales están en `DESIGN_DEPENDENCIES.md`. `docs/UX.md` y `design-system/README.md` describen la nueva gramática. El título del documento en `/app/analyze` pasa a "Análisis en curso" para no duplicar en el anunciador de rutas el texto visible "LIA está construyendo el caso".

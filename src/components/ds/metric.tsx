@@ -44,7 +44,7 @@ export function FinancialMetric({
           : undefined
       }
     >
-      <div className="text-[11px] uppercase tracking-[0.14em] text-fg-3 truncate">{label}</div>
+      <div className="kicker truncate">{label}</div>
       <div className={cn("num font-display leading-tight mt-0.5", sizes[size], color)}>
         {formatMetricValue(metric)}
       </div>

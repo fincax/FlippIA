@@ -1,6 +1,7 @@
 import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, FinancialMetric, SectionTitle, Surface } from "@/components/ds";
 import { MaxPricePanel } from "@/components/flippia/max-price-panel";
+import { CapitalStackVisual } from "@/components/flippia/visual/capital-stack";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { loadDeal, topStrategy } from "@/server/deal-page";
 
@@ -95,37 +96,19 @@ export default async function FinancePage({ params }: { params: Promise<{ id: st
       ) : null}
       <Surface className="p-5">
         <SectionTitle
-          kicker="Financiación FlippIA"
+          kicker="Capital structure"
           right={analysis.finance.demo ? <Badge tone="warning">DEMO</Badge> : null}
         >
           Smart Capital Stack
         </SectionTitle>
-        <div className="grid gap-3 md:grid-cols-2">
-          {analysis.finance.stacks.map((s) => (
-            <div key={s.id} className="rounded-[var(--radius-md)] border border-line p-3">
-              <div className="text-sm text-fg">
-                {s.label}
-                {s.id === analysis.finance.recommendedStackId ? (
-                  <span className="text-accent"> · recomendada</span>
-                ) : null}
-              </div>
-              <p className="text-[12px] text-fg-2 mt-1">{s.description}</p>
-              <ul className="mt-2 text-[12px] text-fg-3">
-                {s.instruments.map((i) => (
-                  <li key={i.label}>
-                    {i.label}:{" "}
-                    {i.sizing.type === "amount"
-                      ? formatMoney(i.sizing.amount)
-                      : `${Math.round(i.sizing.ratio * 100)} % ${i.sizing.type.toUpperCase()}`}{" "}
-                    · {formatPercent(i.annualRate)} ·{" "}
-                    {i.interestOnly ? "solo intereses" : `${i.termMonths} meses`}
-                    {i.profitShare ? ` · ${Math.round(i.profitShare * 100)} % del beneficio` : ""}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <CapitalStackVisual
+          stacks={analysis.finance.stacks}
+          recommendedId={analysis.finance.recommendedStackId}
+          reference={{
+            purchasePrice: top?.scenarioSet.base.acquisition.purchasePrice ?? null,
+            totalCost: base?.metrics.totalProjectCost.value ?? null,
+          }}
+        />
         <div className="mt-4 text-[12px] text-fg-3">
           Ofertas:{" "}
           {analysis.finance.offers
