@@ -306,6 +306,7 @@ body {
     opacity: 1;
   }
 }
+/* Ends on `transform: none` so animated wrappers never become containing blocks for fixed overlays. */
 @keyframes rise {
   from {
     opacity: 0;
@@ -313,7 +314,7 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 @keyframes sweep {

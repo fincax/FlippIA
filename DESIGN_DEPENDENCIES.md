@@ -22,7 +22,7 @@ Formato: DESIGN REQUIREMENT · CURRENT LIMITATION · FUNCTIONAL CHANGE THAT WOUL
   `src/modules/analysis/types.ts` (`PropertyProfile`), nueva ruta en `src/app/api/`,
   `src/components/flippia/visual/city-canvas.tsx` (solo sustituir `parcelField()`).
 
-## 2. Foco del Scan sobre la zona real del activo
+## 2. Foco del Scan sobre la zona real del activo — RESUELTO (2026-09-27)
 
 - **DESIGN REQUIREMENT.** Durante el análisis, la ciudad debe cerrarse sobre la parcela que el sistema está
   resolviendo (CIUDAD → BARRIO → PARCELA → ACTIVO).
@@ -30,24 +30,25 @@ Formato: DESIGN REQUIREMENT · CURRENT LIMITATION · FUNCTIONAL CHANGE THAT WOUL
   apunta el lienzo con `microzoneFromText(SEVILLA, text)` (función pura ya existente) y, si no hay
   coincidencia, al centroide de la ciudad sin marcador. El avance CIUDAD → BARRIO → PARCELA es una lectura
   visual del progreso real de tareas, no de la geocodificación.
-- **FUNCTIONAL CHANGE THAT WOULD BE REQUIRED.** Incluir en el evento `meta` (o en un `task.completed`
-  `partial`) `microzoneId` y `coordinates` cuando el agente de datos los resuelva.
+- **RESOLUCIÓN.** `/api/analyze` emite el evento SSE `located` (`AssetLocation`: microzona, coordenadas,
+  referencia catastral) cuando completa `data.catastro`, extraído con `assetLocation()` del partial que nunca
+  sale del servidor. `AnalysisExperience` apunta el lienzo con él y usa el alias solo hasta que llega.
 - **FILES POTENTIALLY AFFECTED.** `src/app/api/analyze/route.ts`, `src/modules/analysis/run-analysis.ts`,
   `src/modules/agents/runtime/types.ts` (`AnalysisEvent`), `src/components/flippia/analysis-experience.tsx`.
 
-## 3. Marcas de tiempo en el Intelligence Stream
+## 3. Marcas de tiempo en el Intelligence Stream — RESUELTO (2026-09-27)
 
 - **DESIGN REQUIREMENT.** Cada línea del stream (`00:04 Urbanismo revisando`) debería llevar el instante real
   del orquestador.
 - **CURRENT LIMITATION.** `TaskState` (estado de UI) no conserva el campo `at` de `AnalysisEvent`.
   `AgentStreamVisual` estampa cada transición con un reloj de cliente (segundos desde que se abrió la
   pantalla), y así lo etiqueta: "tiempo desde el inicio".
-- **FUNCTIONAL CHANGE THAT WOULD BE REQUIRED.** Propagar `at` de los eventos al estado (`applyEvent`) y usar
-  el `run.started.at` como origen.
+- **RESOLUCIÓN.** `TaskState.at` conserva el `at` de cada evento y `run.started.at` es el origen; el stream
+  muestra "tiempo del orquestador" y solo cae al reloj de cliente si falta el origen.
 - **FILES POTENTIALLY AFFECTED.** `src/components/flippia/analysis-experience.tsx` (`applyEvent`),
   `src/components/flippia/agent-activity.tsx` (`TaskState`).
 
-## 4. Evidencia enlazada a cada conclusión
+## 4. Evidencia enlazada a cada conclusión — RESUELTO en parte (2026-09-27)
 
 - **DESIGN REQUIREMENT.** "SHOW EVIDENCE" debería abrir solo las evidencias que sostienen esa conclusión
   concreta (tesis, capa urbanística, hallazgo).
@@ -55,8 +56,10 @@ Formato: DESIGN REQUIREMENT · CURRENT LIMITATION · FUNCTIONAL CHANGE THAT WOUL
   `UrbanismFinding`, `OpportunityGap`) no llevan `evidenceIds` (solo `AdversarialFinding` y `Property` los
   tienen). El `EvidenceDrawer` recibe la lista completa (tesis) o un filtro por `sourceType`
   (planeamiento) y muestra el estado "Evidence not available in current data contract" cuando queda vacío.
-- **FUNCTIONAL CHANGE THAT WOULD BE REQUIRED.** Añadir `evidenceIds: string[]` a `UrbanismFinding`,
-  `InvestmentSynthesis` y `OpportunityGap`, rellenados por los agentes que ya recogen evidencia.
+- **RESOLUCIÓN.** `UrbanismFinding.evidenceIds` (la evidencia de planeamiento del hallazgo) e
+  `InvestmentSynthesis.evidenceIds` (`thesisEvidenceIds`: activo, mercado y planeamiento). Cada hallazgo abre su
+  propia evidencia; la tesis abre la suya. Los análisis persistidos antes no llevan ids: la UI cae a la lista
+  completa o al filtro por tipo de fuente. Pendiente: `OpportunityGap`.
 - **FILES POTENTIALLY AFFECTED.** `src/modules/analysis/types.ts`, `src/modules/agents/specialists/*`,
   `src/modules/analysis/synthesis.ts`.
 
@@ -82,13 +85,12 @@ Formato: DESIGN REQUIREMENT · CURRENT LIMITATION · FUNCTIONAL CHANGE THAT WOUL
 - **FILES POTENTIALLY AFFECTED.** `src/server/services/scenarios.ts`, `src/db/schema/deals.ts` (migración),
   `src/components/flippia/scenario-panel.tsx`.
 
-## 7. Etiquetas humanas de capítulos de obra
+## 7. Etiquetas humanas de capítulos de obra — RESUELTO (2026-09-27)
 
 - **DESIGN REQUIREMENT.** El Architecture Lab muestra capítulos ("finishes", "carpentry") en castellano.
 - **CURRENT LIMITATION.** `RenovationEstimate.byChapter[].chapter` es una clave interna sin etiqueta. La UI
   la muestra tal cual, como ya hacía.
-- **FUNCTIONAL CHANGE THAT WOULD BE REQUIRED.** Ninguno en el motor: basta con un mapa de etiquetas en
-  `src/lib/labels.ts` (`labelChapter`). No se ha añadido para no ampliar el alcance del encargo.
+- **RESOLUCIÓN.** `labelChapter` en `src/lib/labels.ts`, usado por el Architecture Lab.
 - **FILES POTENTIALLY AFFECTED.** `src/lib/labels.ts`, `src/app/(app)/app/deals/[id]/architecture/page.tsx`.
 
 ## 8. Fuentes tipográficas

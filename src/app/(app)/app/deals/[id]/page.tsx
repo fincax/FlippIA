@@ -22,6 +22,11 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
   const futures = analysis.strategies.filter((s) => s.applicability.applicable);
   const n = futures.length;
   const prop = analysis.property;
+  // Analyses persisted before the thesis carried evidence ids fall back to the whole set.
+  const thesisIds = new Set(analysis.synthesis.evidenceIds ?? []);
+  const thesisEvidence = thesisIds.size
+    ? analysis.evidence.filter((e) => thesisIds.has(e.id))
+    : analysis.evidence;
   const stackLabel =
     analysis.finance.stacks.find((s) => s.id === analysis.finance.recommendedStackId)?.label ??
     analysis.finance.stacks[0]?.label ??
@@ -117,7 +122,7 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
             </ul>
           ) : null}
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <EvidenceDrawer title="Tesis de inversión" items={analysis.evidence} />
+            <EvidenceDrawer title="Tesis de inversión" items={thesisEvidence} />
             <span className="kicker">
               narrativa{" "}
               {analysis.synthesis.narrativeSource === "model"

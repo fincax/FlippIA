@@ -3,7 +3,7 @@ import { Badge, BarList, EvidenceBadge } from "@/components/ds";
 import { BuildingVisual } from "@/components/flippia/visual/building-visual";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
-import { labelCondition, labelFeasibility } from "@/lib/labels";
+import { labelChapter, labelCondition, labelFeasibility } from "@/lib/labels";
 import { loadDeal } from "@/server/deal-page";
 
 /**
@@ -133,7 +133,10 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ i
                 <span className="kicker num">{alt.estimate.costPerM2} €/m²</span>
               </div>
               <BarList
-                items={alt.estimate.byChapter.map((c) => ({ label: c.chapter, value: c.amount }))}
+                items={alt.estimate.byChapter.map((c) => ({
+                  label: labelChapter(c.chapter),
+                  value: c.amount,
+                }))}
                 format={(v) => formatMoney(v)}
               />
               <div className="kicker mt-2 normal-case tracking-normal">

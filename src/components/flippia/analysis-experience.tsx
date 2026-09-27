@@ -6,6 +6,7 @@ import { Button } from "@/components/ds";
 import { cn } from "@/lib/cn";
 import { csrfToken } from "@/lib/client";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
+import type { AssetLocation } from "@/modules/analysis/location";
 import { microzoneFromText } from "@/modules/city/registry";
 import { SEVILLA } from "@/modules/city/sevilla";
 import type { TaskState } from "./agent-activity";
@@ -32,6 +33,8 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   const [done, setDone] = useState<DoneEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [located, setLocated] = useState<AssetLocation | null>(null);
+  const [runStartedAt, setRunStartedAt] = useState<string | null>(null);
   const currentDeal = useRef<string | undefined>(dealId);
   const queue = useRef<Array<() => void>>([]);
   const draining = useRef(false);
@@ -109,6 +112,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             }
           }
           // Real events, presented at a readable cadence (the engines are faster than the eye).
+          if (ev === "located") enqueue(() => setLocated(payload as AssetLocation));
           if (ev === "agent") enqueue(() => applyEvent(payload as AnalysisEvent));
           if (ev === "done") {
             settled = true;
@@ -149,6 +153,8 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
 
   function retry() {
     setTasks([]);
+    setLocated(null);
+    setRunStartedAt(null);
     setError(null);
     setDone(null);
     setStatus("connecting");
@@ -156,6 +162,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   }
 
   function applyEvent(e: AnalysisEvent) {
+    if (e.type === "run.started") setRunStartedAt(e.at);
     setTasks((prev) => {
       const next = [...prev];
       const upsert = (task: string, patch: Partial<TaskState>, seed?: Partial<TaskState>) => {
@@ -173,19 +180,24 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             status: "pending" as const,
           }));
         case "task.started":
-          upsert(e.task, { status: "running", label: e.label, domain: e.domain });
+          upsert(e.task, { status: "running", label: e.label, domain: e.domain, at: e.at });
           break;
         case "task.progress":
           upsert(e.task, { message: e.message });
           break;
         case "task.completed":
-          upsert(e.task, { status: "completed", latencyMs: e.latencyMs, message: e.summary ?? undefined });
+          upsert(e.task, {
+            status: "completed",
+            latencyMs: e.latencyMs,
+            message: e.summary ?? undefined,
+            at: e.at,
+          });
           break;
         case "task.failed":
-          upsert(e.task, { status: "failed", message: e.error });
+          upsert(e.task, { status: "failed", message: e.error, at: e.at });
           break;
         case "task.skipped":
-          upsert(e.task, { status: "skipped", message: e.reason });
+          upsert(e.task, { status: "skipped", message: e.reason, at: e.at });
           break;
       }
       return next;
@@ -206,12 +218,15 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   const stage: "city" | "district" | "parcel" | "asset" =
     status === "done" ? "asset" : progress > 0.55 ? "parcel" : tasks.length ? "district" : "city";
   const zoom = { city: 1.4, district: 2.6, parcel: 5.5, asset: 7 }[stage];
-  // Where the city closes in: the existing alias resolver, used only to aim the drawing.
-  const focus = useMemo(() => {
-    const zone = microzoneFromText(SEVILLA, text);
-    return zone ? { microzoneId: zone.id } : { lat: SEVILLA.centroid.lat, lng: SEVILLA.centroid.lng };
-  }, [text]);
-  const located = "microzoneId" in focus;
+  // Where the city closes in: the location the data agent resolved (`located` event);
+  // until it arrives, the alias resolver aims the drawing from the text.
+  const guess = useMemo(() => microzoneFromText(SEVILLA, text), [text]);
+  const focus = located
+    ? (located.coordinates ?? { microzoneId: located.microzoneId })
+    : guess
+      ? { microzoneId: guess.id }
+      : { lat: SEVILLA.centroid.lat, lng: SEVILLA.centroid.lng };
+  const aimed = Boolean(located || guess);
   const liaState = status === "error" ? "alert" : status === "done" ? "revealing" : "processing";
 
   return (
@@ -222,7 +237,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
           <CityCanvas
             zoom={zoom}
             focus={focus}
-            marker={located && stage !== "city"}
+            marker={aimed && stage !== "city"}
             scanning={status === "connecting" || status === "running"}
             labels={stage === "city"}
           />
@@ -236,6 +251,12 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             <LIAPulse state={liaState} size={8} />
             <span className="kicker">LIA está construyendo el caso</span>
           </div>
+          {located ? (
+            <span className="kicker text-accent hidden md:inline">
+              {located.microzoneName}
+              {located.cadastralRef ? ` · RC ${located.cadastralRef}` : ""}
+            </span>
+          ) : null}
           <ol className="hidden sm:flex items-center kicker" aria-label="Foco">
             {(["city", "district", "parcel", "asset"] as const).map((s, i, a) => (
               <li key={s} className="flex items-center">
@@ -272,7 +293,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
           </p>
         ) : null}
 
-        <AgentStreamVisual tasks={tasks} />
+        <AgentStreamVisual tasks={tasks} origin={runStartedAt ?? undefined} />
 
         {status === "done" && done ? (
           <div className="frame border border-accent/50 bg-surface p-5 md:p-7 anim-rise">

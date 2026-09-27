@@ -76,6 +76,8 @@ export interface UrbanismFinding {
   status: EvidenceStatus;
   kind: "constraint" | "opportunity" | "info";
   regulationIds: string[];
+  /** Planning evidence this finding rests on. Analyses persisted before 2026-09-27 carry none. */
+  evidenceIds: string[];
 }
 
 export interface UrbanismAssessment {
@@ -230,6 +232,8 @@ export interface InvestmentSynthesis {
   missingData: string[];
   warnings: string[];
   narrativeSource: "model" | "template";
+  /** Evidence behind the thesis (asset, market, planning). Analyses persisted before 2026-09-27 carry none. */
+  evidenceIds: string[];
 }
 
 export interface AnalysisResult {

@@ -62,7 +62,16 @@ interface Line {
   detail?: string;
 }
 
-export function AgentStreamVisual({ tasks, className }: { tasks: TaskState[]; className?: string }) {
+export function AgentStreamVisual({
+  tasks,
+  origin,
+  className,
+}: {
+  tasks: TaskState[];
+  /** `run.started.at` (ISO). With it, lines carry the orchestrator's own time; without it, a client clock. */
+  origin?: string;
+  className?: string;
+}) {
   // Client clock for the stream: a ticker (external system → state in a
   // callback). Lines are derived during render from `tasks`, the documented
   // pattern for state that depends on props; nothing is stamped in an effect.
@@ -162,7 +171,9 @@ export function AgentStreamVisual({ tasks, className }: { tasks: TaskState[]; cl
       <div className="frame border border-line bg-bg-2/60 p-4 md:p-5 min-h-[260px] flex flex-col">
         <div className="flex items-center justify-between">
           <span className="kicker">Intelligence stream</span>
-          <span className="kicker text-fg-3">tiempo desde el inicio</span>
+          <span className="kicker text-fg-3">
+            {origin ? "tiempo del orquestador" : "tiempo desde el inicio"}
+          </span>
         </div>
         <ol
           ref={logRef}

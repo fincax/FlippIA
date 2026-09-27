@@ -91,9 +91,16 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
         ]
       : []),
   ];
-  const planningEvidence = analysis.evidence.filter(
-    (e) => e.sourceType === "official_planning" || e.sourceType === "official_gazette",
-  );
+  const byId = new Map(analysis.evidence.map((e) => [e.id, e]));
+  const evidenceFor = (ids: string[] | undefined) =>
+    (ids ?? []).map((id) => byId.get(id)).filter((e): e is NonNullable<typeof e> => Boolean(e));
+  const findingIds = new Set(u.findings.flatMap((f) => f.evidenceIds ?? []));
+  // Analyses persisted before findings carried evidence ids fall back to the planning sources.
+  const planningEvidence = findingIds.size
+    ? analysis.evidence.filter((e) => findingIds.has(e.id))
+    : analysis.evidence.filter(
+        (e) => e.sourceType === "official_planning" || e.sourceType === "official_gazette",
+      );
   const blocking = u.requiredChecks.filter((c) => c.blocking).length;
   return (
     <div className="space-y-10">
@@ -186,11 +193,14 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
                     <EvidenceBadge status={f.status} />
                   </div>
                   <p className="text-[13px] text-fg-2 mt-1">{f.detail}</p>
-                  {f.regulationIds.length ? (
-                    <div className="kicker mt-1 normal-case tracking-normal">
-                      Normas: {f.regulationIds.join(", ")}
-                    </div>
-                  ) : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {f.regulationIds.length ? (
+                      <span className="kicker normal-case tracking-normal">
+                        Normas: {f.regulationIds.join(", ")}
+                      </span>
+                    ) : null}
+                    <EvidenceDrawer title={f.title} items={evidenceFor(f.evidenceIds)} label="Evidencia" />
+                  </div>
                 </div>
               </li>
             ))}

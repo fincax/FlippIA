@@ -3,6 +3,7 @@ import { parseIntake } from "@/modules/property/intake";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
 import { computeFinancials } from "@/modules/engines/financial";
 import { applyOverrides } from "@/modules/engines/scenario";
+import { assetLocation, thesisEvidenceIds } from "./location";
 import { compatibleImprovements, discoverPotential, type MagicImprovement } from "./magic";
 import { runAnalysis } from "./run-analysis";
 
@@ -36,6 +37,23 @@ describe("runAnalysis — vertical slice", () => {
     expect(events.some((e) => e.type === "task.completed" && e.task === "market.valuation")).toBe(true);
     expect(events.at(-1)?.type).toBe("run.completed");
     expect(result.agentRuns.length).toBeGreaterThan(15);
+    // Every conclusion carries its provenance: findings point at planning evidence, the thesis at asset,
+    // market and planning evidence. All ids resolve inside the analysis.
+    const ids = new Set(result.evidence.map((e) => e.id));
+    expect(result.urbanism.findings.length).toBeGreaterThan(0);
+    for (const f of result.urbanism.findings) {
+      expect(f.evidenceIds.length).toBeGreaterThan(0);
+      for (const id of f.evidenceIds) expect(ids.has(id)).toBe(true);
+    }
+    expect(result.synthesis.evidenceIds.length).toBeGreaterThan(0);
+    for (const id of result.synthesis.evidenceIds) expect(ids.has(id)).toBe(true);
+    expect(result.synthesis.evidenceIds).toEqual(thesisEvidenceIds(result.agentRuns));
+    // The data agent's completion carries the location the stream forwards as `located`.
+    const dataDone = events.find((e) => e.type === "task.completed" && e.task === "data.catastro");
+    expect(dataDone?.type).toBe("task.completed");
+    const located = dataDone?.type === "task.completed" ? assetLocation(dataDone.partial) : null;
+    expect(located?.microzoneId).toBe("sev-triana");
+    expect(located?.microzoneName).toBe(result.property.microzone.name);
   }, 30_000);
 
   it("handles a commercial premises with a conditional change-of-use future", async () => {
@@ -163,5 +181,43 @@ describe("runAnalysis — planning source down", () => {
     expect(result.urbanism.planning.zoningCode).toBe("");
     expect(result.strategies.length).toBeGreaterThan(0);
     expect(result.urbanism.requiredChecks.length).toBeGreaterThan(0);
+    // No planning evidence was retrieved: findings say so instead of pointing at nothing.
+    expect(result.urbanism.findings.every((f) => f.evidenceIds.length === 0)).toBe(true);
+  });
+});
+
+describe("assetLocation — reads the resolved location from a data partial", () => {
+  it("returns the microzone and coordinates of a PropertyProfile-shaped output", () => {
+    const loc = assetLocation({
+      microzone: { id: "sev-triana", name: "Triana" },
+      property: { coordinates: { lat: 37.38, lng: -6.0 }, cadastralRef: "1234567AB1234C0001XX" },
+    });
+    expect(loc).toEqual({
+      microzoneId: "sev-triana",
+      microzoneName: "Triana",
+      coordinates: { lat: 37.38, lng: -6.0 },
+      cadastralRef: "1234567AB1234C0001XX",
+    });
+  });
+  it("ignores anything that is not a profile", () => {
+    expect(assetLocation(null)).toBeNull();
+    expect(assetLocation({ microzone: { id: 1 }, property: {} })).toBeNull();
+    expect(assetLocation({ microzone: { id: "x", name: "X" }, property: { coordinates: "no" } })).toEqual({
+      microzoneId: "x",
+      microzoneName: "X",
+    });
+  });
+});
+
+describe("thesisEvidenceIds — asset, market and planning evidence, deduplicated", () => {
+  it("keeps only the runs that ground the thesis", () => {
+    const ids = thesisEvidenceIds([
+      { agentType: "data.catastro", domain: "data", evidenceIds: ["a", "b"] },
+      { agentType: "market.valuation", domain: "market", evidenceIds: ["b", "c"] },
+      { agentType: "urbanism.planning", domain: "urbanism", evidenceIds: ["d"] },
+      { agentType: "urbanism.zoning", domain: "urbanism", evidenceIds: ["e"] },
+      { agentType: "risk.synthesis", domain: "risk", evidenceIds: ["f"] },
+    ]);
+    expect(ids).toEqual(["a", "b", "c", "d"]);
   });
 });
