@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Badge, Empty, Money, Pct } from "@/components/ds";
+import { PriceSparkline } from "@/components/flippia/visual/price-sparkline";
 import { RadarScope } from "@/components/flippia/visual/radar-scope";
 import { WatchButton } from "@/components/flippia/watch-button";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatRelative } from "@/lib/format";
 import { labelCondition } from "@/lib/labels";
 import { parseIntake } from "@/modules/property/intake";
 import { autopsy } from "@/modules/watch/rules";
@@ -58,7 +59,9 @@ export default async function RadarPage({
       microzoneId: h.listing.microzoneId ?? "",
       intensity: h.score / maxScore,
       active: h.underwriting.meetsCriteria,
-      label: h.underwriting.meetsCriteria ? String(i + 1).padStart(2, "0") : undefined,
+      focused: h.listing.id === focusId,
+      label:
+        h.underwriting.meetsCriteria || h.listing.id === focusId ? String(i + 1).padStart(2, "0") : undefined,
     }));
   const showOthers = all === "1" || matching.length < 4;
   return (
@@ -259,7 +262,8 @@ function Strip({
             <span className="font-display text-base md:text-lg text-fg leading-tight">{l.title}</span>
             {l.demo ? <Badge tone="warning">DEMO</Badge> : null}
             <span className="kicker">
-              {l.address} · {l.builtAreaM2} m² · {labelCondition(l.condition)}
+              {l.address} · {l.builtAreaM2} m² · {labelCondition(l.condition)} · publicado{" "}
+              {formatRelative(l.publishedAt)}
             </span>
           </div>
           <dl className="mt-3 grid grid-cols-3 2xl:grid-cols-6 gap-x-4 gap-y-3">
@@ -274,6 +278,7 @@ function Strip({
             <Cell k="Capital" v={<Money value={u.equityRequired} />} />
             <Cell k="Plazo" v={`${u.durationMonths} m`} />
           </dl>
+          <PriceSparkline history={l.priceHistory} className="mt-3" />
           {hit.why.length ? (
             <ul className="mt-3 space-y-0.5 text-[12px] text-fg-2">
               {hit.why.map((w) => (

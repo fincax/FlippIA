@@ -23,6 +23,8 @@ export interface CityBlip {
   intensity: number;
   /** Matching hits are drawn in the accent; the rest in the axis colour. */
   active: boolean;
+  /** The blip under inspection: crosshair and label always on. */
+  focused?: boolean;
   label?: string;
 }
 
@@ -370,21 +372,82 @@ export function CityCanvas({
         {blips?.map((b, i) => {
           const pos = blipPosition(b, i);
           if (!pos) return null;
-          const tone = b.active ? "var(--color-accent)" : "var(--viz-axis)";
+          const tone = b.focused
+            ? "var(--color-accent)"
+            : b.active
+              ? "var(--color-accent)"
+              : "var(--viz-axis)";
           const rr = (3 + b.intensity * 5) / Math.sqrt(zoom);
+          // Angle from the focus (the sweep's pivot), clockwise from north: the ping
+          // fires when the 9 s sweep passes over the blip.
+          const theta = (Math.atan2(pos.x - cx, -(pos.y - cy)) + Math.PI * 2) % (Math.PI * 2);
+          const delay = `${((theta / (Math.PI * 2)) * 9).toFixed(2)}s`;
           return (
             <g key={b.id}>
-              {b.active ? (
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={rr * 2.4}
-                  fill={tone}
-                  className="anim-breathe"
-                  style={{ transformOrigin: `${pos.x}px ${pos.y}px`, animationDelay: `${(i % 5) * 400}ms` }}
-                />
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r={rr * 2.6}
+                fill="none"
+                stroke={tone}
+                strokeWidth={1 / zoom}
+                className="anim-ping"
+                style={{ transformOrigin: `${pos.x}px ${pos.y}px`, animationDelay: delay }}
+              />
+              {b.focused ? (
+                <g>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={rr * 3.2}
+                    fill="none"
+                    stroke={tone}
+                    strokeWidth={0.8 / zoom}
+                    strokeDasharray={`${3 / zoom} ${2 / zoom}`}
+                    className="anim-rotate"
+                    style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}
+                  />
+                  <line
+                    x1={pos.x - rr * 5}
+                    x2={pos.x - rr * 3.6}
+                    y1={pos.y}
+                    y2={pos.y}
+                    stroke={tone}
+                    strokeWidth={0.8 / zoom}
+                  />
+                  <line
+                    x1={pos.x + rr * 3.6}
+                    x2={pos.x + rr * 5}
+                    y1={pos.y}
+                    y2={pos.y}
+                    stroke={tone}
+                    strokeWidth={0.8 / zoom}
+                  />
+                  <line
+                    x1={pos.x}
+                    x2={pos.x}
+                    y1={pos.y - rr * 5}
+                    y2={pos.y - rr * 3.6}
+                    stroke={tone}
+                    strokeWidth={0.8 / zoom}
+                  />
+                  <line
+                    x1={pos.x}
+                    x2={pos.x}
+                    y1={pos.y + rr * 3.6}
+                    y2={pos.y + rr * 5}
+                    stroke={tone}
+                    strokeWidth={0.8 / zoom}
+                  />
+                </g>
               ) : null}
-              <circle cx={pos.x} cy={pos.y} r={rr} fill={tone} fillOpacity={b.active ? 1 : 0.7} />
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r={rr}
+                fill={tone}
+                fillOpacity={b.active || b.focused ? 1 : 0.7}
+              />
               <circle
                 cx={pos.x}
                 cy={pos.y}

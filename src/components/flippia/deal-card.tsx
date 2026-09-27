@@ -78,6 +78,14 @@ export function DealCard({ deal, index }: { deal: DealCardData; index?: number }
                 <div>
                   <dt className="kicker">DNA</dt>
                   <dd className="font-display text-lg num">{s.dna ?? "–"}</dd>
+                  {typeof s.dna === "number" ? (
+                    <dd className="mt-1 h-1 bg-bg-2 overflow-hidden" aria-hidden>
+                      <span
+                        className="block h-full bg-accent"
+                        style={{ width: `${Math.max(0, Math.min(100, s.dna))}%` }}
+                      />
+                    </dd>
+                  ) : null}
                 </div>
               </dl>
             </>
@@ -85,14 +93,19 @@ export function DealCard({ deal, index }: { deal: DealCardData; index?: number }
             <p className="text-[12px] text-fg-3 mt-3">Sin análisis todavía.</p>
           )}
         </div>
-        {s.risk ? (
-          <div className="border-t border-line px-4 py-2 flex items-center justify-between">
-            <span className="kicker">Riesgo</span>
-            <Badge tone={s.risk === "high" ? "danger" : s.risk === "medium" ? "warning" : "success"}>
-              {labelRisk(s.risk)}
-            </Badge>
-          </div>
-        ) : null}
+        <div className="border-t border-line px-4 py-2 flex items-center justify-between gap-3">
+          {s.risk ? (
+            <>
+              <span className="kicker">Riesgo</span>
+              <Badge tone={s.risk === "high" ? "danger" : s.risk === "medium" ? "warning" : "success"}>
+                {labelRisk(s.risk)}
+              </Badge>
+            </>
+          ) : (
+            <span className="kicker">Dossier</span>
+          )}
+          <span className="kicker text-fg-3 group-hover:text-accent transition-colors ml-auto">abrir →</span>
+        </div>
       </article>
     </Link>
   );

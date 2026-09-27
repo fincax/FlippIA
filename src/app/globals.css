@@ -383,6 +383,20 @@ body {
     opacity: 0.25;
   }
 }
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  12% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
 @keyframes rotate-slow {
   to {
     transform: rotate(360deg);
@@ -428,6 +442,10 @@ body {
 }
 .anim-rotate {
   animation: rotate-slow 24s linear infinite;
+}
+/* Timed to the radar sweep: a blip rings once per revolution as the sweep passes. */
+.anim-ping {
+  animation: radar-ping 9s linear infinite;
 }
 
 /* Staggered entrance for lists of futures / layers. */

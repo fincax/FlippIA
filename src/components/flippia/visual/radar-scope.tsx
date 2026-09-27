@@ -73,6 +73,19 @@ export function RadarScope({
           strokeOpacity={0.25}
           strokeWidth={0.6}
         />
+        {[120, 240, 360, 480].map((r) => (
+          <text
+            key={`km-${r}`}
+            x={500 + r * 0.7071 + 4}
+            y={500 - r * 0.7071 - 4}
+            fontSize={8}
+            fontFamily="var(--font-mono)"
+            letterSpacing="0.12em"
+            fill="var(--color-text-muted)"
+          >
+            {((r / 1000) * 15).toFixed(1)} KM
+          </text>
+        ))}
         {[0, 90, 180, 270].map((deg) => (
           <text
             key={deg}
