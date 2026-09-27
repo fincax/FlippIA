@@ -45,6 +45,22 @@ export default async function RadarPage({
         b.score - a.score,
     );
   const fitting = strategySet ? hits.filter((h) => fits(h) === 1).length : null;
+  // Map layers for a spoken search: the zones named in the brief and, per zone, the assets that fit the
+  // project but do not meet the criteria yet.
+  const focusIds = brief?.asset.zoneIds ?? [];
+  const candidates = brief
+    ? Object.entries(
+        others
+          .filter(
+            (h) => fits(h) === 1 && (brief.hasProject || focusIds.includes(h.listing.microzoneId ?? "")),
+          )
+          .reduce<Record<string, number>>((acc, h) => {
+            const id = h.listing.microzoneId ?? "";
+            acc[id] = (acc[id] ?? 0) + 1;
+            return acc;
+          }, {}),
+      ).map(([microzoneId, count]) => ({ microzoneId, count }))
+    : [];
   const focus = focusId ? hits.find((h) => h.listing.id === focusId) : undefined;
   const focusAutopsy = focus ? autopsy(focus.listing, dna, { brief }) : null;
   const hasOwn = hits.some((h) => !h.listing.demo);
@@ -148,9 +164,15 @@ export default async function RadarPage({
           <SectionTitle kicker="Capas">Densidad de oportunidad</SectionTitle>
           <MicrozoneMap
             hits={matching.map((h) => ({ microzoneId: h.listing.microzoneId ?? "", score: h.score }))}
+            focusIds={focusIds}
+            candidates={candidates}
           />
           <p className="mt-3 text-[11px] text-fg-3">
             Verde: microzonas con oportunidades compatibles.{" "}
+            {focusIds.length ? "Dorado: los barrios donde buscas. " : ""}
+            {candidates.length
+              ? "El número cuenta los activos que encajan con tu búsqueda y todavía no cumplen tus criterios. "
+              : ""}
             {hasOwn
               ? "Se combinan tus listados propios con los DEMO de la red FlippIA."
               : "Listados DEMO de la red FlippIA; tus propios listados (API o CSV) y los feeds autorizados se suman a ellos."}
