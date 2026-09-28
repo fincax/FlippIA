@@ -92,7 +92,10 @@ export const zoningAgent: AgentDefinition<SubFinding> = {
   description: "Zoning / Land Use Agent: usos admitidos, condicionados y prohibidos.",
   dependsOn: ["urbanism.planning"],
   async run(ctx) {
-    const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
+    const { planning, evidenceIds } = output<{ planning: PlanningInfo; evidenceIds: string[] }>(
+      ctx,
+      "urbanism.planning",
+    );
     const ids = ruleIds(ctx, "zoning", "land_use");
     const findings: UrbanismFinding[] = [
       {
@@ -102,6 +105,7 @@ export const zoningAgent: AgentDefinition<SubFinding> = {
         status: planning.status,
         kind: "info",
         regulationIds: ids,
+        evidenceIds,
       },
       {
         key: "uses",
@@ -110,6 +114,7 @@ export const zoningAgent: AgentDefinition<SubFinding> = {
         status: planning.status,
         kind: "info",
         regulationIds: ids,
+        evidenceIds,
       },
     ];
     return { findings, checks: [], summary: planning.zoningLabel };
@@ -123,7 +128,10 @@ export const protectionAgent: AgentDefinition<SubFinding> = {
   description: "Protection / Heritage Agent: nivel de catalogación y sus límites.",
   dependsOn: ["urbanism.planning"],
   async run(ctx) {
-    const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
+    const { planning, evidenceIds } = output<{ planning: PlanningInfo; evidenceIds: string[] }>(
+      ctx,
+      "urbanism.planning",
+    );
     const ids = ruleIds(ctx, "heritage", "protection");
     const findings: UrbanismFinding[] = [];
     const checks: RequiredCheck[] = [];
@@ -135,6 +143,7 @@ export const protectionAgent: AgentDefinition<SubFinding> = {
         status: planning.status,
         kind: "info",
         regulationIds: ids,
+        evidenceIds,
       });
       return { findings, checks, summary: "Sin protección identificada" };
     }
@@ -153,6 +162,7 @@ export const protectionAgent: AgentDefinition<SubFinding> = {
       status: "REVIEW_REQUIRED",
       kind: heavy ? "constraint" : "info",
       regulationIds: ids,
+      evidenceIds,
     });
     checks.push({
       key: "heritage_catalogue",
@@ -173,7 +183,10 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
   description: "Licence / Responsible Declaration Agent: qué trámite aplica a cada intervención.",
   dependsOn: ["urbanism.planning"],
   async run(ctx) {
-    const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
+    const { planning, evidenceIds } = output<{ planning: PlanningInfo; evidenceIds: string[] }>(
+      ctx,
+      "urbanism.planning",
+    );
     const ids = ruleIds(ctx, "licence", "responsible_declaration");
     const findings: UrbanismFinding[] = [
       {
@@ -184,6 +197,7 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
         status: "INFERRED",
         kind: "opportunity",
         regulationIds: ids,
+        evidenceIds,
       },
       {
         key: "licence_project",
@@ -192,6 +206,7 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
         status: "INFERRED",
         kind: "info",
         regulationIds: ids,
+        evidenceIds,
       },
     ];
     if (planning.knownFiles.length)
@@ -204,6 +219,7 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
         status: planning.status,
         kind: "info",
         regulationIds: [],
+        evidenceIds,
       });
     return {
       findings,
@@ -230,7 +246,10 @@ export const changeOfUseAgent: AgentDefinition<SubFinding> = {
   dependsOn: ["urbanism.planning"],
   when: (ctx) => isCommercial(ctx),
   async run(ctx) {
-    const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
+    const { planning, evidenceIds } = output<{ planning: PlanningInfo; evidenceIds: string[] }>(
+      ctx,
+      "urbanism.planning",
+    );
     const ids = ruleIds(ctx, "change_of_use", "habitability", "horizontal_property");
     const gf = planning.groundFloorResidential;
     const findings: UrbanismFinding[] = [
@@ -249,6 +268,7 @@ export const changeOfUseAgent: AgentDefinition<SubFinding> = {
         status: "REVIEW_REQUIRED",
         kind: gf === "forbidden" ? "constraint" : "opportunity",
         regulationIds: ids,
+        evidenceIds,
       },
     ];
     const checks: RequiredCheck[] =
@@ -292,7 +312,10 @@ export const tourismAgent: AgentDefinition<SubFinding> = {
   dependsOn: ["urbanism.planning"],
   when: (ctx) => !isCommercial(ctx),
   async run(ctx) {
-    const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
+    const { planning, evidenceIds } = output<{ planning: PlanningInfo; evidenceIds: string[] }>(
+      ctx,
+      "urbanism.planning",
+    );
     const ids = ruleIds(ctx, "tourism");
     return {
       findings: [
@@ -305,6 +328,7 @@ export const tourismAgent: AgentDefinition<SubFinding> = {
           status: "REVIEW_REQUIRED",
           kind: "info",
           regulationIds: ids,
+          evidenceIds,
         },
       ],
       checks: [

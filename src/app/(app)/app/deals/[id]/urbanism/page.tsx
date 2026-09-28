@@ -8,6 +8,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
   const { deal, analysis } = await loadDeal(id);
   if (!analysis) return <NoAnalysis deal={deal} />;
   const u = analysis.urbanism;
+  const evidenceById = new Map(analysis.evidence.map((e) => [e.id, e]));
   return (
     <div className="space-y-6">
       <Surface className="p-5">
@@ -46,6 +47,7 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
       </Surface>
       <Surface className="p-5">
         <SectionTitle kicker="Comprobación urbanística">Hallazgos</SectionTitle>
+        {/* Analyses persisted before findings carried evidence ids show no per-finding sources. */}
         <ul className="space-y-3">
           {u.findings.map((f) => (
             <li key={f.key} className="flex gap-3 items-start">
@@ -62,6 +64,15 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
                 <p className="text-[13px] text-fg-2">{f.detail}</p>
                 {f.regulationIds.length ? (
                   <div className="text-[11px] text-fg-3 mt-0.5">Normas: {f.regulationIds.join(", ")}</div>
+                ) : null}
+                {f.evidenceIds?.length ? (
+                  <div className="text-[11px] text-fg-3 mt-0.5">
+                    Evidencia:{" "}
+                    {f.evidenceIds
+                      .map((eid) => evidenceById.get(eid)?.sourceName)
+                      .filter((n): n is string => Boolean(n))
+                      .join(", ") || "sin fuente disponible"}
+                  </div>
                 ) : null}
               </div>
             </li>

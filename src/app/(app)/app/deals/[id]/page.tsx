@@ -24,6 +24,10 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
   const top = topStrategy(analysis);
   const base = top?.scenarioSet.scenarios.find((s) => s.kind === "base")?.result;
   const futures = analysis.strategies.filter((s) => s.applicability.applicable);
+  // Analyses persisted before the thesis carried evidence ids fall back to the whole set.
+  const thesisEvidence = analysis.synthesis.evidenceIds?.length
+    ? analysis.synthesis.evidenceIds.length
+    : analysis.evidence.length;
   return (
     <div className="space-y-10">
       <section>
@@ -35,7 +39,7 @@ export default async function DealOverview({ params }: { params: Promise<{ id: s
           {analysis.synthesis.narrativeSource === "model"
             ? "modelo (sobre hechos calculados)"
             : "plantilla determinista"}{" "}
-          · cifras: motores deterministas · {analysis.evidence.length} evidencias · normativa a{" "}
+          · cifras: motores deterministas · {thesisEvidence} evidencias en la tesis · normativa a{" "}
           {analysis.regulatory.analysisDate}
         </div>
       </section>

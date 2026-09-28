@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Kicker, Surface } from "@/components/ds";
 import { csrfToken } from "@/lib/client";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
+import type { AssetLocation } from "@/modules/analysis/location";
 import { AgentActivity, type TaskState } from "./agent-activity";
 
 interface DoneEvent {
@@ -26,6 +27,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
   const [done, setDone] = useState<DoneEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [located, setLocated] = useState<AssetLocation | null>(null);
   const currentDeal = useRef<string | undefined>(dealId);
   const queue = useRef<Array<() => void>>([]);
   const draining = useRef(false);
@@ -103,6 +105,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             }
           }
           // Real events, presented at a readable cadence (the engines are faster than the eye).
+          if (ev === "located") enqueue(() => setLocated(payload as AssetLocation));
           if (ev === "agent") enqueue(() => applyEvent(payload as AnalysisEvent));
           if (ev === "done") {
             settled = true;
@@ -143,6 +146,7 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
 
   function retry() {
     setTasks([]);
+    setLocated(null);
     setError(null);
     setDone(null);
     setStatus("connecting");
@@ -167,19 +171,24 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
             status: "pending" as const,
           }));
         case "task.started":
-          upsert(e.task, { status: "running", label: e.label, domain: e.domain });
+          upsert(e.task, { status: "running", label: e.label, domain: e.domain, at: e.at });
           break;
         case "task.progress":
           upsert(e.task, { message: e.message });
           break;
         case "task.completed":
-          upsert(e.task, { status: "completed", latencyMs: e.latencyMs, message: e.summary ?? undefined });
+          upsert(e.task, {
+            status: "completed",
+            latencyMs: e.latencyMs,
+            message: e.summary ?? undefined,
+            at: e.at,
+          });
           break;
         case "task.failed":
-          upsert(e.task, { status: "failed", message: e.error });
+          upsert(e.task, { status: "failed", message: e.error, at: e.at });
           break;
         case "task.skipped":
-          upsert(e.task, { status: "skipped", message: e.reason });
+          upsert(e.task, { status: "skipped", message: e.reason, at: e.at });
           break;
       }
       return next;
@@ -198,6 +207,12 @@ export function AnalysisExperience({ text, dealId }: { text: string; dealId?: st
     <div className="max-w-3xl mx-auto anim-rise">
       <Kicker>LIA está construyendo el caso</Kicker>
       <h1 className="font-display text-2xl md:text-3xl mt-1 text-fg">{text}</h1>
+      {located ? (
+        <div className="mt-2 text-[11px] uppercase tracking-[0.18em] text-accent" role="status">
+          {located.microzoneName}
+          {located.cadastralRef ? ` · RC ${located.cadastralRef}` : ""}
+        </div>
+      ) : null}
       <div className="mt-6 h-1 rounded-full bg-surface-raised overflow-hidden" aria-hidden>
         <div
           className="h-full bg-accent transition-[width] duration-500"

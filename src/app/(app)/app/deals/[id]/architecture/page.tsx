@@ -1,6 +1,7 @@
 import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, BarList, EvidenceBadge, SectionTitle, Surface } from "@/components/ds";
 import { formatMoney } from "@/lib/format";
+import { labelChapter } from "@/lib/labels";
 import { loadDeal } from "@/server/deal-page";
 
 export default async function ArchitecturePage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,7 +58,10 @@ export default async function ArchitecturePage({ params }: { params: Promise<{ i
                 </span>
               </div>
               <BarList
-                items={alt.estimate.byChapter.map((c) => ({ label: c.chapter, value: c.amount }))}
+                items={alt.estimate.byChapter.map((c) => ({
+                  label: labelChapter(c.chapter),
+                  value: c.amount,
+                }))}
                 format={(v) => formatMoney(v)}
               />
               <div className="mt-2 text-[11px] text-fg-3">

@@ -8,6 +8,8 @@ export interface TaskState {
   status: "pending" | "running" | "completed" | "failed" | "skipped";
   message?: string;
   latencyMs?: number;
+  /** Orchestrator timestamp of the last state change (ISO). */
+  at?: string;
 }
 
 const DOMAIN_LABEL: Partial<Record<AgentDomain, string>> = {
