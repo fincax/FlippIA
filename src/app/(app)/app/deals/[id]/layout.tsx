@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Badge, DemoBadge, LinkTabs, VerificationBadge } from "@/components/ds";
+import { DemoBadge, LinkTabs, VerificationBadge } from "@/components/ds";
 import { DealStatusMenu } from "@/components/flippia/deal-status-menu";
+import { LIAPulse } from "@/components/flippia/visual/lia-pulse";
 import { loadDeal } from "@/server/deal-page";
 import { listReviews } from "@/server/services/reviews";
 import { buildPassport } from "@/modules/passport/build";
@@ -46,19 +47,26 @@ export default async function DealLayout({
     { href: `${base}/activity`, label: "Actividad" },
     { href: `${base}/lia`, label: "LIA" },
   ];
+  const p = analysis?.property;
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-fg-3 flex items-center gap-2">
+          <div className="kicker flex items-center gap-2">
             <Link href="/app/deals" className="hover:text-fg">
               Deals
             </Link>
-            <span>/</span>
+            <span aria-hidden>/</span>
             <span>{deal.mode === "project" ? "Modo proyecto" : "Modo deal"}</span>
+            {analysis ? (
+              <>
+                <span aria-hidden>/</span>
+                <span className="num">análisis {analysis.analysisDate}</span>
+              </>
+            ) : null}
           </div>
-          <h1 className="font-display text-2xl md:text-3xl mt-1 truncate">{deal.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <h1 className="display-xl text-2xl md:text-4xl mt-2 truncate max-w-4xl">{deal.title}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             {analysis?.demo ? <DemoBadge /> : null}
             {passport ? (
               <VerificationBadge
@@ -67,11 +75,17 @@ export default async function DealLayout({
                 meaning={passport.verified.meaning}
               />
             ) : null}
-            {analysis ? (
-              <Badge>Análisis {analysis.analysisDate}</Badge>
-            ) : (
-              <Badge tone="warning">Sin análisis</Badge>
-            )}
+            {p ? (
+              <span className="kicker">
+                {p.microzone.name} · {p.property.builtAreaM2} m²
+                {p.cadastral.cadastralRef ? ` · RC ${p.cadastral.cadastralRef}` : ""}
+              </span>
+            ) : null}
+            {!analysis ? (
+              <span className="kicker text-warning flex items-center gap-1.5">
+                <LIAPulse state="idle" size={5} /> Sin análisis
+              </span>
+            ) : null}
           </div>
         </div>
         <DealStatusMenu dealId={id} status={deal.status} intakeText={deal.intake.rawText} />

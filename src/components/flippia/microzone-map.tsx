@@ -83,12 +83,12 @@ export function MicrozoneMap({
               r={r}
               fill={
                 active
-                  ? "rgba(230,180,80,0.22)"
+                  ? "var(--viz-parcel-active)"
                   : hit
-                    ? `rgba(79,191,139,${0.1 + (hit.score / maxScore) * 0.35})`
+                    ? `color-mix(in srgb, var(--color-success) ${Math.round(10 + (hit.score / maxScore) * 35)}%, transparent)`
                     : focused
-                      ? "rgba(230,180,80,0.08)"
-                      : "rgba(255,255,255,0.03)"
+                      ? "color-mix(in srgb, var(--color-accent) 10%, transparent)"
+                      : "var(--viz-parcel)"
               }
               stroke={active || focused ? "var(--color-accent)" : "var(--color-border-strong)"}
               strokeWidth={active ? 1.5 : focused ? 1.25 : 1}
@@ -110,7 +110,9 @@ export function MicrozoneMap({
                 x={cx}
                 y={cy + r + 9}
                 textAnchor="middle"
-                fontSize={7}
+                fontSize={6.5}
+                fontFamily="var(--font-mono)"
+                letterSpacing="0.1em"
                 fill={
                   focused
                     ? "var(--color-accent)"
@@ -131,7 +133,7 @@ export function MicrozoneMap({
           cy={sy(point.lat)}
           r={4}
           fill="var(--color-accent)"
-          stroke="#000"
+          stroke="var(--color-bg-primary)"
           strokeWidth={1}
         />
       ) : null}
