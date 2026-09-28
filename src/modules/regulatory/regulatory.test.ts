@@ -53,6 +53,30 @@ describe("applicability", () => {
     expect(versionInForce(reg, "2025-01-01")).toBeUndefined();
     expect(versionInForce(reg, "2026-06-01")?.version).toBe("2024");
   });
+  it("selects the 2026 ICIO ordinance and both VUT instruments for a 2026 analysis", () => {
+    const icio = findRegulation("reg.es.sevilla.ordenanza-icio")!;
+    expect(versionInForce(icio, "2025-06-01")?.version).toBe("2025");
+    expect(versionInForce(icio, "2026-09-28")?.version).toBe("2026");
+    const hits = applicableRegulations({
+      jurisdictionChain: chain,
+      topics: ["tourism"],
+      assetUse: "residential",
+      analysisDate: "2026-09-28",
+    });
+    const ids = hits.map((h) => h.regulation.id);
+    expect(ids).toContain("reg.es.sevilla.vft-pgou");
+    expect(ids).toContain("reg.es.sevilla.vut-limite-10");
+  });
+  it("keeps the sector plans in force while their 2026 amendment is pending", () => {
+    const hits = applicableRegulations({
+      jurisdictionChain: chain,
+      topics: ["heritage"],
+      analysisDate: "2026-09-28",
+    });
+    const byId = new Map(hits.map((h) => [h.regulation.id, h.version]));
+    expect(byId.get("reg.es.sevilla.pepch")?.status).toBe("in_force");
+    expect(byId.get("reg.es.sevilla.pepch-entornos-bic-2026")?.status).toBe("pending");
+  });
   it("never selects a repealed version", () => {
     const reg = findRegulation("reg.eu.str-data-2024")!;
     const repealed = {
