@@ -13,6 +13,8 @@ import type { Jurisdiction, Regulation, RegulationVersion } from "./types";
  *  - REVIEW_REQUIRED: known to exist / be evolving; needs a human check before relying on it.
  */
 const INGESTED = "2026-01-10T00:00:00.000Z";
+/** Revisión de las citas municipales de Sevilla (boletín, número y fecha por versión). */
+const REVIEWED = "2026-09-28T00:00:00.000Z";
 
 export const JURISDICTIONS = {
   EU: { level: "eu", code: "EU", label: "Unión Europea" } satisfies Jurisdiction,
@@ -22,10 +24,12 @@ export const JURISDICTIONS = {
   SEVILLA: { level: "municipality", code: "41091", label: "Sevilla" } satisfies Jurisdiction,
 } as const;
 
-function v(
-  partial: Omit<RegulationVersion, "ingestedAt" | "regulationId" | "id"> & { id?: string },
-  regulationId: string,
-): RegulationVersion {
+type VersionInput = Omit<RegulationVersion, "ingestedAt" | "regulationId" | "id"> & {
+  id?: string;
+  ingestedAt?: string;
+};
+
+function v(partial: VersionInput, regulationId: string): RegulationVersion {
   return {
     id: partial.id ?? `${regulationId}.v${partial.version}`,
     regulationId,
@@ -34,11 +38,7 @@ function v(
   };
 }
 
-function reg(
-  r: Omit<Regulation, "versions"> & {
-    versions: Array<Omit<RegulationVersion, "ingestedAt" | "regulationId" | "id"> & { id?: string }>;
-  },
-): Regulation {
+function reg(r: Omit<Regulation, "versions"> & { versions: VersionInput[] }): Regulation {
   return { ...r, versions: r.versions.map((x) => v(x, r.id)) };
 }
 
@@ -526,6 +526,9 @@ export const REGULATORY_REGISTRY: Regulation[] = [
     ],
   }),
   // ── Sevilla ──────────────────────────────────────────────────────────────
+  // Citas comprobadas el 2026-09-28 contra las páginas oficiales de la Gerencia
+  // de Urbanismo, la Agencia Tributaria de Sevilla y el índice del BOP. Ninguna
+  // pasa a VERIFIED hasta que el boletín citado se haya abierto y cotejado.
   reg({
     id: "reg.es.sevilla.pgou-2006",
     shortName: "PGOU Sevilla (TR 2006)",
@@ -544,19 +547,24 @@ export const REGULATORY_REGISTRY: Regulation[] = [
       {
         version: "2006-TR",
         title:
-          "Texto Refundido del Plan General de Ordenación Urbanística de Sevilla (aprobación definitiva 19/07/2006)",
-        publicationDate: "2006-12-16",
-        effectiveFrom: "2006-12-17",
+          "Texto Refundido del Plan General de Ordenación Urbanística de Sevilla (revisión aprobada definitivamente el 19/07/2006; Texto Refundido aprobado por el Pleno el 15/03/2007)",
+        sourceDate: "2007-03-15",
+        publicationDate: "2008-12-16",
+        effectiveFrom: "2008-12-16",
         status: "in_force",
-        sourceUrl: "https://www.urbanismosevilla.org/",
-        sourceName: "Gerencia de Urbanismo y Medio Ambiente de Sevilla / BOP Sevilla",
+        sourceUrl:
+          "https://www.urbanismosevilla.org/areas/planeamiento-desarrollo-urbanistico/pgou-vigente-1",
+        sourceName:
+          "BOP Sevilla núm. 290, 16/12/2008 (acuerdo plenario, memoria justificativa y Normas Urbanísticas íntegras); aprobación definitiva de la revisión: BOJA núm. 174, 07/09/2006",
+        ingestedAt: REVIEWED,
         verificationStatus: "INFERRED",
         summary:
-          "Ordenación estructural y pormenorizada: zonas de ordenanza (Centro Histórico, Suburbana, Manzana Cerrada, Edificación Abierta, etc.), usos compatibles, alturas y condiciones de parcela. Con múltiples modificaciones puntuales posteriores.",
+          "Ordenación estructural y pormenorizada: zonas de ordenanza (Centro Histórico, Suburbana, Manzana Cerrada, Edificación Abierta, etc.), usos compatibles, alturas y condiciones de parcela. La revisión del PGOU se aprobó definitivamente por Resolución de 19/07/2006 de la Consejería de Obras Públicas y Transportes (BOJA 174, 07/09/2006); el Texto Refundido, aprobado por el Pleno el 15/03/2007, se publicó íntegramente con sus Normas Urbanísticas en el BOP 290 de 16/12/2008. Más de cuarenta modificaciones puntuales posteriores; la MP 44 (2022) regula las viviendas de uso turístico.",
         keyPoints: [
           "Normas Urbanísticas: condiciones particulares por zona de ordenanza.",
           "Compatibilidad de usos: el uso residencial en planta baja está condicionado según zona.",
           "Superficie mínima de vivienda y condiciones de habitabilidad remiten a normativa sectorial.",
+          "Comprobar las modificaciones puntuales vigentes sobre la parcela (registro de MP en la web de la Gerencia).",
         ],
       },
     ],
@@ -574,14 +582,47 @@ export const REGULATORY_REGISTRY: Regulation[] = [
           "Planes Especiales de Protección de los sectores del Conjunto Histórico de Sevilla (catálogos por sector)",
         effectiveFrom: "2000-01-01",
         status: "in_force",
-        sourceUrl: "https://www.urbanismosevilla.org/",
-        sourceName: "Gerencia de Urbanismo y Medio Ambiente de Sevilla",
+        sourceUrl:
+          "https://www.urbanismosevilla.org/areas/planeamiento-desarrollo-urbanistico/carta-de-servicios/planeamiento-urbanistico/planes-especiales",
+        sourceName:
+          "Gerencia de Urbanismo y Medio Ambiente de Sevilla (cada plan de sector con su aprobación definitiva y publicación en BOP Sevilla propias)",
+        ingestedAt: REVIEWED,
         verificationStatus: "REVIEW_REQUIRED",
         summary:
-          "Niveles de protección (A, B, C, D) por edificio catalogado en cada sector del Conjunto Histórico; determinan intervenciones admisibles.",
+          "Niveles de protección (A, B, C, D) por edificio catalogado en cada sector del Conjunto Histórico; determinan intervenciones admisibles. Los sectores se aprobaron uno a uno entre los años noventa y la década de 2010, con fecha y boletín distintos por sector: la fecha de vigencia registrada es un mínimo común, no la de cada plan. Algunos sectores (por ejemplo Catedral y el subsector 8.1 Encarnación) siguen sin plan especial aprobado.",
         keyPoints: [
           "Protección A/B: intervenciones muy limitadas; C/D: reforma con conservación de elementos.",
           "Consultar catálogo del sector antes de plantear demoliciones o cambios de uso.",
+          "Sector sin plan especial aprobado: obras en entornos BIC con autorización de la Consejería de Cultura.",
+        ],
+      },
+    ],
+  }),
+  reg({
+    id: "reg.es.sevilla.pepch-entornos-bic-2026",
+    shortName: "Modificación de los Planes Especiales del Conjunto Histórico: entornos BIC (Sevilla, 2026)",
+    jurisdiction: JURISDICTIONS.SEVILLA,
+    topics: ["heritage", "protection"],
+    assetUses: [],
+    versions: [
+      {
+        version: "2026",
+        title:
+          "Modificación de determinados Planes Especiales y Catálogos de Protección del Conjunto Histórico de Sevilla (20 sectores) para la regulación de los entornos de Bienes de Interés Cultural",
+        sourceDate: "2026-04-16",
+        effectiveFrom: "2026-04-16",
+        status: "pending",
+        sourceUrl: "https://www.juntadeandalucia.es/boja/2026/99/35",
+        sourceName:
+          "Orden de 15/05/2026 de la Consejería de Cultura (BOJA núm. 99, 26/05/2026), que delega en el Ayuntamiento la autorización de obras en entornos BIC y cita la aprobación definitiva plenaria de 16/04/2026; informe de la Comisión Provincial de Patrimonio Histórico de 04/02/2026",
+        ingestedAt: REVIEWED,
+        verificationStatus: "REVIEW_REQUIRED",
+        summary:
+          "Modifica planimetría, ordenanzas y catálogo de veinte sectores (San Gil-Alameda, San Luis, Santa Paula-Santa Lucía, San Bartolomé, San Lorenzo-San Vicente, Los Humeros, Macarena, San Bernardo, Arenal, Casa de la Moneda, Plaza de Armas, Triana, San Julián-Cruz Roja, La Trinidad, San Roque-La Florida, Prado de San Sebastián, Porvenir, La Palmera, Histórico y Puerto) únicamente para regular la protección de los entornos de BIC. Los niveles de protección por edificio no cambian. Publicación de la aprobación definitiva en el BOP y fecha exacta de entrada en vigor pendientes de comprobar: hasta entonces se registra como pendiente.",
+        keyPoints: [
+          "En los veinte sectores, las obras en entornos de BIC pasan a autorizarse por el Ayuntamiento (competencia delegada), con las condiciones de la modificación.",
+          "Los niveles A/B/C/D del catálogo de cada sector siguen vigentes.",
+          "Comprobar en la ficha de la parcela si está dentro de un entorno BIC (capa heritageSurroundings del adaptador urbanístico).",
         ],
       },
     ],
@@ -594,19 +635,46 @@ export const REGULATORY_REGISTRY: Regulation[] = [
     assetUses: [],
     versions: [
       {
-        version: "vigente",
-        title:
-          "Ordenanza reguladora de Obras y Actividades del Ayuntamiento de Sevilla (OROA), con modificaciones",
-        effectiveFrom: "2012-03-01",
-        status: "in_force",
-        sourceUrl: "https://www.urbanismosevilla.org/",
-        sourceName: "Ayuntamiento de Sevilla / BOP Sevilla",
-        verificationStatus: "REVIEW_REQUIRED",
+        version: "2018",
+        title: "Ordenanza Reguladora de Obras y Actividades del Ayuntamiento de Sevilla (OROA) y anexos",
+        publicationDate: "2018-01-12",
+        effectiveFrom: "2018-01-12",
+        effectiveUntil: "2025-04-28",
+        status: "superseded",
+        supersededBy: "reg.es.sevilla.oroa.v2025",
+        sourceUrl:
+          "https://www.urbanismosevilla.org/areas/licencias/ordenanzas/ordenanza-reguladora-de-obras-y-actividades",
+        sourceName:
+          "BOP Sevilla núm. 9, 12/01/2018 (aprobación definitiva); anexos modificados por acuerdo de 31/07/2018",
+        ingestedAt: REVIEWED,
+        verificationStatus: "INFERRED",
         summary:
-          "Procedimientos municipales: obras sujetas a declaración responsable frente a licencia, documentación exigible, actividades.",
+          "Texto original de la OROA: procedimientos municipales de licencia y declaración responsable para obras y actividades, documentación exigible y control. La fecha de vigencia registrada es la de publicación; la entrada en vigor exacta depende de su disposición final.",
         keyPoints: [
           "Reforma interior sin afección estructural: declaración responsable en la mayoría de supuestos.",
           "Cambio de uso a vivienda: licencia con proyecto.",
+        ],
+      },
+      {
+        version: "2025",
+        title:
+          "Modificación de la Ordenanza Reguladora de Obras y Actividades del Ayuntamiento de Sevilla (OROA) y sus anexos, adaptada a la LISTA y al Decreto 550/2022",
+        sourceDate: "2025-04-24",
+        publicationDate: "2025-04-29",
+        effectiveFrom: "2025-04-29",
+        status: "in_force",
+        supersedes: "reg.es.sevilla.oroa.v2018",
+        sourceUrl:
+          "https://www.urbanismosevilla.org/areas/licencias/ordenanzas/modificacion-de-la-ordenanza-reguladora-de-obras-y-actividades-del-ayuntamiento-de-sevilla-oroa",
+        sourceName: "BOP Sevilla núm. 80, 29/04/2025 (aprobación definitiva por el Pleno de 24/04/2025)",
+        ingestedAt: REVIEWED,
+        verificationStatus: "INFERRED",
+        summary:
+          "Adapta la OROA a la Ley 7/2021 (LISTA) y a su reglamento (Decreto 550/2022): amplía los supuestos sujetos a declaración responsable, regula el control posterior de obras y actividades, incorpora a los colegios profesionales y a las Entidades Certificadoras Urbanísticas en la tramitación y simplifica el procedimiento (ventanilla única y administración electrónica). La fecha de vigencia registrada es la de publicación; la entrada en vigor exacta depende de su disposición final.",
+        keyPoints: [
+          "Más obras y actividades por declaración responsable: comprobar en el Anexo el régimen de cada actuación antes de fijar plazos.",
+          "Cambio de uso: comprobar en el Anexo si el supuesto concreto va por licencia con proyecto o por declaración responsable tras la modificación de 2025.",
+          "Certificados de Entidad Certificadora Urbanística admitidos en la tramitación: pueden acortar plazos, con coste.",
         ],
       },
     ],
@@ -623,37 +691,98 @@ export const REGULATORY_REGISTRY: Regulation[] = [
         title:
           "Ordenanza fiscal reguladora del Impuesto sobre Construcciones, Instalaciones y Obras del Ayuntamiento de Sevilla (ejercicio 2025)",
         effectiveFrom: "2025-01-01",
-        status: "in_force",
-        sourceUrl: "https://www.sevilla.org/",
-        sourceName: "Ayuntamiento de Sevilla / BOP Sevilla",
+        effectiveUntil: "2025-12-31",
+        status: "superseded",
+        supersededBy: "reg.es.sevilla.ordenanza-icio.v2026",
+        sourceUrl:
+          "https://www.sevilla.org/servicios/agencia-tributaria-de-sevilla/ordenanzas-fiscales/ordenanzas_2025",
+        sourceName: "Agencia Tributaria de Sevilla / BOP Sevilla",
         verificationStatus: "REVIEW_REQUIRED",
         summary:
-          "Tipo de gravamen del ICIO y bonificaciones (rehabilitación, accesibilidad, eficiencia energética) en Sevilla.",
-        keyPoints: ["Tipo estimado 4 % (máximo legal); verificar tipo y bonificaciones vigentes."],
+          "Tipo de gravamen del ICIO y bonificaciones (rehabilitación, accesibilidad, eficiencia energética) en Sevilla, ejercicio 2025.",
+        keyPoints: ["Tipo 4 % (máximo legal)."],
+      },
+      {
+        version: "2026",
+        title:
+          "Ordenanza fiscal reguladora del Impuesto sobre Construcciones, Instalaciones y Obras del Ayuntamiento de Sevilla (ejercicio 2026)",
+        publicationDate: "2025-12-15",
+        effectiveFrom: "2026-01-01",
+        status: "in_force",
+        supersedes: "reg.es.sevilla.ordenanza-icio.v2025",
+        sourceUrl:
+          "https://www.sevilla.org/servicios/agencia-tributaria-de-sevilla/informacion-tributaria/informacion-i-c-i-o/ordenanza-icio-2026-para-informacion-icio.pdf",
+        sourceName:
+          "Agencia Tributaria de Sevilla (texto de la ordenanza 2026); aprobación definitiva de las ordenanzas fiscales 2026 publicada en el BOP Sevilla de 15/12/2025",
+        ingestedAt: REVIEWED,
+        verificationStatus: "INFERRED",
+        summary:
+          "Tipo de gravamen del 4 % (art. 7), el máximo que permite el art. 102.3 del TRLHL, sobre el coste real y efectivo de la obra. Bonificaciones potestativas: 80 % en rehabilitación de edificios protegidos por el planeamiento con niveles A, B y C (reforma menor y parcial); 75 % en instalaciones solares térmicas o fotovoltaicas para autoconsumo; hasta el 95 % en obras sobre los pabellones de la Exposición de 1929; bonificación por accesibilidad sin el antiguo requisito de no percibir subvención. Las bonificaciones se solicitan y no se aplican de oficio.",
+        keyPoints: [
+          "Tipo de gravamen: 4 % del presupuesto de ejecución material (art. 7).",
+          "Rehabilitación de edificio protegido A/B/C: bonificación del 80 % en reforma menor y parcial; solicitarla con la licencia.",
+          "Autoconsumo solar: bonificación del 75 % sobre la parte de la obra dedicada a la instalación.",
+          "La tasa por prestación de servicios urbanísticos se regula en otra ordenanza fiscal (no incluida aquí).",
+        ],
       },
     ],
   }),
   reg({
     id: "reg.es.sevilla.vft-pgou",
-    shortName: "Regulación municipal de viviendas turísticas (Sevilla)",
+    shortName: "MP 44 del PGOU: viviendas de uso turístico como hospedaje (Sevilla)",
     jurisdiction: JURISDICTIONS.SEVILLA,
     topics: ["tourism", "change_of_use", "zoning"],
     assetUses: ["residential"],
     versions: [
       {
-        version: "2025",
+        version: "MP44-2022",
         title:
-          "Modificación puntual del PGOU de Sevilla para la regulación urbanística de las viviendas de uso turístico",
-        effectiveFrom: "2025-01-01",
-        status: "unverified",
-        sourceUrl: "https://www.urbanismosevilla.org/",
-        sourceName: "Gerencia de Urbanismo y Medio Ambiente de Sevilla",
-        verificationStatus: "REVIEW_REQUIRED",
+          "Modificación Puntual 44 del Texto Refundido del PGOU de Sevilla (arts. 6.3.1, 6.5.1, 6.5.19 y otros): las viviendas de uso turístico pasan a regularse como uso terciario de hospedaje",
+        sourceDate: "2022-04-28",
+        effectiveFrom: "2022-06-07",
+        status: "in_force",
+        sourceUrl:
+          "https://www.urbanismosevilla.org/areas/licencias/circulares-interpretativas/viviendas-de-usos-turisticos/m-p-44-del-t-r-del-pgou-de-los-articulos-6-3-1-6-5-1-6-5-19-y-otros-1/view",
+        sourceName:
+          "Gerencia de Urbanismo y Medio Ambiente de Sevilla (aprobación definitiva 28/04/2022; normativa publicada en BOP Sevilla, en vigor desde el 07/06/2022)",
+        ingestedAt: REVIEWED,
+        verificationStatus: "INFERRED",
         summary:
-          "Limitación del número de viviendas de uso turístico por barrio (umbral de saturación) y condiciones de implantación. Estado de tramitación y vigencia pendientes de verificación con fuente oficial.",
+          "Adapta las Normas Urbanísticas a la Ley 13/2011 de Turismo de Andalucía: una vivienda de uso turístico deja de ser uso residencial y queda sujeta a las condiciones del uso terciario de hospedaje y a su compatibilidad con el uso residencial (acceso, situación en el edificio, zona de ordenanza). Confirmada por el TSJ de Andalucía en sentencia de 13/11/2023 (recurso 513/2022). El Registro de Turismo suspende la inscripción de actividades iniciadas después del 08/06/2022 que no acrediten la conformidad urbanística.",
         keyPoints: [
-          "Posible saturación por barrio: comprobar antes de asumir explotación turística.",
-          "Uso turístico tratado como uso terciario en determinadas zonas.",
+          "Una VUT nueva necesita cumplir las condiciones del uso hospedaje: comprobar viabilidad urbanística antes de asumir explotación turística.",
+          "Las inscritas antes del 07/06/2022 conservan su régimen; las posteriores sin documento urbanístico no obtienen número de registro.",
+          "El número máximo por barrio se regula aparte (límite del 10 %, acuerdo plenario de 2024).",
+        ],
+      },
+    ],
+  }),
+  reg({
+    id: "reg.es.sevilla.vut-limite-10",
+    shortName: "Límite del 10 % de viviendas de uso turístico por barrio (Sevilla)",
+    jurisdiction: JURISDICTIONS.SEVILLA,
+    topics: ["tourism", "zoning"],
+    assetUses: ["residential"],
+    versions: [
+      {
+        version: "2024",
+        title:
+          "Acuerdo del Pleno del Ayuntamiento de Sevilla de 17/10/2024 por el que se limita el número máximo de viviendas de uso turístico al 10 % de las viviendas familiares de cada uno de los 108 barrios (Decreto 31/2024 de la Junta de Andalucía)",
+        sourceDate: "2024-10-17",
+        publicationDate: "2024-10-28",
+        effectiveFrom: "2024-10-29",
+        status: "in_force",
+        sourceUrl: "https://www.urbanismosevilla.org/paginas/limitacion-de-viviendas-de-uso-turistico",
+        sourceName:
+          "BOP Sevilla núm. 210, 28/10/2024 (aprobación definitiva; aprobación inicial por urgencia el 21/03/2024)",
+        ingestedAt: REVIEWED,
+        verificationStatus: "INFERRED",
+        summary:
+          "Ningún barrio puede superar el 10 % de viviendas de uso turístico sobre su parque de viviendas familiares. Al entrar en vigor ya lo superaban once barrios del Casco Antiguo y Triana (Santa Cruz, Arenal, Alfalfa, San Bartolomé, Feria, Encarnación-Regina, Santa Catalina, San Lorenzo, San Gil, San Vicente y Triana Casco Antiguo), donde no se admiten nuevas inscripciones. El umbral se revisa por barrio y puede bajar.",
+        keyPoints: [
+          "Barrio saturado: sin nuevas inscripciones en el Registro de Turismo de Andalucía; la estrategia de explotación turística no es viable.",
+          "El adaptador urbanístico público lee la capa de barrios saturados de IDE Sevilla; el dato de la capa manda sobre la lista anterior.",
+          "Umbral revisable por barrio: comprobar el estado actual antes de cerrar una compra con tesis turística.",
         ],
       },
     ],

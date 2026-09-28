@@ -117,7 +117,10 @@ export async function seedDemo(
           status: v.status,
           data: v,
         })
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: regulationVersions.id,
+          set: { topics: r.topics, effectiveFrom: v.effectiveFrom, status: v.status, data: v },
+        });
     }
   }
   log(`${REGULATORY_REGISTRY.length} normas registradas.`);
@@ -188,8 +191,8 @@ export async function seedDemo(
         kind: "regulation.change",
         severity: "risk",
         title: "Una actualización normativa requiere revisar una estrategia",
-        body: "Regulación municipal de viviendas de uso turístico (Sevilla): estado de tramitación pendiente de verificación. Afecta a la estrategia «Explotación turística» de un deal analizado.",
-        payload: { regulationId: "reg.es.sevilla.vft-pgou", demo: true },
+        body: "Límite del 10 % de viviendas de uso turístico por barrio (Sevilla), vigente desde el 29/10/2024: comprobar la saturación del barrio. Afecta a la estrategia «Explotación turística» de un deal analizado.",
+        payload: { regulationId: "reg.es.sevilla.vut-limite-10", demo: true },
       },
     ]);
     log("Vigilancias y alertas demo creadas.");
