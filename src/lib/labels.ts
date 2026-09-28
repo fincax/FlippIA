@@ -51,6 +51,26 @@ export const labelCondition = pick({
   unknown: "estado desconocido",
 });
 export const labelLevel = pick({ low: "baja", medium: "media", high: "alta", very_high: "muy alta" });
+export const labelChapter = pick({
+  demolition: "Demoliciones",
+  structure: "Estructura",
+  masonry: "Albañilería",
+  plumbing: "Fontanería",
+  electrical: "Electricidad",
+  hvac: "Climatización",
+  carpentry: "Carpintería",
+  flooring: "Solados",
+  finishes: "Acabados",
+  kitchen: "Cocina",
+  bathroom: "Baños",
+  facade: "Fachada",
+  roof: "Cubierta",
+  energy: "Eficiencia energética",
+  accessibility: "Accesibilidad",
+  fire_safety: "Protección contra incendios",
+  cleanup: "Limpieza",
+  other: "Otros",
+});
 export const labelReviewRole = pick({
   ai_precheck: "pre-check IA",
   technical: "técnica",

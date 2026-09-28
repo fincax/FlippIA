@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, readJson } from "@/lib/api";
+import { assetLocation } from "@/modules/analysis/location";
 import { runAnalysis } from "@/modules/analysis/run-analysis";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
 import { logger } from "@/modules/core/logger";
@@ -28,9 +29,11 @@ export const maxDuration = 180;
 const MAX_CONCURRENT_PER_ORG = 3;
 
 /**
- * Streams the agentic analysis as Server-Sent Events. The client renders
- * tasks, states and partial results; never private reasoning. On completion
- * the analysis is persisted and the deal id is sent in a `done` event.
+ * Streams the agentic analysis as Server-Sent Events: `meta` (deal and
+ * analysis ids), `located` (microzone and coordinates once the asset is
+ * resolved), `agent` (task states), then `done` or `error`. The client renders
+ * tasks and states; never private reasoning. On completion the analysis is
+ * persisted and the deal id is sent in the `done` event.
  */
 export async function POST(req: Request): Promise<Response> {
   let auth: Awaited<ReturnType<typeof requireMutation>>;
@@ -95,7 +98,15 @@ export async function POST(req: Request): Promise<Response> {
           investor: dna,
           adapters: tenantAdapters(ctx),
           signal: abort.signal,
-          emit: (e: AnalysisEvent) => send("agent", stripPartial(e)),
+          emit: (e: AnalysisEvent) => {
+            // The resolved location travels as its own light event so the UI can aim at
+            // the real microzone; the full partial output never leaves the server.
+            if (e.type === "task.completed" && e.task === "data.catastro") {
+              const located = assetLocation(e.partial);
+              if (located) send("located", located);
+            }
+            send("agent", stripPartial(e));
+          },
         });
         await persistAnalysis(ctx, analysisId, dealId, result);
         send("done", {

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AnalysisExperience } from "@/components/flippia/analysis-experience";
 
-export const metadata = { title: "LIA está construyendo el caso" };
+export const metadata = { title: "Análisis en curso" };
 
 export default async function AnalyzePage({
   searchParams,

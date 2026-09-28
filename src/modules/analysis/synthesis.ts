@@ -280,6 +280,8 @@ export function templateSynthesis(params: {
   urbanism: UrbanismAssessment;
   market: MarketAssessment;
   investor: InvestorDNA;
+  /** Evidence ids behind the thesis (see `thesisEvidenceIds`). */
+  evidenceIds?: string[];
 }): InvestmentSynthesis {
   const { profile, strategies, gap, risk, urbanism, market, investor } = params;
   const applicable = strategies.filter((s) => s.applicability.applicable);
@@ -339,5 +341,6 @@ export function templateSynthesis(params: {
     missingData,
     warnings,
     narrativeSource: "template",
+    evidenceIds: params.evidenceIds ?? [],
   };
 }

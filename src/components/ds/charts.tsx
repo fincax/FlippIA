@@ -132,7 +132,7 @@ export function RadialDNA({
         const [x, y] = pt(i, 1);
         return <line key={i} x1={c} y1={c} x2={x} y2={y} stroke="var(--color-border)" />;
       })}
-      <polygon points={poly} fill="rgba(230,180,80,0.18)" stroke="var(--color-accent)" strokeWidth={1.5} />
+      <polygon points={poly} fill="var(--color-accent-soft)" stroke="var(--color-accent)" strokeWidth={1.5} />
       {dimensions.map((d, i) => {
         const [x, y] = pt(i, 1.22);
         return (
@@ -142,7 +142,9 @@ export function RadialDNA({
             y={y}
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize={9}
+            fontSize={8}
+            fontFamily="var(--font-mono)"
+            letterSpacing="0.08em"
             fill="var(--color-text-secondary)"
           >
             {d.label}

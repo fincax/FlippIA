@@ -36,6 +36,7 @@ import { DEFAULT_INVESTOR_DNA, type InvestorDNA } from "@/modules/investor/types
 import type { IntakeRequest } from "@/modules/property/intake";
 import type { RegulatorySnapshot } from "@/modules/regulatory";
 import { narrateSynthesis } from "./narrative";
+import { thesisEvidenceIds } from "./location";
 import { computeOpportunityDNA, computeOpportunityGap, rankStrategies, templateSynthesis } from "./synthesis";
 import type {
   AnalysisResult,
@@ -174,7 +175,16 @@ export async function runAnalysis(params: AnalysisParams): Promise<AnalysisResul
     profile,
     gap,
   });
-  const template = templateSynthesis({ profile, strategies, gap, risk, urbanism, market, investor });
+  const template = templateSynthesis({
+    profile,
+    strategies,
+    gap,
+    risk,
+    urbanism,
+    market,
+    investor,
+    evidenceIds: thesisEvidenceIds(outcome.records),
+  });
   const synthesis = await narrateSynthesis(ai, template, { profile, strategies, gap, risk });
   const sources = await sourceStatuses(adapterSet);
   const allEvidence = evidence.all();

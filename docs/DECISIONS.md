@@ -85,3 +85,15 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 - **Motivo**: las cinco entradas municipales de Sevilla apuntaban a portadas web sin número de boletín ni fecha, y una figuraba `unverified`. Sin cita exacta el estado nunca podría subir.
 - **Decisión**: cada versión municipal lleva boletín, número y fecha (`sourceName`), enlace al documento oficial (`sourceUrl`) y `ingestedAt` de la revisión. Se separan instrumentos distintos en normas distintas (MP 44 del PGOU frente al límite del 10 % de VUT por barrio; planes especiales por sector frente a su modificación de 2026 para entornos BIC) y se versionan los textos sucesivos (OROA 2018/2025, ICIO 2025/2026). `VERIFIED` se reserva a cotejar el boletín citado; una cita exacta sin cotejo es `INFERRED`, y un instrumento cuya publicación no consta es `pending`.
 - **Consecuencias**: `pnpm db:seed` actualiza las versiones ya sembradas. Cambiar una fecha de vigencia o el tipo del ICIO es una versión nueva, que el watcher clasifica en los análisis guardados.
+
+## ADR-017 Procedencia por conclusión y localización en el stream (2026-09-28)
+
+## ADR-018 Universo visual "Mineral + Digital" sobre el sistema funcional intacto (2026-09-28)
+
+- **Motivo**: FlippIA parecía otro dashboard PropTech. El rediseño debía hacer visible la inteligencia que ya existe sin tocar backend, motores, agentes, datos ni contratos.
+- **Decisión**: capa de presentación nueva (tokens, Geist Sans/Mono autohospedadas, componentes presentacionales en `src/components/flippia/visual`) que consume los contratos existentes. Un único acento (naranja arquitectónico) significa POTENCIAL. LIA es presencia (pulso), no rostro. La ciudad de fondo es esquemática y determinista, marcada como tal.
+- **Consecuencias**: ningún componente visual llama a APIs ni calcula; las cifras siguen saliendo de los motores. Las limitaciones que el diseño no puede resolver sin cambios funcionales están en `DESIGN_DEPENDENCIES.md`. `docs/UX.md` y `design-system/README.md` describen la nueva gramática. El título del documento en `/app/analyze` pasa a "Análisis en curso" para no duplicar en el anunciador de rutas el texto visible "LIA está construyendo el caso".
+
+- **Motivo**: principio 2 (ninguna conclusión sin procedencia) se cumplía a nivel de análisis, no de conclusión: los hallazgos urbanísticos y la tesis no sabían qué evidencias los sostenían; y el Scan no podía apuntar a la parcela real porque el stream solo transportaba `dealId`.
+- **Decisión**: `UrbanismFinding.evidenceIds` (evidencia de planeamiento de cada hallazgo) e `InvestmentSynthesis.evidenceIds` (`thesisEvidenceIds`: runs de activo, mercado y planeamiento). `/api/analyze` emite `located` (`AssetLocation`) al completar `data.catastro`, extraído del partial con un type guard; el partial completo sigue sin salir del servidor. `TaskState.at` conserva el instante del orquestador.
+- **Consecuencias**: sin migración de esquema (el análisis es JSON); los análisis persistidos antes de esta fecha no llevan `evidenceIds` y la UI cae al conjunto completo o al filtro por tipo de fuente. `OpportunityGap` sigue sin evidencia enlazada.
