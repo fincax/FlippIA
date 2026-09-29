@@ -37,7 +37,8 @@ src/modules        Dominio puro (sin Next, sin DB):
   strategies       Plugins MultiExit (StrategyPlugin.evaluate → FinancialInputs + assumptions)
   analysis         runAnalysis (plan → outcome → ranking, gap, DNA, synthesis), magic
   lia              askProperty (routing determinista), router (command bar)
-  radar | watch | passport | investor | ai
+  radar            brief (proyecto hablado), criterios, contexto rápido + pase MultiExit sobre listados, underwrite
+  watch | passport | investor | ai
 src/server         auth (scrypt, sesiones, CSRF, rate limit), context (TenantContext), services/*
 src/db             schema Drizzle, client, seed. drizzle/ contiene migraciones generadas.
 ```
@@ -62,6 +63,8 @@ Flujo: `parseIntake` → `runAnalysis` (plan de agentes) → `persistAnalysis` �
 - **Fuente**: implementar `DataSourceAdapter`, registrar en `src/modules/adapters/registry.ts` con modo por env, devolver `evidence` y `mode`.
 - **Ciudad**: `CityProfile` en `src/modules/city` (jurisdicción fiscal/regulatoria, microzonas, adaptadores).
 - **Norma**: entrada en `src/modules/regulatory/registry.ts` con versión, fechas, fuente y `verificationStatus`.
+- **Palabras de proyecto → estrategia (Radar)**: `STRATEGY_KEYWORDS` en `src/modules/radar/brief.ts`. Una estrategia registrada en `STRATEGY_PLUGINS` ya se evalúa en el Radar sin más cambios.
+- **Listados propios**: `POST /api/radar/listings` o `pnpm listings:import` (CSV); nunca scraping.
 
 ## Comandos
 

@@ -10,6 +10,14 @@ describe("LIA router", () => {
     expect(routeCommand("Tengo 250.000 €. Encuentra algo.").kind).toBe("radar");
     expect(routeCommand("hola").kind).toBe("clarify");
   });
+
+  it("routes a spoken project to the radar and says what it will look for", () => {
+    const a = routeCommand("Busco un local en Triana de hasta 200.000 € para convertirlo en vivienda");
+    expect(a.kind).toBe("radar");
+    expect(a.message).toContain("Triana");
+    expect(a.message).toContain("cambio de uso");
+    expect(routeCommand("Analiza este local de Triana por 285.000 €").kind).toBe("analyze");
+  });
 });
 
 describe("Ask this property", () => {

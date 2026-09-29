@@ -50,6 +50,7 @@ export const TAX_RULES_ES_AND_SEVILLA_2025: TaxRuleSet = {
     "IVA en vivienda nueva 10 %; en locales y obra nueva no residencial 21 %.",
     "Los aranceles notariales y registrales se estiman sobre la escala base; la factura final incluye copias, IVA y conceptos adicionales.",
     "La plusvalía municipal (IIVTNU) depende del valor catastral del suelo y del periodo de tenencia; requiere dato catastral y revisión.",
+    "ICIO en Sevilla: 4 % (art. 7 de la ordenanza fiscal 2026, máximo del art. 102.3 TRLHL). Bonificaciones (80 % rehabilitación de edificio protegido A/B/C, 75 % autoconsumo solar) se solicitan y no se aplican automáticamente.",
   ],
   acquisition: {
     itpRate: 0.07,

@@ -38,5 +38,5 @@ E2E_BASE_URL=https://<host> pnpm test:e2e
 
 - Datos de mercado, financiación y urbanismo en modo DEMO llevan badge DEMO en la interfaz. Cualquier tesis con evidencia DEMO no es una recomendación real.
 - Las reglas fiscales (`src/modules/tax/rules.ts`) son estimaciones versionadas; ICIO, tasa de licencia, IBI e IS llevan estado `INFERRED`/`REVIEW_REQUIRED`. Valídalas con asesoría fiscal antes de usarlas en ofertas reales.
-- Las normas urbanísticas municipales tienen fuente en la web de la Gerencia, no en el BOP. Estado `unverified` visible en la evidencia.
+- Las normas municipales de Sevilla citan boletín, número y fecha (ver `docs/REGULATORY_ENGINE.md`) pero siguen `INFERRED` hasta cotejar el boletín; la modificación de 2026 de los planes especiales del Conjunto Histórico está `pending`. Estado visible en la evidencia.
 - El Smart Watcher depende de que tu plataforma llame a `POST /api/cron/watches` (ver arriba); sin esa llamada las vigilancias solo se evalúan a mano desde la interfaz.

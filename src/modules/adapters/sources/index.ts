@@ -6,6 +6,7 @@ import type { SourceAdapter } from "./types";
 
 export * from "./types";
 export * from "./demo";
+export * from "./csv";
 export * from "./feed";
 export * from "./idealista";
 export { typologyFromText, conditionFromText, microzoneIdFor } from "./mapping";

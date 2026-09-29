@@ -9,6 +9,10 @@ import {
 } from "@/modules/engines/financial";
 import type { InvestorDNA } from "@/modules/investor/types";
 import { demoReference, referencesFor, type MarketReference } from "./reference";
+import type { ProjectBrief } from "./brief";
+import { strategySetFor } from "./brief";
+import { assetConstraintFailures, investorCriteriaFailures, type AssetConstraints } from "./criteria";
+import { isStrategyUnderwriting, quickUnderwriteStrategies, type StrategyQuickResult } from "./strategies";
 
 export interface QuickUnderwriting {
   listingId: string;
@@ -41,7 +45,12 @@ export interface QuickUnderwriting {
 export function quickUnderwrite(
   listing: OpportunityListing,
   investor: InvestorDNA,
-  opts: { city?: CityProfile; analysisDate?: string; reference?: MarketReference } = {},
+  opts: {
+    city?: CityProfile;
+    analysisDate?: string;
+    constraints?: AssetConstraints;
+    reference?: MarketReference;
+  } = {},
 ): QuickUnderwriting | null {
   const city = opts.city ?? defaultCity();
   const zone = city.microzones.find((m) => m.id === listing.microzoneId);
@@ -123,28 +132,18 @@ export function quickUnderwrite(
     maximumDuration: investor.horizonMonths,
   };
   const max = computeMaximumAcquisitionPrice(inputs, constraints);
-  const failed: string[] = [];
   const roe = r.metrics.roe.value;
   const profit = r.metrics.netProfit.value ?? 0;
   const equity = r.metrics.equityRequired.value ?? 0;
-  if (roe === null || roe < investor.targetRoe)
-    failed.push(
-      `ROE ${roe === null ? "n/d" : (roe * 100).toFixed(1) + " %"} < objetivo ${(investor.targetRoe * 100).toFixed(0)} %`,
-    );
-  if (profit < investor.targetProfit)
-    failed.push(
-      `Beneficio ${Math.round(profit).toLocaleString("es-ES")} € < objetivo ${investor.targetProfit.toLocaleString("es-ES")} €`,
-    );
-  if (equity > investor.maxEquityPerDeal)
-    failed.push(
-      `Capital ${Math.round(equity).toLocaleString("es-ES")} € > máximo ${investor.maxEquityPerDeal.toLocaleString("es-ES")} €`,
-    );
-  if (durationMonths > investor.horizonMonths)
-    failed.push(`Duración ${durationMonths} meses > horizonte ${investor.horizonMonths}`);
-  if (investor.zones.length && !investor.zones.includes(zone.id))
-    failed.push(`Zona ${zone.name} fuera de tus zonas`);
-  if (listing.askingPrice > investor.ticketMax || listing.askingPrice < investor.ticketMin)
-    failed.push("Precio fuera de tu ticket");
+  const failed = [
+    ...investorCriteriaFailures(listing, zone, investor, {
+      roe,
+      netProfit: profit,
+      equityRequired: equity,
+      durationMonths,
+    }),
+    ...(opts.constraints ? assetConstraintFailures(listing, opts.constraints) : []),
+  ];
   return {
     listingId: listing.id,
     microzone: zone,
@@ -173,24 +172,54 @@ export interface RadarHit {
   underwriting: QuickUnderwriting;
   score: number;
   why: string[];
+  /** Present when the search evaluated MultiExit strategies (project brief or DNA preferences). */
+  strategies?: StrategyQuickResult[];
+  bestStrategyId?: string | null;
 }
 
-/** Reverse investing: rank listings by fit with the investor's objective. */
+export interface RadarSearchOptions {
+  analysisDate?: string;
+  includeNonMatching?: boolean;
+  city?: CityProfile;
+  /** Spoken project: asset constraints and strategies. Without one the classic quick pass runs. */
+  brief?: ProjectBrief;
+  /** Explicit strategy set; overrides what the brief and the DNA would choose. */
+  strategyIds?: string[];
+}
+
+/** Strategies a search will evaluate, or undefined for the classic quick pass. */
+export function radarStrategySet(investor: InvestorDNA, opts: RadarSearchOptions = {}): string[] | undefined {
+  return opts.strategyIds?.length ? opts.strategyIds : strategySetFor(opts.brief, investor);
+}
+
+/**
+ * Reverse investing: rank listings by fit with the investor's objective.
+ * Classic mode underwrites buy-renovate-sell; with a project brief or DNA
+ * strategy preferences every listing is underwritten through the chosen
+ * MultiExit plugins and the best way in is reported.
+ */
 export function radarSearch(
   listings: OpportunityListing[],
   investor: InvestorDNA,
-  opts: { analysisDate?: string; includeNonMatching?: boolean; city?: CityProfile } = {},
+  opts: RadarSearchOptions = {},
 ): RadarHit[] {
   const city = opts.city ?? defaultCity();
   // Zone values come from the real supply when there is enough of it.
   const references = referencesFor(city, listings);
   const hits: RadarHit[] = [];
+  const strategyIds = radarStrategySet(investor, opts);
+  const constraints = opts.brief?.asset;
   for (const l of listings) {
-    const u = quickUnderwrite(l, investor, {
-      analysisDate: opts.analysisDate,
-      city,
-      reference: l.microzoneId ? references.get(l.microzoneId) : undefined,
-    });
+    const reference = l.microzoneId ? references.get(l.microzoneId) : undefined;
+    const u = strategyIds
+      ? quickUnderwriteStrategies(l, investor, {
+          strategyIds,
+          constraints,
+          city,
+          analysisDate: opts.analysisDate,
+          reference,
+        })
+      : quickUnderwrite(l, investor, { analysisDate: opts.analysisDate, city, constraints, reference });
     if (!u) continue;
     if (!u.meetsCriteria && !opts.includeNonMatching) continue;
     const why: string[] = [];
@@ -213,6 +242,25 @@ export function radarSearch(
       why.push(
         `Bajada de precio reciente: ${l.priceHistory[0]!.price.toLocaleString("es-ES")} → ${l.askingPrice.toLocaleString("es-ES")} €.`,
       );
+    if (isStrategyUnderwriting(u)) {
+      const best = u.strategies.find((s) => s.strategyId === u.bestStrategyId);
+      if (best) {
+        const ok = u.strategies.filter((s) => s.meetsCriteria).length;
+        why.push(
+          `Mejor vía: ${best.label}${best.conditional ? ` (condicionada a ${best.blockingChecks} comprobación${best.blockingChecks === 1 ? "" : "es"})` : ""}. ${ok} de ${u.strategies.length} vías cumplen tus criterios.`,
+        );
+        if (ok > 1) score += Math.min(10, (ok - 1) * 3);
+      }
+      hits.push({
+        listing: l,
+        underwriting: u,
+        score: Math.round(score),
+        why,
+        strategies: u.strategies,
+        bestStrategyId: u.bestStrategyId,
+      });
+      continue;
+    }
     hits.push({ listing: l, underwriting: u, score: Math.round(score), why });
   }
   return hits.sort((a, b) => b.score - a.score);

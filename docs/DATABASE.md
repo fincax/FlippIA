@@ -34,6 +34,6 @@ Ids prefijados (`deal_…`, `an_…`), `organization_id` en todo lo de negocio, 
 
 ## Seed y reset
 
-- `pnpm db:seed` es idempotente: organización DEMO, usuario demo, DNA, 24 listados DEMO y 24 normas se insertan con `onConflict`; los 3 deals analizados, la vigilancia y las alertas solo se crean si la organización demo no tiene deals.
+- `pnpm db:seed` es idempotente: organización DEMO, usuario demo, DNA, 24 listados DEMO y 26 normas se insertan con `onConflict` (las normas se actualizan si ya existen); los 3 deals analizados, la vigilancia y las alertas solo se crean si la organización demo no tiene deals.
 - El usuario demo tiene contraseña conocida. En producción el seed se niega a ejecutarse salvo `SEED_DEMO=true` y una `DEMO_USER_PASSWORD` distinta de la de ejemplo.
 - `pnpm db:reset` borra el esquema: rechaza `NODE_ENV=production` y cualquier host que no sea local salvo `ALLOW_DB_RESET=true`.

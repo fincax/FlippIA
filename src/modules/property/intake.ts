@@ -204,13 +204,19 @@ export function parseIntake(text: string): IntakeRequest {
   const mentionsCapital =
     /\btengo\b|\bdispongo\b|\bcapital\b|\bpresupuesto\b|\bquiero invertir\b|\binvertir\b/.test(t);
   const mentionsSearch =
-    /\bencuentra\b|\bbusca\b|\bbuscar\b|\boportunidad(?:es)?\b|\bque\s+puedo\s+comprar\b|\bradar\b/.test(t);
+    /\bencuentra\b|\bbusca\b|\bbuscar\b|\bbusco\b|\bnecesito\b|\bquiero\s+(?:un|una|comprar)\b|\boportunidad(?:es)?\b|\bque\s+puedo\s+comprar\b|\bradar\b/.test(
+      t,
+    );
   const mentionsOptimize = /\boptimiza\b|\bmejora\b|\bmejorar\b|\bhaz magia\b/.test(t);
   const mentionsWhatIf = /\bque pasa si\b|\by si\b|\bque pasaria\b|\bsi vendo\b|\bsi pago\b/.test(t);
   const isQuestion = /\?$/.test(raw) || /^(?:que|cual|cuanto|cuanta|como|por que|donde|hasta)\b/.test(t);
 
   if (mentionsWhatIf) req.intent = "what_if";
-  else if (hasPropertyRef || (typology && (/\banaliza\b|\bestudia\b|\bvalora\b/.test(t) || money.length > 0)))
+  // "Busco un local por 200.000 €" describes what to find, not an asset to analyse.
+  else if (
+    hasPropertyRef ||
+    (typology && !mentionsSearch && (/\banaliza\b|\bestudia\b|\bvalora\b/.test(t) || money.length > 0))
+  )
     req.intent = "analyze_property";
   else if (mentionsCapital || (money.length > 0 && mentionsSearch)) req.intent = "capital_available";
   else if (mentionsSearch) req.intent = "find_opportunity";
