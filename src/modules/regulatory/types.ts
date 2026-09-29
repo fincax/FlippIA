@@ -98,4 +98,6 @@ export interface RegulatorySnapshot {
   fingerprint: string;
   /** Sources that could not be resolved. */
   gaps: Array<{ topic: RegulatoryTopic; note: string }>;
+  /** Instruments in process (status pending) that touch the topics: listed, never applied. */
+  pending?: RegulatorySnapshotEntry[];
 }

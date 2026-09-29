@@ -121,3 +121,15 @@ describe("parseIntake", () => {
     expect(parseIntake("¿Qué es lo peor de esta inversión?").intent).toBe("question");
   });
 });
+
+describe("parseIntake — municipality", () => {
+  it("keeps the municipality named in the address and leaves Sevilla addresses without one", () => {
+    expect(parseIntake("Analiza Calle Real 12, Dos Hermanas por 180.000 €").property?.municipality).toBe(
+      "Dos Hermanas",
+    );
+    expect(
+      parseIntake("Analiza Calle Pureza 45, Sevilla por 285.000 €").property?.municipality,
+    ).toBeUndefined();
+    expect(parseIntake("Analiza Puerta Carmona 7 por 285.000 €").property?.municipality).toBeUndefined();
+  });
+});

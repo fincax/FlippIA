@@ -13,14 +13,22 @@ const protectionHeavy = (ctx: StrategyContext) =>
 
 function protectionChecks(ctx: StrategyContext) {
   const checks = [];
-  if (ctx.urbanism.planning.inHistoricCentre)
+  const level = ctx.urbanism.planning.protectionLevel;
+  const catalogued = level !== "none" && level !== "unknown";
+  if (ctx.urbanism.planning.inHistoricCentre || catalogued || level === "unknown")
     checks.push(
       check(
         "heritage_catalogue",
-        "Consultar catálogo de protección del sector",
-        "El edificio está en el Conjunto Histórico; el nivel de protección condiciona la intervención.",
+        catalogued
+          ? `Consultar la ficha de catálogo (protección ${level})`
+          : "Consultar catálogo de protección del sector",
+        catalogued
+          ? "El nivel de protección condiciona qué intervenciones son autorizables."
+          : level === "unknown"
+            ? "El nivel de protección no se ha obtenido de la fuente; no puede asumirse que el edificio no esté catalogado."
+            : "El edificio está en el Conjunto Histórico; el nivel de protección condiciona la intervención.",
         "architect",
-        protectionHeavy(ctx),
+        protectionHeavy(ctx) || level === "unknown",
         "heritage",
       ),
     );
@@ -568,6 +576,8 @@ export const touristRental: StrategyPlugin = {
   topics: ["tourism", "horizontal_property", "licence", "tax.acquisition"],
   evaluate(ctx) {
     if (!isResidential(ctx)) return null;
+    // A saturated neighbourhood admits no new tourist registrations: the strategy is not offered.
+    if (ctx.urbanism.planning.touristSaturation === "saturated") return null;
     if (!ctx.urbanism.planning.inHistoricCentre && ctx.property.microzone.demoMarket.demand !== "high")
       return null;
     const estimate = renovationFor(ctx, "medium");
@@ -592,7 +602,11 @@ export const touristRental: StrategyPlugin = {
       applicability: {
         applicable: true,
         conditional: true,
-        reasons: ["Demanda turística alta en la zona; ingresos brutos superiores al alquiler tradicional."],
+        reasons: [
+          ctx.urbanism.planning.touristSaturation === "not_saturated"
+            ? "Barrio bajo el umbral municipal de viviendas turísticas según la capa consultada; ingresos brutos superiores al alquiler tradicional."
+            : "Saturación del barrio no consultada: la estrategia solo se sostiene si la comprobación municipal la confirma.",
+        ],
         requiredChecks: [
           check(
             "vft_saturation",

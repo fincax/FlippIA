@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, readJson } from "@/lib/api";
+import { NotCoveredError } from "@/modules/analysis/errors";
 import { runAnalysis } from "@/modules/analysis/run-analysis";
 import type { AnalysisEvent } from "@/modules/agents/runtime/types";
 import { logger } from "@/modules/core/logger";
@@ -112,8 +113,11 @@ export async function POST(req: Request): Promise<Response> {
             () => {},
           );
         send("error", {
+          code: e instanceof NotCoveredError ? e.code : "ANALYSIS_FAILED",
           message:
-            "No hemos podido completar el análisis. Las fuentes consultadas y el resto de la aplicación siguen disponibles.",
+            e instanceof NotCoveredError
+              ? e.message
+              : "No hemos podido completar el análisis. Las fuentes consultadas y el resto de la aplicación siguen disponibles.",
         });
       } finally {
         if (!closed) {

@@ -1,4 +1,5 @@
 import { normalizeText } from "@/modules/city/registry";
+import { municipalityFromText } from "@/modules/city/province";
 import type { AssetUse } from "@/modules/engines/financial/types";
 import type { PropertyTypology } from "./types";
 
@@ -16,6 +17,8 @@ export interface IntakeRequest {
   rawText: string;
   property?: {
     address?: string;
+    /** Municipality named in the text when it is not the covered city (e.g. "Dos Hermanas"). */
+    municipality?: string;
     cadastralRef?: string;
     coordinates?: { lat: number; lng: number };
     url?: string;
@@ -227,6 +230,7 @@ export function parseIntake(text: string): IntakeRequest {
   if (hasPropertyRef || typology) {
     req.property = {
       address: street,
+      municipality: municipalityFromText(raw),
       cadastralRef: cadastral?.toUpperCase(),
       url,
       coordinates: coord ? { lat: Number(coord[1]), lng: Number(coord[2]) } : undefined,

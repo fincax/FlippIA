@@ -127,31 +127,51 @@ export const protectionAgent: AgentDefinition<SubFinding> = {
     const ids = ruleIds(ctx, "heritage", "protection");
     const findings: UrbanismFinding[] = [];
     const checks: RequiredCheck[] = [];
-    if (!planning.inHistoricCentre) {
+    const level = planning.protectionLevel;
+    const heavy = level === "A" || level === "B" || level === "BIC";
+    const known = level !== "unknown" && level !== "none";
+    if (!planning.inHistoricCentre && !known) {
+      // Outside the Conjunto Histórico the PGOU still catalogues buildings: "none" here
+      // means the consulted layers reported nothing, not that nothing exists.
       findings.push({
         key: "protection",
         title: "Fuera del Conjunto Histórico",
-        detail: "No consta protección patrimonial específica en la fuente consultada.",
-        status: planning.status,
+        detail:
+          level === "none"
+            ? "Las capas consultadas no recogen catalogación para la parcela. El catálogo del PGOU también protege edificios fuera del Conjunto Histórico: confirmar en la ficha antes de demoler o alterar fachadas."
+            : "Nivel de protección no consultado. El catálogo del PGOU también protege edificios fuera del Conjunto Histórico: confirmar en la Gerencia.",
+        status: level === "none" ? planning.status : "UNKNOWN",
         kind: "info",
         regulationIds: ids,
       });
-      return { findings, checks, summary: "Sin protección identificada" };
+      if (level === "unknown")
+        checks.push({
+          key: "heritage_catalogue",
+          label: "Confirmar catalogación del edificio en el PGOU",
+          why: "Sin dato de la fuente no puede asumirse que el edificio no esté protegido.",
+          who: "architect",
+          blocking: false,
+          topic: "heritage",
+        });
+      return {
+        findings,
+        checks,
+        summary: level === "none" ? "Sin catalogación en las capas consultadas" : "Protección no consultada",
+      };
     }
-    const heavy =
-      planning.protectionLevel === "A" ||
-      planning.protectionLevel === "B" ||
-      planning.protectionLevel === "BIC";
+    const where = planning.inHistoricCentre ? "Conjunto Histórico" : "Fuera del Conjunto Histórico";
     findings.push({
       key: "protection",
-      title: `Conjunto Histórico · protección ${planning.protectionLevel}`,
+      title: `${where} · protección ${level}`,
       detail: heavy
-        ? "Nivel de protección alto: demoliciones y alteraciones de fachada, estructura o distribución original están muy limitadas. Requiere informe patrimonial."
-        : planning.protectionLevel === "none"
-          ? "Edificio no catalogado según la fuente; el entorno sí está protegido (condiciones estéticas de fachada)."
-          : "Protección parcial: reforma interior admisible conservando elementos catalogados.",
-      status: "REVIEW_REQUIRED",
-      kind: heavy ? "constraint" : "info",
+        ? "Nivel de protección alto: demoliciones y alteraciones de fachada, estructura o distribución original están muy limitadas. Intervención sujeta a licencia con informe patrimonial; en BIC y su entorno, además, autorización de la Consejería de Cultura o competencia delegada."
+        : level === "none"
+          ? "Edificio no catalogado según la fuente; dentro del Conjunto Histórico el plan especial del sector fija condiciones de fachada, altura y composición."
+          : level === "unknown"
+            ? "Nivel de protección no obtenido de la fuente: dentro del Conjunto Histórico no puede descartarse la catalogación."
+            : "Protección parcial (C/D): reforma interior admisible conservando los elementos catalogados; el plan especial del sector fija el alcance.",
+      status: level === "unknown" ? "UNKNOWN" : "REVIEW_REQUIRED",
+      kind: heavy || level === "unknown" ? "constraint" : "info",
       regulationIds: ids,
     });
     checks.push({
@@ -159,10 +179,10 @@ export const protectionAgent: AgentDefinition<SubFinding> = {
       label: `Verificar ficha de catálogo (${planning.heritageSector ?? "sector"})`,
       why: "El nivel de protección determina qué intervenciones son autorizables.",
       who: "architect",
-      blocking: heavy,
+      blocking: heavy || level === "unknown",
       topic: "heritage",
     });
-    return { findings, checks, summary: `Protección ${planning.protectionLevel}` };
+    return { findings, checks, summary: `Protección ${level}` };
   },
 };
 
@@ -175,20 +195,37 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
   async run(ctx) {
     const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
     const ids = ruleIds(ctx, "licence", "responsible_declaration");
+    const level = planning.protectionLevel;
+    const protectedBuilding = level !== "none" && level !== "unknown";
+    const protectionUnknown = level === "unknown";
+    // The responsible declaration is the general route for interior works without
+    // structural effect; catalogued buildings, BIC and their surroundings go by
+    // licence with the heritage report. The exact route is fixed by the OROA annex.
     const findings: UrbanismFinding[] = [
-      {
-        key: "licence_light",
-        title: "Reforma interior sin afección estructural",
-        detail:
-          "Declaración responsable conforme a la LISTA y la ordenanza municipal; obra inmediata tras la presentación con documentación técnica.",
-        status: "INFERRED",
-        kind: "opportunity",
-        regulationIds: ids,
-      },
+      protectedBuilding
+        ? {
+            key: "licence_light",
+            title: "Reforma interior en edificio protegido",
+            detail: `Con protección ${level} la obra se tramita por licencia con informe patrimonial; la declaración responsable no es la vía. Comprobar el régimen concreto en el Anexo de la ordenanza municipal de obras.`,
+            status: "REVIEW_REQUIRED",
+            kind: "constraint",
+            regulationIds: ids,
+          }
+        : {
+            key: "licence_light",
+            title: "Reforma interior sin afección estructural",
+            detail: protectionUnknown
+              ? "Puede tramitarse por declaración responsable si el edificio no está catalogado; el nivel de protección no se ha obtenido, así que el trámite queda pendiente de confirmar."
+              : "Trámite por declaración responsable según el Anexo de la ordenanza municipal de obras, con documentación técnica; el alcance real de la obra lo confirma el técnico.",
+            status: protectionUnknown ? "UNKNOWN" : "INFERRED",
+            kind: protectionUnknown ? "info" : "opportunity",
+            regulationIds: ids,
+          },
       {
         key: "licence_project",
         title: "Cambio de uso, división o afección estructural",
-        detail: "Licencia de obras con proyecto (LOE art. 2); plazos municipales de varios meses.",
+        detail:
+          "Licencia de obras con proyecto; plazos municipales de varios meses. Comprobar en el Anexo de la ordenanza si el supuesto concreto admite declaración responsable.",
         status: "INFERRED",
         kind: "info",
         regulationIds: ids,
@@ -211,13 +248,17 @@ export const licenceAgent: AgentDefinition<SubFinding> = {
         {
           key: "licence_scope",
           label: "Confirmar trámite aplicable con el técnico",
-          why: "El alcance real de la obra decide entre declaración responsable y licencia.",
+          why: "El alcance real de la obra y el nivel de protección deciden entre declaración responsable y licencia.",
           who: "architect",
-          blocking: false,
+          blocking: protectedBuilding || protectionUnknown,
           topic: "licence",
         },
       ],
-      summary: "Declaración responsable / licencia según alcance",
+      summary: protectedBuilding
+        ? "Licencia con informe patrimonial"
+        : protectionUnknown
+          ? "Trámite pendiente de confirmar la protección"
+          : "Declaración responsable / licencia según alcance",
     };
   },
 };
@@ -245,9 +286,11 @@ export const changeOfUseAgent: AgentDefinition<SubFinding> = {
         detail:
           gf === "forbidden"
             ? "La ordenanza mantiene el uso terciario en planta baja: el cambio de uso requeriría modificación de planeamiento."
-            : "Se ha detectado potencial de cambio de uso. La viabilidad queda condicionada a habitabilidad (altura libre, ventilación, patio), estatutos de la comunidad y licencia con proyecto.",
-        status: "REVIEW_REQUIRED",
-        kind: gf === "forbidden" ? "constraint" : "opportunity",
+            : gf === "allowed"
+              ? "La ordenanza admite el uso residencial en planta baja. La viabilidad queda condicionada a habitabilidad (altura libre, ventilación, iluminación, patio), estatutos de la comunidad y licencia con proyecto."
+              : "La compatibilidad del uso residencial en planta baja no se ha podido confirmar en la fuente: debe comprobarse en la ordenanza de zona antes de contar con el cambio de uso. Además: habitabilidad, estatutos de la comunidad y licencia con proyecto.",
+        status: gf === "unknown" ? "UNKNOWN" : "REVIEW_REQUIRED",
+        kind: gf === "forbidden" ? "constraint" : gf === "allowed" ? "opportunity" : "info",
         regulationIds: ids,
       },
     ];
@@ -294,30 +337,60 @@ export const tourismAgent: AgentDefinition<SubFinding> = {
   async run(ctx) {
     const { planning } = output<{ planning: PlanningInfo }>(ctx, "urbanism.planning");
     const ids = ruleIds(ctx, "tourism");
+    const saturation = planning.touristSaturation ?? "unknown";
+    const barrio = planning.neighbourhood ? ` (${planning.neighbourhood})` : "";
+    const finding: UrbanismFinding =
+      saturation === "saturated"
+        ? {
+            key: "tourism",
+            title: "Vivienda de uso turístico: barrio saturado",
+            detail: `La capa municipal de barrios saturados incluye la parcela${barrio}: no se admiten nuevas inscripciones de viviendas de uso turístico. La explotación turística no es viable para una vivienda nueva en el registro.`,
+            status: planning.status === "UNKNOWN" ? "REVIEW_REQUIRED" : planning.status,
+            kind: "constraint",
+            regulationIds: ids,
+          }
+        : saturation === "not_saturated"
+          ? {
+              key: "tourism",
+              title: "Vivienda de uso turístico: barrio bajo el umbral municipal",
+              detail: `La capa municipal no marca el barrio como saturado${barrio}. El umbral se revisa por barrio y puede cambiar; además la vivienda debe cumplir las condiciones del uso de hospedaje del planeamiento y la comunidad debe autorizar expresamente la actividad.`,
+              status: "REVIEW_REQUIRED",
+              kind: "info",
+              regulationIds: ids,
+            }
+          : {
+              key: "tourism",
+              title: "Vivienda de uso turístico: saturación del barrio no consultada",
+              detail:
+                "No hay dato de la fuente sobre el límite municipal por barrio. Sin comprobarlo no puede asumirse la explotación turística; la comunidad, además, debe autorizar expresamente la actividad.",
+              status: "UNKNOWN",
+              kind: "info",
+              regulationIds: ids,
+            };
     return {
-      findings: [
-        {
-          key: "tourism",
-          title: "Vivienda de uso turístico",
-          detail: planning.inHistoricCentre
-            ? "Zona con alta densidad de viviendas turísticas: la regulación municipal puede considerar el barrio saturado. Además, la comunidad debe autorizar expresamente la actividad (LPH art. 17.12)."
-            : "La regulación municipal de viviendas turísticas está en evolución; comprobar umbrales por barrio antes de asumir explotación turística.",
-          status: "REVIEW_REQUIRED",
-          kind: "info",
-          regulationIds: ids,
-        },
-      ],
+      findings: [finding],
       checks: [
         {
           key: "vft_check",
-          label: "Comprobar saturación de VFT del barrio y autorización de la comunidad",
-          why: "Sin ambas no puede asumirse la explotación turística.",
+          label:
+            saturation === "saturated"
+              ? "Confirmar en el Registro de Turismo que no cabe una nueva inscripción en el barrio"
+              : "Comprobar saturación de VUT del barrio y autorización de la comunidad",
+          why:
+            saturation === "saturated"
+              ? "El barrio figura como saturado: la tesis turística queda descartada salvo que el Registro acredite lo contrario."
+              : "Sin ambas no puede asumirse la explotación turística.",
           who: "municipality",
-          blocking: false,
+          blocking: saturation !== "not_saturated",
           topic: "tourism",
         },
       ],
-      summary: "Turístico: condicionado",
+      summary:
+        saturation === "saturated"
+          ? "Turístico: barrio saturado"
+          : saturation === "not_saturated"
+            ? "Turístico: condicionado"
+            : "Turístico: sin dato de saturación",
     };
   },
 };

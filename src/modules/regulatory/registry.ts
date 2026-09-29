@@ -415,11 +415,11 @@ export const REGULATORY_REGISTRY: Regulation[] = [
         effectiveFrom: "2023-01-01",
         status: "in_force",
         sourceUrl: "https://www.juntadeandalucia.es/boja/2022/236/1",
-        sourceName: "BOJA",
-        verificationStatus: "INFERRED",
+        sourceName: "BOJA núm. 236, 12/12/2022",
+        verificationStatus: "REVIEW_REQUIRED",
         supersedes: "Decreto 60/2010 (RDUA)",
         summary:
-          "Desarrollo reglamentario de la LISTA: régimen de licencias, declaraciones responsables, parcelaciones y disciplina.",
+          "Desarrollo reglamentario de la LISTA: régimen de licencias, declaraciones responsables, parcelaciones y disciplina. La fecha de entrada en vigor registrada es orientativa: su disposición final fija un plazo desde la publicación que no se ha cotejado desde el repositorio; para cualquier análisis de 2024 en adelante el reglamento está en vigor.",
         keyPoints: [
           "Título sobre intervención administrativa: procedimientos de licencia y declaración responsable.",
         ],
@@ -440,11 +440,11 @@ export const REGULATORY_REGISTRY: Regulation[] = [
         effectiveFrom: "2021-10-27",
         status: "in_force",
         sourceUrl: "https://www.juntadeandalucia.es/boja/2021/206/1",
-        sourceName: "BOJA",
-        verificationStatus: "INFERRED",
+        sourceName: "BOJA núm. 206, 26/10/2021",
+        verificationStatus: "REVIEW_REQUIRED",
         supersedes: "Decreto Legislativo 1/2018",
         summary:
-          "Tipo general del ITP 7 % y AJD 1,2 % en Andalucía; tipos reducidos para jóvenes, VPO, familias numerosas y otros supuestos.",
+          "Tipo general del ITP 7 % y AJD 1,2 % en Andalucía; tipos reducidos para jóvenes, VPO, familias numerosas y otros supuestos. El tipo general del 7 % se aplicaba ya desde el Decreto-ley 7/2021 (BOJA 28/04/2021); la fecha exacta de entrada en vigor de la Ley 5/2021 (disposición final) no se ha cotejado desde el repositorio, sin efecto sobre los tipos aplicados a análisis de 2022 en adelante.",
         keyPoints: [
           "ITP general 7 %.",
           "AJD general 1,2 %.",

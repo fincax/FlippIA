@@ -19,6 +19,23 @@ describe("regulatory registry integrity", () => {
       }
     }
   });
+  it("cites only official sources and never claims VERIFIED without a verification date", () => {
+    const official =
+      /^https:\/\/(eur-lex\.europa\.eu|www\.boe\.es|www\.juntadeandalucia\.es|www\.urbanismosevilla\.org|www\.sevilla\.org|www\.dipusevilla\.es)\//;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const r of REGULATORY_REGISTRY) {
+      for (const v of r.versions) {
+        expect(v.sourceUrl, `${v.id} sourceUrl`).toMatch(official);
+        expect(v.sourceName.length, `${v.id} sourceName`).toBeGreaterThanOrEqual(3);
+        if (v.verificationStatus === "VERIFIED") expect(v.verifiedAt, `${v.id} verifiedAt`).toBeTruthy();
+        if (v.status === "in_force") expect(v.effectiveFrom <= today, `${v.id} effectiveFrom`).toBe(true);
+        if (r.jurisdiction.level === "municipality")
+          expect(v.sourceName, `${v.id} municipal citation`).toMatch(
+            /BOP|BOJA|Gerencia|Agencia Tributaria|Ayuntamiento/,
+          );
+      }
+    }
+  });
   it("ids are unique", () => {
     const ids = REGULATORY_REGISTRY.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -67,15 +84,16 @@ describe("applicability", () => {
     expect(ids).toContain("reg.es.sevilla.vft-pgou");
     expect(ids).toContain("reg.es.sevilla.vut-limite-10");
   });
-  it("keeps the sector plans in force while their 2026 amendment is pending", () => {
-    const hits = applicableRegulations({
-      jurisdictionChain: chain,
-      topics: ["heritage"],
-      analysisDate: "2026-09-28",
-    });
+  it("keeps the sector plans in force and never applies their pending 2026 amendment", () => {
+    const q = { jurisdictionChain: chain, topics: ["heritage" as const], analysisDate: "2026-09-28" };
+    const hits = applicableRegulations(q);
     const byId = new Map(hits.map((h) => [h.regulation.id, h.version]));
     expect(byId.get("reg.es.sevilla.pepch")?.status).toBe("in_force");
-    expect(byId.get("reg.es.sevilla.pepch-entornos-bic-2026")?.status).toBe("pending");
+    expect(byId.has("reg.es.sevilla.pepch-entornos-bic-2026")).toBe(false);
+    const snapshot = buildRegulatorySnapshot(q);
+    expect(snapshot.pending?.map((e) => e.regulationId)).toContain("reg.es.sevilla.pepch-entornos-bic-2026");
+    expect(snapshot.pending?.every((e) => e.status === "pending")).toBe(true);
+    expect(regulatoryPreamble(snapshot)).toContain("en tramitación");
   });
   it("never selects a repealed version", () => {
     const reg = findRegulation("reg.eu.str-data-2024")!;

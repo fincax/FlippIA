@@ -23,6 +23,9 @@ import type { RegulatorySnapshot, RegulatoryTopic } from "@/modules/regulatory/t
 export interface PropertyProfile {
   property: Property;
   microzone: Microzone;
+  /** How the microzone was chosen: parcel inside it, nearest to the parcel, named in the text, or a labelled fallback. */
+  microzoneMatch?: "inside" | "nearest" | "text" | "default";
+  microzoneDistanceM?: number;
   cadastral: {
     found: boolean;
     cadastralRef?: string;

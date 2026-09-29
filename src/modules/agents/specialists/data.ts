@@ -7,7 +7,8 @@ function cadastreNames(city: CityProfile): { province: string; municipality: str
 
 import type { PropertyProfile } from "@/modules/analysis/types";
 import type { CatastroQuery } from "@/modules/adapters/catastro/types";
-import { microzoneFromPoint } from "@/modules/city/registry";
+import { haversineM, microzoneFromPoint, normalizeText } from "@/modules/city/registry";
+import { notCoveredMessage } from "@/modules/analysis/errors";
 import type { AgentDefinition } from "../runtime/types";
 import { output } from "../runtime/types";
 import type { IntakeResolution } from "./opportunity";
@@ -55,6 +56,13 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
       const res = await ctx.tool("catastro.query", { kind: q.kind }, () => ctx.adapters.catastro.query(q));
       if (res.ok) {
         const d = res.value.data;
+        // A point or a cadastral reference can resolve to a parcel outside the covered
+        // municipality: stop here instead of applying the city's planning to it.
+        if (
+          d.municipality &&
+          normalizeText(d.municipality) !== normalizeText(cadastreNames(ctx.city).municipality)
+        )
+          throw new Error(notCoveredMessage(d.municipality, ctx.city.name));
         const evs = ctx.evidence.addMany(res.value.evidence);
         property.evidenceIds.push(...evs.map((e) => e.id));
         cadastral = {
@@ -87,17 +95,38 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
       }
     }
     if (!property.builtAreaM2) property.builtAreaM2 = property.typology === "premises" ? 80 : 90;
-    const microzone =
-      (property.coordinates && microzoneFromPoint(ctx.city, property.coordinates)) ||
-      ctx.city.microzones.find((m) => m.id === property.microzoneId) ||
-      ctx.city.microzones[1]!;
+    // Microzone: by coordinates when the parcel is known, else the zone the text
+    // named, else the city centre as an explicitly labelled fallback. How it was
+    // matched travels with the profile so every zone reference can say so.
+    const byPoint = property.coordinates && microzoneFromPoint(ctx.city, property.coordinates);
+    const byText = ctx.city.microzones.find((m) => m.id === property.microzoneId);
+    const microzone = byPoint || byText || ctx.city.microzones[1]!;
+    const microzoneDistanceM =
+      byPoint && property.coordinates
+        ? Math.round(haversineM(byPoint.centroid, property.coordinates))
+        : undefined;
+    const microzoneMatch: PropertyProfile["microzoneMatch"] = byPoint
+      ? microzoneDistanceM !== undefined && microzoneDistanceM <= byPoint.radiusM * 1.5
+        ? "inside"
+        : "nearest"
+      : byText
+        ? "text"
+        : "default";
     property.microzoneId = microzone.id;
+    const zoneNote =
+      microzoneMatch === "nearest"
+        ? ` Microzona asignada por proximidad (a ${microzoneDistanceM} m del centro de ${microzone.name}): las referencias de zona son orientativas.`
+        : microzoneMatch === "default"
+          ? ` Microzona no determinada: se usa ${microzone.name} como referencia orientativa.`
+          : "";
     if (property.condition === "unknown")
       property.condition = property.yearBuilt && property.yearBuilt < 1990 ? "to_renovate" : "good";
     const askingPrice = property.askingPrice ?? 0;
     return {
       property,
       microzone,
+      microzoneMatch,
+      microzoneDistanceM,
       cadastral,
       askingPrice,
       askingPriceSource: property.askingPrice
@@ -105,7 +134,7 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
           ? "listing"
           : "user"
         : "estimated",
-      summary: `${labelTypology(property.typology)} de ${property.builtAreaM2} m² en ${microzone.name}${property.yearBuilt ? ` (${property.yearBuilt})` : ""}, estado: ${property.condition}.`,
+      summary: `${labelTypology(property.typology)} de ${property.builtAreaM2} m² en ${microzone.name}${property.yearBuilt ? ` (${property.yearBuilt})` : ""}, estado: ${property.condition}.${zoneNote}`,
     };
   },
 };

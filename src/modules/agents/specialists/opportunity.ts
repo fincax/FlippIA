@@ -1,5 +1,7 @@
 import type { PropertyProfile } from "@/modules/analysis/types";
-import { defaultCity, microzoneFromPoint, microzoneFromText } from "@/modules/city/registry";
+import { defaultCity, microzoneFromPoint, microzoneFromText, normalizeText } from "@/modules/city/registry";
+import { municipalityFromText } from "@/modules/city/province";
+import { notCoveredMessage } from "@/modules/analysis/errors";
 import { newId } from "@/modules/core/ids";
 import type { IntakeRequest } from "@/modules/property/intake";
 import type { Property, PropertyTypology } from "@/modules/property/types";
@@ -27,6 +29,13 @@ export function intakeAgent(intake: IntakeRequest): AgentDefinition<IntakeResolu
       const city = ctx.city ?? defaultCity();
       const p = intake.property ?? {};
       const text = [p.address, intake.rawText].filter(Boolean).join(" ");
+      // Another municipality has its own planning, ordinances and taxes: refuse
+      // rather than analyse it with the covered city's data.
+      const municipality = p.municipality ?? municipalityFromText(text, city.name);
+      if (municipality && normalizeText(municipality) !== normalizeText(city.name)) {
+        ctx.progress(`${municipality} no está cubierto: FlippIA analiza hoy el municipio de ${city.name}.`);
+        throw new Error(notCoveredMessage(municipality, city.name));
+      }
       const zone =
         (p.coordinates && microzoneFromPoint(city, p.coordinates)) ||
         microzoneFromText(city, text) ||

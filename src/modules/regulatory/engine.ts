@@ -19,14 +19,26 @@ export interface RegulatoryQuery {
   registry?: Regulation[];
 }
 
-/** Version in force on a date (or the most recent unverified/pending one, flagged). */
+/**
+ * Version in force on a date. A `pending` version (approved but not yet
+ * published or in force) is never "in force": it is reported separately by
+ * `pendingVersions` so an analysis can say "en tramitación" without applying it.
+ */
 export function versionInForce(reg: Regulation, date: string): RegulationVersion | undefined {
   const candidates = reg.versions.filter(
     (v) =>
-      v.status !== "repealed" && v.effectiveFrom <= date && (!v.effectiveUntil || v.effectiveUntil >= date),
+      v.status !== "repealed" &&
+      v.status !== "pending" &&
+      v.effectiveFrom <= date &&
+      (!v.effectiveUntil || v.effectiveUntil >= date),
   );
   candidates.sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
   return candidates[0];
+}
+
+/** Versions in process that would touch the analysis once approved and published. */
+export function pendingVersions(reg: Regulation): RegulationVersion[] {
+  return reg.versions.filter((v) => v.status === "pending");
 }
 
 export function applicableRegulations(
@@ -58,6 +70,51 @@ export function applicableRegulations(
     eu: 5,
   };
   out.sort((a, b) => order[a.regulation.jurisdiction.level] - order[b.regulation.jurisdiction.level]);
+  return out;
+}
+
+function toEntry(
+  regulation: Regulation,
+  version: RegulationVersion,
+  reason: string,
+): RegulatorySnapshotEntry {
+  return {
+    regulationId: regulation.id,
+    versionId: version.id,
+    shortName: regulation.shortName,
+    title: version.title,
+    jurisdiction: regulation.jurisdiction,
+    topics: regulation.topics,
+    effectiveFrom: version.effectiveFrom,
+    effectiveUntil: version.effectiveUntil,
+    status: version.status,
+    verificationStatus: version.verificationStatus,
+    sourceUrl: version.sourceUrl,
+    sourceName: version.sourceName,
+    verifiedAt: version.verifiedAt,
+    reason,
+  };
+}
+
+/** Pending instruments in the jurisdiction chain that touch the topics (informative only). */
+export function pendingRegulations(q: RegulatoryQuery): RegulatorySnapshotEntry[] {
+  const registry = q.registry ?? REGULATORY_REGISTRY;
+  const chainCodes = new Set(q.jurisdictionChain.map((j) => j.code));
+  const out: RegulatorySnapshotEntry[] = [];
+  for (const reg of registry) {
+    if (!chainCodes.has(reg.jurisdiction.code)) continue;
+    const topicHits = reg.topics.filter((t) => q.topics.includes(t));
+    if (!topicHits.length) continue;
+    if (q.assetUse && reg.assetUses.length > 0 && !reg.assetUses.includes(q.assetUse)) continue;
+    for (const version of pendingVersions(reg))
+      out.push(
+        toEntry(
+          reg,
+          version,
+          `En tramitación (${reg.jurisdiction.label}; materias: ${topicHits.join(", ")}): no se aplica hasta su publicación y entrada en vigor.`,
+        ),
+      );
+  }
   return out;
 }
 
@@ -104,11 +161,13 @@ export function buildRegulatorySnapshot(q: RegulatoryQuery, now = new Date()): R
     entries,
     fingerprint,
     gaps,
+    pending: pendingRegulations(q),
   };
 }
 
 /** Human sentence FlippIA uses instead of "la normativa dice". */
 export function regulatoryPreamble(snapshot: RegulatorySnapshot): string {
   const unverified = snapshot.entries.filter((e) => e.verificationStatus !== "VERIFIED").length;
-  return `Conforme a la normativa identificada como vigente a ${snapshot.analysisDate} (${snapshot.entries.length} referencias, ${unverified} pendientes de verificación documental).`;
+  const pending = snapshot.pending?.length ?? 0;
+  return `Conforme a la normativa identificada como vigente a ${snapshot.analysisDate} (${snapshot.entries.length} referencias, ${unverified} pendientes de verificación documental${pending ? `, ${pending} instrumento${pending === 1 ? "" : "s"} en tramitación no aplicado${pending === 1 ? "" : "s"}` : ""}).`;
 }

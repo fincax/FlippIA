@@ -18,6 +18,10 @@ export interface PlanningInfo {
   heritageSector?: string;
   catalogued: boolean;
   inHistoricCentre: boolean;
+  /** Municipal limit on tourist dwellings for the neighbourhood: measured by a source, or unknown. Never guessed. */
+  touristSaturation?: "saturated" | "not_saturated" | "unknown";
+  /** Neighbourhood the tourist limit refers to, as published. */
+  neighbourhood?: string;
   /** Open municipal files known for the parcel (licences, orders). */
   knownFiles: Array<{ type: string; reference: string; status: string; date: string }>;
   notes: string[];

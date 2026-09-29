@@ -32,9 +32,18 @@ Cada versión municipal cita boletín, número y fecha, y enlaza el documento of
 
 La fecha de vigencia de la OROA es la de publicación de cada texto; la entrada en vigor exacta depende de su disposición final y se anota en la versión. `pnpm db:seed` actualiza las filas de `regulation_versions` ya existentes (`onConflictDoUpdate`), así que corregir una cita en el registro y volver a sembrar basta.
 
+## Reglas de rigor (no negociables)
+
+1. **Ámbito jurisdiccional**: el registro y las capas de planeamiento cubren hoy el municipio de Sevilla (`CityProfile` `sevilla`). Una dirección de otro municipio de la provincia (`src/modules/city/province.ts`, detección determinista en el intake y contraste con el municipio que devuelve el Catastro) se **rechaza** con `NotCoveredError` ("X tiene su propio planeamiento y sus propias ordenanzas, que no están en el registro") en lugar de analizarse con datos de Sevilla. Añadir un municipio = añadir su `CityProfile`, su cadena jurisdiccional y sus normas al registro.
+2. **Microzona trazable**: `PropertyProfile.microzoneMatch` (`inside | nearest | text | default`) dice cómo se asignó la microzona; fuera de las microzonas definidas el resumen lo declara ("asignada por proximidad", "referencia orientativa").
+3. **Nada en tramitación se aplica**: una versión `pending` nunca es "vigente" (`versionInForce` la excluye); el snapshot la lista en `pending` y la UI la muestra como "en tramitación (no aplicado)".
+4. **Ninguna cita sin fuente oficial**: el test de integridad exige `sourceUrl` en dominios oficiales (eur-lex, boe.es, juntadeandalucia.es, urbanismosevilla.org, sevilla.org, dipusevilla.es), `verifiedAt` para pasar a `VERIFIED`, `effectiveFrom` no futura para `in_force` y, en normas municipales, cita de BOP/BOJA/Gerencia/Agencia Tributaria. Una fecha de entrada en vigor no cotejada baja la entrada a `REVIEW_REQUIRED` (Ley 5/2021, Decreto 550/2022) aunque su contenido aplicable sea seguro.
+5. **Los agentes no afirman lo que la fuente no dio**: altura publicada implausible → `maxFloors: null` y nota, nunca la altura de referencia de la ordenanza; protección `unknown` → comprobación bloqueante, no "sin protección"; saturación turística solo `saturated | not_saturated` cuando la capa municipal responde, `unknown` en caso contrario (la estrategia turística no se ofrece en barrio saturado); declaración responsable solo para edificios no catalogados; compatibilidad de uso en planta baja `unknown` se presenta como no confirmada, no como oportunidad.
+6. **El modelo no interpreta normas**: `LIA_SYSTEM_PROMPT` le prohíbe afirmar qué exige o permite una norma; solo cita las listadas con su estado y remite a las comprobaciones. Además `introducesNoNewNumbers` rechaza cualquier cifra (incluidos números de ley o artículo) que no esté en los hechos.
+
 ## Motor
 
-- `applicableRegulations({ jurisdictionChain, topics, assetUse, analysisDate })` → normas vigentes en la fecha, ordenadas de lo más específico a lo más general.
+- `applicableRegulations({ jurisdictionChain, topics, assetUse, analysisDate })` → normas vigentes en la fecha, ordenadas de lo más específico a lo más general; `pendingRegulations` → instrumentos en tramitación, solo informativos.
 - `buildRegulatorySnapshot` → `RegulatorySnapshot` con versiones, fingerprint (sha256 de versionIds) y lagunas (`gaps`). Se persiste por análisis (`regulatory_snapshots`) para reconstruir meses después por qué se concluyó algo.
 - `regulatoryPreamble` → "Conforme a la normativa identificada como vigente a <fecha>…" (nunca "la normativa dice").
 

@@ -73,6 +73,7 @@ export class UrbanismoSevillaDemoAdapter implements DataSourceAdapter<UrbanismQu
       heritageSector: zone.historicCentre ? `Sector ${zone.name} del Conjunto Histórico` : undefined,
       catalogued: protection !== "none",
       inHistoricCentre: zone.historicCentre,
+      touristSaturation: "unknown",
       knownFiles,
       notes: [
         zoning.notes,

@@ -104,9 +104,13 @@ describe("UrbanismoPublicConnector", () => {
     expect(p.heritageSector).toBe("14 · Triana");
     expect(p.protectionLevel).toBe("C"); // catalogue field of the zoning polygon
     expect(p.catalogued).toBe(true);
-    expect(p.conditionedUses.some((u) => u.startsWith("Vivienda de uso turístico: Saturado (Triana)"))).toBe(
-      true,
-    );
+    expect(p.touristSaturation).toBe("saturated");
+    expect(p.neighbourhood).toBe("Triana");
+    expect(
+      p.conditionedUses.some((u) =>
+        u.startsWith("Vivienda de uso turístico: barrio saturado según la capa municipal (Triana)"),
+      ),
+    ).toBe(true);
     expect(p.conditionedUses.some((u) => u.includes("entorno de BIC"))).toBe(true);
     expect(p.notes[0]).toContain("Clasificación del suelo: Suelo Urbano · Consolidado");
     expect(p.notes.some((n) => n.includes("Afección sectorial: Servidumbre aeronáutica"))).toBe(true);
@@ -271,8 +275,10 @@ describe("UrbanismoPublicConnector — publisher quirks", () => {
     expect(zoningCalls).toBe(2);
     const p = r.value.data;
     expect(p.zoningCode).toBe("CH");
-    expect(p.maxFloors).toBe(3); // catalogue default, 88 discarded
-    expect(p.notes.some((n) => n.includes("valor publicado 88"))).toBe(true);
+    expect(p.maxFloors).toBeNull(); // 88 is a pointer to the catalogue, never a height; nothing is assumed
+    expect(
+      p.notes.some((n) => n.includes("valor publicado 88") && n.includes("no se asume ninguna altura")),
+    ).toBe(true);
     expect(p.protectionLevel).toBe("D");
     expect(p.notes[0]).toBe("Clasificación del suelo: Suelo Urbano · Consolidado.");
     expect(p.notes.some((n) => n.includes("Catálogo de protección: capa no configurada"))).toBe(false);

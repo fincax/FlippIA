@@ -4,6 +4,7 @@ import type { AnalysisEvent } from "@/modules/agents/runtime/types";
 import { computeFinancials } from "@/modules/engines/financial";
 import { applyOverrides } from "@/modules/engines/scenario";
 import { compatibleImprovements, discoverPotential, type MagicImprovement } from "./magic";
+import { NotCoveredError } from "./errors";
 import { runAnalysis } from "./run-analysis";
 
 describe("runAnalysis — vertical slice", () => {
@@ -130,6 +131,30 @@ describe("discoverPotential — improvements are reproducible overrides", () => 
     // The best combination never stacks two capital structures on top of each other.
     expect(report.bestCombination).not.toBeNull();
     expect((report.bestCombination?.description.match(/estructura:/gi) ?? []).length).toBeLessThanOrEqual(1);
+  }, 30_000);
+});
+
+describe("runAnalysis — jurisdiction", () => {
+  it("refuses an address in another municipality instead of applying Sevilla's planning to it", async () => {
+    const intake = parseIntake("Analiza Calle Real 12, Dos Hermanas, 90 m2 por 180.000 €");
+    expect(intake.property?.municipality).toBe("Dos Hermanas");
+    await expect(
+      runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" }),
+    ).rejects.toBeInstanceOf(NotCoveredError);
+    await expect(
+      runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" }),
+    ).rejects.toThrow(/Dos Hermanas tiene su propio planeamiento/);
+  }, 30_000);
+  it("records how the microzone was matched", async () => {
+    const intake = parseIntake("Analiza Calle Pureza 45, Triana, 95 m2 por 285.000 €");
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+    });
+    expect(result.property.microzoneMatch).toBeDefined();
+    expect(["inside", "nearest", "text", "default"]).toContain(result.property.microzoneMatch);
   }, 30_000);
 });
 

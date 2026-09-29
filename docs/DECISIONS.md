@@ -90,3 +90,9 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 
 - **Motivo**: el Radar solo veía 24 anuncios sintéticos. Los portales prohíben el scraping; la vía legal es la API oficial de Idealista y los feeds que agencias, CRMs y portales entregan con permiso (Kyero XML v3, JSON).
 - **Consecuencias**: `RADAR_SOURCES` lista las fuentes; un job (`/api/cron/radar`, `pnpm radar:sync`) las vuelca en `opportunity_listings` como filas compartidas con historial de precio y retirada, en lugar de consultar la API en cada visita (cuota). El Radar valora contra la oferta real de la microzona cuando hay muestra suficiente y declara «Referencia DEMO» si no. `IdealistaClient` es único para comparables y Radar (token y caché compartidos).
+
+## ADR-018 Rigor normativo y jurisdiccional: rechazar antes que inventar (2026-09-29)
+
+- **Motivo**: el cliente exige que ninguna afirmación urbanística, autonómica o municipal sea falsa. El sistema asignaba una microzona de Sevilla a cualquier dirección (también de otros municipios), sustituía alturas no interpretables por la de referencia, presentaba la declaración responsable como vía general incluso en edificios catalogados, deducía la saturación turística del Conjunto Histórico y aplicaba instrumentos en tramitación como vigentes.
+- **Decisión**: fuera del municipio cubierto el análisis se rechaza con un mensaje explícito (`NotCoveredError`); cada dato urbanístico se presenta con el estado que la fuente permite (`UNKNOWN` cuando no respondió), las estrategias se condicionan a ese estado y el registro normativo pasa un test de integridad de fuentes oficiales; lo pendiente se lista, no se aplica.
+- **Consecuencias**: cubrir otro municipio exige un `CityProfile` propio con su cadena jurisdiccional y sus normas; una entrada del registro solo pasa a `VERIFIED` con `verifiedAt` tras cotejar el boletín; los tests fallan si aparece una cita sin fuente oficial.

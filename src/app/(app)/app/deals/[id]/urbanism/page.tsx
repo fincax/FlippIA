@@ -136,6 +136,34 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
             </tbody>
           </table>
         </div>
+        {analysis.regulatory.pending?.length ? (
+          <div className="mt-3 text-[12px] text-fg-2">
+            <div className="text-[11px] uppercase tracking-[0.12em] text-fg-3">
+              En tramitación (no aplicado a este análisis)
+            </div>
+            <ul className="mt-1 list-disc pl-4">
+              {analysis.regulatory.pending.map((e) => (
+                <li key={e.versionId}>
+                  {e.shortName}
+                  {e.sourceUrl ? (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <a
+                        href={e.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2"
+                      >
+                        {e.sourceName}
+                      </a>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {analysis.regulatory.gaps.length ? (
           <p className="mt-3 text-[12px] text-warning">
             Lagunas: {analysis.regulatory.gaps.map((g) => g.topic).join(", ")}.

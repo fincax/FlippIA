@@ -203,7 +203,9 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
     // Some publishers encode "according to the catalogue / special plan" as a sentinel (88, 99…).
     const plausibleFloors =
       Number.isFinite(maxFloorsParsed) && maxFloorsParsed > 0 && maxFloorsParsed <= MAX_PLAUSIBLE_FLOORS;
-    const maxFloors = plausibleFloors ? maxFloorsParsed : (catalogueEntry?.entry.maxFloors ?? null);
+    // An implausible published value is a pointer to the catalogue or a special plan,
+    // not a height: leave it unknown rather than substitute a reference figure.
+    const maxFloors = plausibleFloors ? maxFloorsParsed : null;
     const heightLabel = field("zoning", "heightLabel");
     const classification =
       [field("classification", "class"), field("classification", "category")].filter(Boolean).join(" · ") ||
@@ -252,12 +254,21 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
     if (catalogueEntry?.entry.groundFloorResidential === "forbidden")
       forbiddenUses.push("Residencial en planta baja");
     const touristFlag = field("touristSaturation", "flag") ?? field("parcel", "flag");
-    if (hit("touristSaturation") || touristFlag) {
-      const district = field("touristSaturation", "district") ?? field("touristSaturation", "name");
+    const neighbourhood =
+      field("touristSaturation", "district") ??
+      field("touristSaturation", "name") ??
+      field("parcel", "district");
+    const touristLayerAnswered = !missing("touristSaturation") && !failed("touristSaturation");
+    const touristSaturation: PlanningInfo["touristSaturation"] =
+      hit("touristSaturation") || truthy(touristFlag) === true
+        ? "saturated"
+        : touristLayerAnswered || truthy(touristFlag) === false
+          ? "not_saturated"
+          : "unknown";
+    if (touristSaturation === "saturated")
       conditionedUses.push(
-        `Vivienda de uso turístico: ${touristFlag ?? "zona con limitación municipal"}${district ? ` (${district})` : ""}`,
+        `Vivienda de uso turístico: barrio saturado según la capa municipal${neighbourhood ? ` (${neighbourhood})` : ""}; sin nuevas inscripciones`,
       );
-    }
     if (hit("heritageSurroundings"))
       conditionedUses.push(
         `Obras en entorno de BIC (${field("heritageSurroundings", "name") ?? "entorno protegido"}): informe de Cultura`,
@@ -274,7 +285,7 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
     if (classification) notes.unshift(`Clasificación del suelo: ${classification}.`);
     if (maxFloorsRaw && !plausibleFloors)
       notes.push(
-        `Altura máxima según ${heightLabel ? `"${heightLabel}"` : "la ficha del planeamiento de desarrollo"} (valor publicado ${maxFloorsRaw}); se usa la altura de referencia de la ordenanza.`,
+        `Altura máxima según ${heightLabel ? `"${heightLabel}"` : "la ficha del planeamiento de desarrollo"} (valor publicado ${maxFloorsRaw}): no se asume ninguna altura; consultar la ficha.`,
       );
     else if (heightLabel && heightLabel !== maxFloorsRaw)
       notes.push(`Altura máxima publicada: ${heightLabel}.`);
@@ -341,6 +352,8 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
       heritageSector,
       catalogued,
       inHistoricCentre,
+      touristSaturation,
+      neighbourhood,
       knownFiles,
       notes,
       status,

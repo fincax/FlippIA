@@ -11,7 +11,7 @@ Mantra: _FlippIA no busca casas, busca posibilidades. No vende IA: usa inteligen
 ## Principios no negociables
 
 1. Simplicidad externa, potencia interna. La UI no expone la complejidad del sistema.
-2. **Ninguna conclusión sin procedencia** (`Evidence`), ninguna norma sin fecha (`RegulatorySnapshot`).
+2. **Ninguna conclusión sin procedencia** (`Evidence`), ninguna norma sin fecha ni fuente oficial (`RegulatorySnapshot`). Lo que la fuente no dio es `UNKNOWN` con comprobación, nunca un valor por defecto presentado como dato. Fuera del municipio cubierto (Sevilla) el análisis se rechaza, no se aproxima (`docs/REGULATORY_ENGINE.md`, reglas de rigor).
 3. **Ningún cálculo financiero por LLM.** Todo número sale de `src/modules/engines/*` (determinista, con tests).
 4. Ninguna oportunidad sin riesgo (agentes adversariales + stress test), ninguna transformación urbanística presentada como viable sin comprobación (`RequiredCheck`).
 5. Ninguna acción irreversible de agente sin permiso/confirmación humana.
@@ -62,7 +62,7 @@ Flujo: `parseIntake` → `runAnalysis` (plan de agentes) → `persistAnalysis` �
 - **Agente**: `AgentDefinition` (type, domain, dependsOn, run) y añadirlo al plan en `src/modules/analysis/run-analysis.ts`. Sub-orquestadores = grupos de agentes por dominio.
 - **Fuente**: implementar `DataSourceAdapter`, registrar en `src/modules/adapters/registry.ts` con modo por env, devolver `evidence` y `mode`.
 - **Ciudad**: `CityProfile` en `src/modules/city` (jurisdicción fiscal/regulatoria, microzonas, adaptadores).
-- **Norma**: entrada en `src/modules/regulatory/registry.ts` con versión, fechas, fuente y `verificationStatus`.
+- **Norma**: entrada en `src/modules/regulatory/registry.ts` con versión, fechas, boletín (número y fecha), `sourceUrl` en dominio oficial y `verificationStatus`; `VERIFIED` solo con `verifiedAt` tras cotejar el boletín; `pending` para lo aprobado sin publicar (se lista, no se aplica). El test de integridad del registro lo comprueba.
 - **Palabras de proyecto → estrategia (Radar)**: `STRATEGY_KEYWORDS` en `src/modules/radar/brief.ts`. Una estrategia registrada en `STRATEGY_PLUGINS` ya se evalúa en el Radar sin más cambios.
 - **Listados propios**: `POST /api/radar/listings` o `pnpm listings:import` (CSV); nunca scraping.
 

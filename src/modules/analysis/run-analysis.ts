@@ -1,4 +1,5 @@
 import { adapters as defaultAdapters, sourceStatuses, type AdapterSet } from "@/modules/adapters";
+import { parseNotCovered } from "./errors";
 import { aiProvider, type AIProvider } from "@/modules/ai/provider";
 import {
   devilsAdvocateAgent,
@@ -131,8 +132,11 @@ export async function runAnalysis(params: AnalysisParams): Promise<AnalysisResul
   const o = outcome.outputs;
   const profile = o.get("data.catastro") as PropertyProfile | undefined;
   const market = o.get("market.valuation") as MarketAssessment | undefined;
-  if (!profile || !market)
+  if (!profile || !market) {
+    const refusal = outcome.records.map((r) => parseNotCovered(r.error)).find(Boolean);
+    if (refusal) throw refusal;
     throw new Error(`Analysis could not complete: ${outcome.failed.join(", ") || "unknown failure"}`);
+  }
   const urbanism = o.get("urbanism.synthesis") as UrbanismAssessment | undefined;
   const architecture = o.get("architecture.alternatives") as ArchitectureAssessment | undefined;
   const finance = o.get("finance.offers") as FinanceAssessment | undefined;
