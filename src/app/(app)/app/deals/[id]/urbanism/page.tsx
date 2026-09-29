@@ -165,9 +165,14 @@ export default async function UrbanismPage({ params }: { params: Promise<{ id: s
           </div>
         ) : null}
         {analysis.regulatory.gaps.length ? (
-          <p className="mt-3 text-[12px] text-warning">
-            Lagunas: {analysis.regulatory.gaps.map((g) => g.topic).join(", ")}.
-          </p>
+          <div className="mt-3 text-[12px] text-warning">
+            <div className="text-[11px] uppercase tracking-[0.12em]">Lagunas del registro</div>
+            <ul className="mt-1 list-disc pl-4">
+              {analysis.regulatory.gaps.map((g) => (
+                <li key={`${g.topic}:${g.note}`}>{g.note}</li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </Surface>
     </div>
