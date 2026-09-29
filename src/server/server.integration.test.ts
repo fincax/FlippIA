@@ -36,6 +36,8 @@ import {
   tenantAdapters,
 } from "@/server/services/comparables";
 import { CompositeMarketAdapter, OwnComparablesAdapter } from "@/modules/adapters/market";
+import type { OpportunityListing, SourceAdapter } from "@/modules/adapters/sources/types";
+import { syncListingSources } from "@/server/services/listing-sync";
 import { seedDemo, DEMO_ORG_ID } from "@/db/seed";
 import { DEFAULT_INVESTOR_DNA } from "@/modules/investor/types";
 import { ctxFor, getTestDb } from "@/test/db";
@@ -379,5 +381,92 @@ describe("own market comparables", () => {
       if (previous === undefined) delete process.env.MARKET_SOURCE_MODE;
       else process.env.MARKET_SOURCE_MODE = previous;
     }
+  });
+});
+
+describe("Radar listing synchronisation", () => {
+  const base: OpportunityListing = {
+    id: "lst_test_1",
+    sourceId: "feed-test",
+    sourceName: "Feed test",
+    title: "Piso en Triana",
+    address: "Calle Pureza 45, Triana, Sevilla",
+    microzoneId: "sev-triana",
+    typology: "flat",
+    assetUse: "residential",
+    builtAreaM2: 90,
+    condition: "to_renovate",
+    askingPrice: 200_000,
+    publishedAt: "2026-09-01",
+    priceHistory: [{ date: "2026-09-01", price: 200_000 }],
+    url: "https://feed.example/1",
+    demo: false,
+  };
+  function source(listings: OpportunityListing[], complete = true): SourceAdapter {
+    return {
+      sourceId: "feed-test",
+      sourceName: "Feed test",
+      kind: "partner",
+      isAvailable: async () => true,
+      listings: async () => listings,
+      fetchAll: async () => ({ listings, complete, errors: [] }),
+    };
+  }
+  it("inserts, tracks price changes, withdraws absentees only on complete pulls, and shows up in the Radar", async () => {
+    const a = await register(d(), { email: "radar-sync@example.com", name: "R", password: "long-enough-99" });
+    if (!a.ok) throw new Error("register failed");
+    const ctx = ctxFor(a.organizationId, a.userId);
+    const day = (n: number) => () => Date.parse(`2026-09-${String(10 + n).padStart(2, "0")}T09:00:00Z`);
+    const r1 = await syncListingSources(
+      d(),
+      [source([base, { ...base, id: "lst_test_2", askingPrice: 150_000 }])],
+      { now: day(0) },
+    );
+    expect(r1.sources[0]).toMatchObject({
+      fetched: 2,
+      inserted: 2,
+      updated: 0,
+      withdrawn: 0,
+      complete: true,
+    });
+    let visible = (await visibleListings(ctx)).filter((l) => l.sourceId === "feed-test");
+    expect(visible).toHaveLength(2);
+    expect(visible.find((l) => l.id === "lst_test_1")?.url).toBe("https://feed.example/1");
+
+    // Price drop: history grows, first-sight date is kept; an incomplete pull withdraws nothing.
+    const r2 = await syncListingSources(
+      d(),
+      [source([{ ...base, askingPrice: 185_000, publishedAt: "2026-09-12" }], false)],
+      { now: day(2) },
+    );
+    expect(r2.sources[0]).toMatchObject({
+      inserted: 0,
+      updated: 1,
+      priceChanges: 1,
+      withdrawn: 0,
+      complete: false,
+    });
+    visible = (await visibleListings(ctx)).filter((l) => l.sourceId === "feed-test");
+    expect(visible).toHaveLength(2);
+    const updated = visible.find((l) => l.id === "lst_test_1")!;
+    expect(updated.askingPrice).toBe(185_000);
+    expect(updated.publishedAt).toBe("2026-09-01");
+    expect(updated.priceHistory).toEqual([
+      { date: "2026-09-01", price: 200_000 },
+      { date: "2026-09-12", price: 185_000 },
+    ]);
+
+    // Complete pull without lst_test_2: it is withdrawn and leaves the Radar.
+    const r3 = await syncListingSources(d(), [source([{ ...base, askingPrice: 185_000 }])], { now: day(3) });
+    expect(r3.sources[0]).toMatchObject({ updated: 1, priceChanges: 0, withdrawn: 1 });
+    visible = (await visibleListings(ctx)).filter((l) => l.sourceId === "feed-test");
+    expect(visible.map((l) => l.id)).toEqual(["lst_test_1"]);
+    const hits = await runRadar(ctx, DEFAULT_INVESTOR_DNA, { includeNonMatching: true });
+    const hit = hits.find((h) => h.listing.id === "lst_test_1");
+    expect(hit?.listing.demo).toBe(false);
+    expect(hit?.why.some((w) => w.startsWith("Bajada de precio"))).toBe(true);
+    // A DEMO source is never synchronised.
+    const demo = await syncListingSources(d(), [{ ...source([base]), kind: "demo" }]);
+    expect(demo.sources).toEqual([]);
   });
 });

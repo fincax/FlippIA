@@ -1,6 +1,7 @@
 import type { DataSourceAdapter } from "../types";
 import { CompositeMarketAdapter, MIN_REAL_SALE_COMPARABLES } from "./composite";
 import { MarketDemoAdapter } from "./demo";
+import { IdealistaClient, sharedIdealistaClient } from "../idealista";
 import { IdealistaMarketAdapter, type IdealistaConfig } from "./idealista";
 import { OwnComparablesAdapter } from "./own";
 import type { ComparablesRepository, MarketQuery, MarketSnapshot } from "./types";
@@ -51,19 +52,22 @@ export function createMarketAdapter(mode?: string, deps: MarketAdapterDeps = {})
   if (modes.includes("own") && deps.ownComparables)
     providers.push(new OwnComparablesAdapter(deps.ownComparables));
   if (modes.includes("idealista")) {
-    const apiKey = deps.idealista?.apiKey ?? env.IDEALISTA_API_KEY ?? "";
-    const apiSecret = deps.idealista?.apiSecret ?? env.IDEALISTA_API_SECRET ?? "";
+    const client =
+      deps.idealista?.apiKey || deps.idealista?.apiSecret || deps.fetchImpl
+        ? new IdealistaClient(
+            {
+              apiKey: deps.idealista?.apiKey ?? env.IDEALISTA_API_KEY ?? "",
+              apiSecret: deps.idealista?.apiSecret ?? env.IDEALISTA_API_SECRET ?? "",
+              country: deps.idealista?.country ?? env.IDEALISTA_COUNTRY ?? "es",
+              ...(deps.idealista?.baseUrl ? { baseUrl: deps.idealista.baseUrl } : {}),
+            },
+            deps.fetchImpl,
+          )
+        : sharedIdealistaClient(env);
     providers.push(
-      new IdealistaMarketAdapter(
-        {
-          ...deps.idealista,
-          apiKey,
-          apiSecret,
-          country: deps.idealista?.country ?? env.IDEALISTA_COUNTRY ?? "es",
-          radiusM: deps.idealista?.radiusM ?? (Number(env.IDEALISTA_RADIUS_M) || undefined),
-        },
-        deps.fetchImpl,
-      ),
+      new IdealistaMarketAdapter(client, undefined, {
+        radiusM: deps.idealista?.radiusM ?? (Number(env.IDEALISTA_RADIUS_M) || undefined),
+      }),
     );
   }
   const demo = new MarketDemoAdapter();

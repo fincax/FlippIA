@@ -42,6 +42,11 @@ export default async function RadarPage({
   const matching = hits.filter((h) => h.underwriting.meetsCriteria);
   const others = hits.filter((h) => !h.underwriting.meetsCriteria);
   const focus = focusId ? hits.find((h) => h.listing.id === focusId) : undefined;
+  const realCount = hits.filter((h) => !h.listing.demo).length;
+  const demoCount = hits.length - realCount;
+  const sourceNames = [
+    ...new Set(hits.filter((h) => !h.listing.demo).map((h) => h.listing.sourceName ?? h.listing.sourceId)),
+  ];
   const focusAutopsy = focus ? autopsy(focus.listing, dna) : null;
   return (
     <div className="space-y-8">
@@ -124,8 +129,12 @@ export default async function RadarPage({
             hits={matching.map((h) => ({ microzoneId: h.listing.microzoneId ?? "", score: h.score }))}
           />
           <p className="mt-3 text-[11px] text-fg-3">
-            Verde: microzonas con oportunidades compatibles. Listados DEMO de la red FlippIA; los feeds
-            autorizados sustituyen estos datos.
+            Verde: microzonas con oportunidades compatibles.{" "}
+            {realCount
+              ? `${realCount} anuncios reales de ${sourceNames.join(", ")}`
+              : "Listados DEMO de la red FlippIA"}
+            {demoCount && realCount ? ` y ${demoCount} DEMO` : ""}. Sin scraping: solo API oficial y feeds
+            autorizados.
           </p>
         </Surface>
       </div>
@@ -150,10 +159,20 @@ function HitCard({ hit }: { hit: Hit }) {
               <Badge tone="warning" className="ml-1">
                 DEMO
               </Badge>
+            ) : u.referenceBasis === "demo" ? (
+              <Badge
+                tone="warning"
+                className="ml-1"
+                title="Anuncio real valorado contra la tabla DEMO de la microzona: aún hay pocos anuncios reales en la zona."
+              >
+                Referencia DEMO
+              </Badge>
             ) : null}
           </div>
           <div className="text-[12px] text-fg-3">
-            {hit.listing.address} · {hit.listing.builtAreaM2} m² · {hit.listing.condition}
+            {hit.listing.address} · {hit.listing.builtAreaM2} m² · {labelCondition(hit.listing.condition)} ·{" "}
+            {hit.listing.sourceName ?? hit.listing.sourceId}
+            {hit.listing.reference ? ` · ref. ${hit.listing.reference}` : ""}
           </div>
         </div>
         <div className="text-right">
@@ -212,7 +231,27 @@ function HitCard({ hit }: { hit: Hit }) {
           Autopsia
         </Link>
         <WatchButton listingId={hit.listing.id} label={hit.listing.title} price={hit.listing.askingPrice} />
+        {hit.listing.url ? (
+          <a
+            href={hit.listing.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-[var(--radius-md)] border border-line px-3 py-1.5 text-[13px] text-fg-2 hover:text-fg"
+          >
+            Ver anuncio ↗
+          </a>
+        ) : null}
       </div>
     </Surface>
   );
+}
+
+function labelCondition(c: Hit["listing"]["condition"]): string {
+  return c === "to_renovate"
+    ? "para reformar"
+    : c === "renovated"
+      ? "reformado"
+      : c === "good"
+        ? "buen estado"
+        : "estado no indicado";
 }

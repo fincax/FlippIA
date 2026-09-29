@@ -24,7 +24,7 @@ PostgreSQL 16 + PostGIS (+ pgvector opcional). Drizzle ORM; migraciones en `driz
 - `watches` (reglas), `alerts`, `human_reviews`, `documents`, `activities`
 - `rate_limits` (contador por clave y ventana, compartido entre instancias)
 - `conversations`, `messages` (LIA)
-- `opportunity_listings` (org null = compartido/DEMO), `regulation_versions`
+- `opportunity_listings` (org null = compartido: DEMO del seed o anuncios reales sincronizados desde `RADAR_SOURCES`, con `price_history` y `status` withdrawn), `regulation_versions`
 - `market_comparables` (testigos propios por organización: venta/alquiler, tipo, precio, superficie, fecha, lat/lng, microzona, referencia)
 - `partners`, `projects`, `milestones` (Execution mode / Partner Network: preparados)
 

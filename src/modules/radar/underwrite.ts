@@ -8,6 +8,7 @@ import {
   type FinancialInputs,
 } from "@/modules/engines/financial";
 import type { InvestorDNA } from "@/modules/investor/types";
+import { demoReference, referencesFor, type MarketReference } from "./reference";
 
 export interface QuickUnderwriting {
   listingId: string;
@@ -27,6 +28,8 @@ export interface QuickUnderwriting {
   /** Price below which the listing would meet every criterion. */
   reentryPrice: number;
   opportunityGap: number;
+  /** Where the zone values come from: the zone's real listings or the DEMO table. */
+  referenceBasis: MarketReference["basis"];
   demo: boolean;
 }
 
@@ -38,14 +41,14 @@ export interface QuickUnderwriting {
 export function quickUnderwrite(
   listing: OpportunityListing,
   investor: InvestorDNA,
-  opts: { city?: CityProfile; analysisDate?: string } = {},
+  opts: { city?: CityProfile; analysisDate?: string; reference?: MarketReference } = {},
 ): QuickUnderwriting | null {
   const city = opts.city ?? defaultCity();
   const zone = city.microzones.find((m) => m.id === listing.microzoneId);
   if (!zone) return null;
   const analysisDate = opts.analysisDate ?? new Date().toISOString().slice(0, 10);
   const residential = listing.assetUse === "residential";
-  const m = zone.demoMarket;
+  const m = opts.reference ?? demoReference(zone);
   const renovatedPerM2 = residential ? m.residentialRenovatedPerM2 : m.commercialPerM2 * 1.25;
   const unrenovatedPerM2 = residential ? m.residentialUnrenovatedPerM2 : m.commercialPerM2;
   const asIsValue = Math.round(
@@ -160,7 +163,8 @@ export function quickUnderwrite(
     failedCriteria: failed,
     reentryPrice: max.maximumPrice,
     opportunityGap: Math.round(arv - asIsValue),
-    demo: listing.demo,
+    referenceBasis: m.basis,
+    demo: listing.demo || m.basis === "demo",
   };
 }
 
@@ -175,11 +179,18 @@ export interface RadarHit {
 export function radarSearch(
   listings: OpportunityListing[],
   investor: InvestorDNA,
-  opts: { analysisDate?: string; includeNonMatching?: boolean } = {},
+  opts: { analysisDate?: string; includeNonMatching?: boolean; city?: CityProfile } = {},
 ): RadarHit[] {
+  const city = opts.city ?? defaultCity();
+  // Zone values come from the real supply when there is enough of it.
+  const references = referencesFor(city, listings);
   const hits: RadarHit[] = [];
   for (const l of listings) {
-    const u = quickUnderwrite(l, investor, { analysisDate: opts.analysisDate });
+    const u = quickUnderwrite(l, investor, {
+      analysisDate: opts.analysisDate,
+      city,
+      reference: l.microzoneId ? references.get(l.microzoneId) : undefined,
+    });
     if (!u) continue;
     if (!u.meetsCriteria && !opts.includeNonMatching) continue;
     const why: string[] = [];
@@ -194,7 +205,7 @@ export function radarSearch(
     }
     if (u.equityRequired <= investor.maxEquityPerDeal) score += 15;
     if (u.durationMonths <= investor.horizonMonths) score += 10;
-    if (u.microzone.demoMarket.liquidity === "high") {
+    if ((references.get(u.microzone.id) ?? demoReference(u.microzone)).liquidity === "high") {
       score += 5;
       why.push("Microzona con liquidez alta.");
     }

@@ -1,5 +1,6 @@
 import { logger } from "@/modules/core/logger";
 import { MARKET_SOURCE_MODES, parseMarketModes } from "@/modules/adapters/market";
+import { RADAR_SOURCE_MODES, parseFeedsConfig, parseRadarModes } from "@/modules/adapters/sources";
 
 const isProduction = () => process.env.NODE_ENV === "production";
 const MIN_SECRET_LENGTH = 32;
@@ -55,6 +56,21 @@ export function productionEnvProblems(env: NodeJS.ProcessEnv = process.env): str
     problems.push(
       "MARKET_SOURCE_MODE includes idealista but IDEALISTA_API_KEY / IDEALISTA_API_SECRET are not set",
     );
+  const radarModes = parseRadarModes(env.RADAR_SOURCES);
+  const badRadar = radarModes.filter((m) => !(RADAR_SOURCE_MODES as readonly string[]).includes(m));
+  if (badRadar.length)
+    problems.push(
+      `RADAR_SOURCES=${env.RADAR_SOURCES} is not supported (${RADAR_SOURCE_MODES.join(" | ")}, comma separated)`,
+    );
+  if (radarModes.includes("idealista") && !(env.IDEALISTA_API_KEY && env.IDEALISTA_API_SECRET))
+    problems.push(
+      "RADAR_SOURCES includes idealista but IDEALISTA_API_KEY / IDEALISTA_API_SECRET are not set",
+    );
+  if (radarModes.includes("feeds")) {
+    const feeds = parseFeedsConfig(env.RADAR_FEEDS);
+    if (feeds.error) problems.push(`RADAR_FEEDS is invalid: ${feeds.error}`);
+    else if (!feeds.feeds.length) problems.push("RADAR_SOURCES includes feeds but RADAR_FEEDS is empty");
+  }
   if (env.URBANISMO_SEVILLA_MODE === "official" && !env.URBANISMO_SEVILLA_ENDPOINT)
     problems.push("URBANISMO_SEVILLA_MODE=official requires URBANISMO_SEVILLA_ENDPOINT");
   return problems;

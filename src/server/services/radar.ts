@@ -1,9 +1,11 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { opportunityListings } from "@/db/schema";
 import type { OpportunityListing } from "@/modules/adapters/sources/types";
 import type { InvestorDNA } from "@/modules/investor/types";
 import { radarSearch, type RadarHit } from "@/modules/radar/underwrite";
 import type { TenantContext } from "../context";
+
+const MAX_VISIBLE = 1_500;
 
 /** Listings visible to a tenant: its own plus shared (demo/public) ones. */
 export async function visibleListings(ctx: TenantContext): Promise<OpportunityListing[]> {
@@ -19,7 +21,8 @@ export async function visibleListings(ctx: TenantContext): Promise<OpportunityLi
         ),
       ),
     )
-    .limit(500);
+    .orderBy(desc(opportunityListings.updatedAt))
+    .limit(MAX_VISIBLE);
   return rows.map((r) => r.data);
 }
 

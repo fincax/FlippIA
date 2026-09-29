@@ -23,7 +23,7 @@ test("onboarding → analyze → scenarios → stress → passport → watch", a
     .fill("Analiza Calle Pureza 45, Triana, 95 m2, 3 habitaciones, para reformar por 255.000 €");
   await page.getByRole("button", { name: "Descubrir" }).click();
   await page.waitForURL("**/app/analyze?**");
-  await expect(page.getByText("LIA está construyendo el caso")).toBeVisible();
+  await expect(page.getByText("LIA está construyendo el caso", { exact: true })).toBeVisible();
   await page.waitForURL("**/app/deals/deal_*", { timeout: 60_000 });
   await expect(page.getByText(/posibles futuros para este activo/)).toBeVisible();
   const dealUrl = new URL(page.url()).pathname;
@@ -40,7 +40,7 @@ test("onboarding → analyze → scenarios → stress → passport → watch", a
 
   await page.goto(`${dealUrl}/finance`);
   await page.getByRole("button", { name: "Calcular" }).click();
-  await expect(page.getByText("Precio máximo")).toBeVisible();
+  await expect(page.getByText("Precio máximo", { exact: true })).toBeVisible();
 
   await page.goto(`${dealUrl}/passport`);
   await expect(page.getByText("Deal Passport · documento vivo")).toBeVisible();

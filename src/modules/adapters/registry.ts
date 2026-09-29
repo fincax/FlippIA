@@ -1,7 +1,7 @@
 import { createCatastroAdapter, type CatastroAdapter } from "./catastro";
 import { createFinancingAdapter, type FinancingProviderAdapter } from "./financing";
 import { CompositeMarketAdapter, createMarketAdapter, type MarketAdapter } from "./market";
-import { DemoListingsSource, type SourceAdapter } from "./sources";
+import { createListingSources, type SourceAdapter } from "./sources";
 import type { SourceStatus } from "./types";
 import { createUrbanismAdapter, type UrbanismAdapter } from "./urbanismo-sevilla";
 import { defaultCity } from "@/modules/city/registry";
@@ -25,7 +25,7 @@ export function adapters(): AdapterSet {
     urbanism: createUrbanismAdapter(),
     market: createMarketAdapter(),
     financing: createFinancingAdapter(),
-    sources: [new DemoListingsSource()],
+    sources: createListingSources(),
   };
   return cached;
 }
@@ -87,10 +87,15 @@ export async function sourceStatuses(set = adapters()): Promise<SourceStatus[]> 
     statuses.push({
       sourceId: s.sourceId,
       name: s.sourceName,
-      authority: "FlippIA",
+      authority: s.kind === "demo" ? "FlippIA" : s.sourceName,
       mode: s.kind === "demo" ? "demo" : "partner",
       available: await s.isAvailable(),
-      note: s.kind === "demo" ? "Listado sintético de oportunidades." : "Feed autorizado.",
+      note:
+        s.kind === "demo"
+          ? "Listado sintético de oportunidades."
+          : s.kind === "api"
+            ? "Anuncios activos por API autorizada (sincronización programada)."
+            : "Feed autorizado del propietario de los datos.",
       demo: s.kind === "demo",
     });
   }

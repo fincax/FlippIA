@@ -73,3 +73,8 @@ Formato: Decisión · Motivo · Alternativas · Consecuencias · Fecha.
 
 - **Motivo**: la valoración se apoyaba solo en comparables sintéticos. Las transacciones reales no tienen fuente gratuita; los anuncios sí (API oficial de Idealista, sin scraping) y la organización acumula sus propios testigos.
 - **Consecuencias**: `MARKET_SOURCE_MODE` es una lista (`own,idealista,demo`); `CompositeMarketAdapter` combina proveedores y solo recurre a DEMO, marcándolo, si la muestra real es insuficiente y `demo` está en la lista; tabla `market_comparables` por organización con API y CSV; el adaptador de testigos se inyecta por petición (`tenantAdapters`), nunca desde el registro global. Liquidez y días de venta se etiquetan como referencia por nivel de profundidad de mercado, no como medición.
+
+## ADR-015 Radar con anuncios reales sincronizados: API oficial de Idealista y feeds autorizados (2026-09-29)
+
+- **Motivo**: el Radar solo veía 24 anuncios sintéticos. Los portales prohíben el scraping; la vía legal es la API oficial de Idealista y los feeds que agencias, CRMs y portales entregan con permiso (Kyero XML v3, JSON).
+- **Consecuencias**: `RADAR_SOURCES` lista las fuentes; un job (`/api/cron/radar`, `pnpm radar:sync`) las vuelca en `opportunity_listings` como filas compartidas con historial de precio y retirada, en lugar de consultar la API en cada visita (cuota). El Radar valora contra la oferta real de la microzona cuando hay muestra suficiente y declara «Referencia DEMO» si no. `IdealistaClient` es único para comparables y Radar (token y caché compartidos).
