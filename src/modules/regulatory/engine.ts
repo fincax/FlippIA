@@ -10,6 +10,17 @@ import type {
   RegulatoryTopic,
 } from "./types";
 
+/** Topics that only the municipality's own plan or ordinances can settle. */
+export const MUNICIPAL_TOPICS: ReadonlySet<RegulatoryTopic> = new Set<RegulatoryTopic>([
+  "planning",
+  "zoning",
+  "building_parameters",
+  "licence",
+  "tax.works",
+  "tax.local",
+  "tourism",
+]);
+
 export interface RegulatoryQuery {
   /** Jurisdiction chain from broadest to narrowest, e.g. EU → ES → ES-AN → 41091. */
   jurisdictionChain: Jurisdiction[];
@@ -143,6 +154,21 @@ export function buildRegulatorySnapshot(q: RegulatoryQuery, now = new Date()): R
       topic,
       note: `Sin norma identificada en el registro para "${topic}" en la cadena jurisdiccional.`,
     }));
+  // Municipal matters must be answered by the municipality's own instruments: a
+  // regional law covering the topic does not make the local plan or ordinance known.
+  const municipality = q.jurisdictionChain.find((j) => j.level === "municipality");
+  if (municipality) {
+    const municipal = new Set(
+      entries.filter((e) => e.jurisdiction.level === "municipality").flatMap((e) => e.topics),
+    );
+    for (const topic of q.topics) {
+      if (!MUNICIPAL_TOPICS.has(topic) || municipal.has(topic)) continue;
+      gaps.push({
+        topic,
+        note: `Sin norma municipal de ${municipality.label} en el registro para "${topic}": consultar el instrumento u ordenanza en el Ayuntamiento antes de concluir.`,
+      });
+    }
+  }
   const fingerprint = createHash("sha256")
     .update(
       entries

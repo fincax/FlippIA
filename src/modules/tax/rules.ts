@@ -86,7 +86,39 @@ export const TAX_RULES_ES_AND_SEVILLA_2025: TaxRuleSet = {
   },
 };
 
-const RULE_SETS: TaxRuleSet[] = [TAX_RULES_ES_AND_SEVILLA_2025];
+/**
+ * Andalucía without municipal ordinances in the registry (Dos Hermanas,
+ * Alcalá de Guadaíra…). Regional and state figures are the same as Sevilla's;
+ * the municipal ones (ICIO rate, licence fee, IBI rate) are stated prudent
+ * assumptions, not the municipality's ordinance, and the rule set says so.
+ */
+export const TAX_RULES_ES_AND_2025: TaxRuleSet = {
+  id: "tax.es.and.2025",
+  label: "España · Andalucía (municipio sin ordenanzas fiscales en el registro)",
+  jurisdiction: { country: "ES", region: "AND" },
+  effectiveFrom: "2025-01-01",
+  regulationRefs: [
+    "reg.es.and.tributos-cedidos.ley5-2021",
+    "reg.es.irpf.ley35-2006",
+    "reg.es.iva.ley37-1992",
+    "reg.es.haciendas-locales.rdl2-2004",
+    "reg.es.itp-ajd.rdl1-1993",
+  ],
+  status: "REVIEW_REQUIRED",
+  notes: [
+    "ITP general en Andalucía: 7 % (Ley 5/2021 de Tributos Cedidos); AJD 1,2 %. Tipos reducidos no se aplican automáticamente.",
+    "IVA en vivienda nueva 10 %; en locales y obra nueva no residencial 21 %.",
+    "ICIO: la ordenanza fiscal del municipio no está en el registro; se usa el máximo legal del 4 % (art. 102.3 TRLHL) como hipótesis prudente. Comprobar el tipo y las bonificaciones en el Ayuntamiento.",
+    "Tasa de licencia e IBI: hipótesis prudentes sin ordenanza cotejada; el Ayuntamiento fija los tipos reales.",
+    "La plusvalía municipal (IIVTNU) depende del valor catastral del suelo, del periodo de tenencia y de la ordenanza municipal; requiere dato catastral y revisión.",
+  ],
+  acquisition: TAX_RULES_ES_AND_SEVILLA_2025.acquisition,
+  works: { ...TAX_RULES_ES_AND_SEVILLA_2025.works, icioRate: 0.04 },
+  holding: TAX_RULES_ES_AND_SEVILLA_2025.holding,
+  exit: TAX_RULES_ES_AND_SEVILLA_2025.exit,
+};
+
+const RULE_SETS: TaxRuleSet[] = [TAX_RULES_ES_AND_SEVILLA_2025, TAX_RULES_ES_AND_2025];
 
 export function listTaxRuleSets(): TaxRuleSet[] {
   return [...RULE_SETS];

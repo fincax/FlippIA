@@ -1,7 +1,10 @@
+import { ALCALA_DE_GUADAIRA } from "./alcala-de-guadaira";
+import { DOS_HERMANAS } from "./dos-hermanas";
 import { SEVILLA } from "./sevilla";
 import type { CityProfile, LatLng, Microzone } from "./types";
 
-const CITIES: CityProfile[] = [SEVILLA];
+/** Covered municipalities. The first one is City Zero and the default. */
+const CITIES: CityProfile[] = [SEVILLA, DOS_HERMANAS, ALCALA_DE_GUADAIRA];
 
 export function listCities(): CityProfile[] {
   return [...CITIES];
@@ -77,4 +80,44 @@ export function cityForLocation(input: {
     return CITIES.find((c) => t.includes(normalizeText(c.name)) || microzoneFromText(c, t));
   }
   return undefined;
+}
+
+/** City whose name is exactly this municipality (accents and case ignored). */
+export function cityByName(name: string | undefined): CityProfile | undefined {
+  if (!name) return undefined;
+  const n = normalizeText(name);
+  return CITIES.find((c) => normalizeText(c.name) === n);
+}
+
+/** A microzone by id across every covered city. */
+export function findMicrozone(id: string): { city: CityProfile; zone: Microzone } | undefined {
+  for (const city of CITIES) {
+    const zone = city.microzones.find((m) => m.id === id);
+    if (zone) return { city, zone };
+  }
+  return undefined;
+}
+
+/**
+ * Nearest microzone to a point across every covered city, only when the
+ * point is reasonably inside it (1.5 × the zone radius). Undefined otherwise:
+ * a point outside every microzone gets no zone rather than the nearest one.
+ */
+export function nearestMicrozone(
+  p: LatLng,
+): { city: CityProfile; zone: Microzone; distanceM: number } | undefined {
+  let best: { city: CityProfile; zone: Microzone; distanceM: number } | undefined;
+  for (const city of CITIES) {
+    for (const zone of city.microzones) {
+      const distanceM = haversineM(zone.centroid, p);
+      if (distanceM <= zone.radiusM * 1.5 && (!best || distanceM < best.distanceM))
+        best = { city, zone, distanceM };
+    }
+  }
+  return best;
+}
+
+/** The microzone a city falls back to when nothing else is known: its centre, labelled as a fallback by the caller. */
+export function fallbackMicrozone(city: CityProfile): Microzone {
+  return city.microzones.find((m) => /centro/.test(normalizeText(m.name))) ?? city.microzones[0]!;
 }

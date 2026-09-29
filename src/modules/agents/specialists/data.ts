@@ -7,7 +7,7 @@ function cadastreNames(city: CityProfile): { province: string; municipality: str
 
 import type { PropertyProfile } from "@/modules/analysis/types";
 import type { CatastroQuery } from "@/modules/adapters/catastro/types";
-import { haversineM, microzoneFromPoint, normalizeText } from "@/modules/city/registry";
+import { fallbackMicrozone, haversineM, microzoneFromPoint, normalizeText } from "@/modules/city/registry";
 import { notCoveredMessage } from "@/modules/analysis/errors";
 import type { AgentDefinition } from "../runtime/types";
 import { output } from "../runtime/types";
@@ -59,6 +59,7 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
         // A point or a cadastral reference can resolve to a parcel outside the covered
         // municipality: stop here instead of applying the city's planning to it.
         if (
+          res.value.mode !== "demo" &&
           d.municipality &&
           normalizeText(d.municipality) !== normalizeText(cadastreNames(ctx.city).municipality)
         )
@@ -100,7 +101,7 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
     // matched travels with the profile so every zone reference can say so.
     const byPoint = property.coordinates && microzoneFromPoint(ctx.city, property.coordinates);
     const byText = ctx.city.microzones.find((m) => m.id === property.microzoneId);
-    const microzone = byPoint || byText || ctx.city.microzones[1]!;
+    const microzone = byPoint || byText || fallbackMicrozone(ctx.city);
     const microzoneDistanceM =
       byPoint && property.coordinates
         ? Math.round(haversineM(byPoint.centroid, property.coordinates))

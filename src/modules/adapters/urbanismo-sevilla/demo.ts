@@ -1,4 +1,10 @@
-import { defaultCity, microzoneFromPoint, microzoneFromText } from "@/modules/city/registry";
+import {
+  defaultCity,
+  fallbackMicrozone,
+  getCity,
+  microzoneFromPoint,
+  microzoneFromText,
+} from "@/modules/city/registry";
 import { ok } from "@/modules/core/result";
 import type { NewEvidence } from "@/modules/evidence/store";
 import { seededUnit, type AdapterResponse, type DataSourceAdapter } from "../types";
@@ -22,17 +28,18 @@ export class UrbanismoSevillaDemoAdapter implements DataSourceAdapter<UrbanismQu
   }
 
   async query(input: UrbanismQuery) {
-    const city = defaultCity();
+    const city = (input.cityId && getCity(input.cityId)) || defaultCity();
     const zone =
       (input.microzoneId && city.microzones.find((m) => m.id === input.microzoneId)) ||
       (input.point && microzoneFromPoint(city, input.point)) ||
       (input.address && microzoneFromText(city, input.address)) ||
-      city.microzones[1]!;
+      fallbackMicrozone(city);
     const seed =
       input.cadastralRef ??
       input.address ??
       (input.point ? `${input.point.lat},${input.point.lng}` : zone.id);
-    const zoning = city.urbanism.zoningCatalogue[zone.demoZoning] ?? city.urbanism.zoningCatalogue.MC!;
+    const zoning =
+      city.urbanism.zoningCatalogue[zone.demoZoning] ?? Object.values(city.urbanism.zoningCatalogue)[0]!;
     const protection: ProtectionLevel = zone.historicCentre
       ? pickProtection(seededUnit(seed, "prot"))
       : "none";

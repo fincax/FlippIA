@@ -22,6 +22,12 @@ export const JURISDICTIONS = {
   AND: { level: "region", code: "ES-AN", label: "Andalucía" } satisfies Jurisdiction,
   SE_PROV: { level: "province", code: "ES-SE", label: "Provincia de Sevilla" } satisfies Jurisdiction,
   SEVILLA: { level: "municipality", code: "41091", label: "Sevilla" } satisfies Jurisdiction,
+  DOS_HERMANAS: { level: "municipality", code: "41038", label: "Dos Hermanas" } satisfies Jurisdiction,
+  ALCALA_DE_GUADAIRA: {
+    level: "municipality",
+    code: "41004",
+    label: "Alcalá de Guadaíra",
+  } satisfies Jurisdiction,
 } as const;
 
 type VersionInput = Omit<RegulationVersion, "ingestedAt" | "regulationId" | "id"> & {

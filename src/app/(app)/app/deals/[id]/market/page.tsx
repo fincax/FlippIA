@@ -3,6 +3,7 @@ import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, EvidenceBadge, SectionTitle, Surface } from "@/components/ds";
 import { MicrozoneMap } from "@/components/flippia/microzone-map";
 import { formatDate, formatMoney } from "@/lib/format";
+import { getCity } from "@/modules/city/registry";
 import { loadDeal } from "@/server/deal-page";
 
 export default async function MarketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -83,6 +84,7 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
         <Surface className="p-5">
           <SectionTitle kicker="Mapa">Oportunidades, no solo inmuebles</SectionTitle>
           <MicrozoneMap
+            city={getCity(analysis.property.property.cityId)}
             activeId={m.microzoneId}
             point={analysis.property.property.coordinates}
             comparables={v.comparablesUsed.map((c) => ({

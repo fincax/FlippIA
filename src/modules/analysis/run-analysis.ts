@@ -1,5 +1,6 @@
 import { adapters as defaultAdapters, sourceStatuses, type AdapterSet } from "@/modules/adapters";
 import { parseNotCovered } from "./errors";
+import { cityForIntake } from "@/modules/city/for-intake";
 import { aiProvider, type AIProvider } from "@/modules/ai/provider";
 import {
   devilsAdvocateAgent,
@@ -28,7 +29,6 @@ import {
   urbanismSynthesisAgent,
   zoningAgent,
 } from "@/modules/agents/specialists/urbanism";
-import { defaultCity } from "@/modules/city/registry";
 import type { CityProfile } from "@/modules/city/types";
 import { newId } from "@/modules/core/ids";
 import { createLogger } from "@/modules/core/logger";
@@ -104,7 +104,7 @@ export function buildAnalysisPlan(intake: IntakeRequest, investor: InvestorDNA):
 export async function runAnalysis(params: AnalysisParams): Promise<AnalysisResult> {
   const analysisId = newId("an");
   const investor = params.investor ?? DEFAULT_INVESTOR_DNA;
-  const city = params.city ?? defaultCity();
+  const city = params.city ?? cityForIntake(params.intake);
   const adapterSet = params.adapters ?? defaultAdapters();
   const ai = params.ai ?? aiProvider();
   const analysisDate = params.analysisDate ?? new Date().toISOString().slice(0, 10);

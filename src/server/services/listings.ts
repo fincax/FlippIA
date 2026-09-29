@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { opportunityListings } from "@/db/schema";
 import type { OpportunityListing } from "@/modules/adapters/sources/types";
-import { defaultCity, microzoneFromPoint, microzoneFromText } from "@/modules/city/registry";
+import { findMicrozone, listCities, microzoneFromText, nearestMicrozone } from "@/modules/city/registry";
 import { newId } from "@/modules/core/ids";
 import { TYPOLOGY_LABEL } from "@/modules/radar/criteria";
 import { NotFoundError, requireRole, type TenantContext } from "../context";
@@ -81,15 +81,16 @@ export async function addListings(
   opts: { now?: Date } = {},
 ): Promise<OpportunityListing[]> {
   requireRole(ctx, "analyst");
-  const city = defaultCity();
   const today = (opts.now ?? new Date()).toISOString().slice(0, 10);
   const issues: string[] = [];
   const listings = input.map((raw, i) => {
     const l = listingSchema.parse(raw);
     const zone =
-      (l.microzoneId && city.microzones.find((m) => m.id === l.microzoneId)) ||
-      (l.lat !== undefined && l.lng !== undefined && microzoneFromPoint(city, { lat: l.lat, lng: l.lng })) ||
-      microzoneFromText(city, l.address);
+      (l.microzoneId && findMicrozone(l.microzoneId)?.zone) ||
+      (l.lat !== undefined && l.lng !== undefined && nearestMicrozone({ lat: l.lat, lng: l.lng })?.zone) ||
+      listCities()
+        .map((c) => microzoneFromText(c, l.address))
+        .find(Boolean);
     if (!zone) {
       issues.push(
         `fila ${i + 1} (${l.address}): microzona no reconocida; indica microzone_id, lat/lng o el barrio en la dirección.`,

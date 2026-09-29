@@ -1,7 +1,14 @@
 import type { LatLng } from "@/modules/city/types";
 import type { EvidenceStatus } from "@/modules/core/evidence-status";
 
-export type UrbanismQuery = { point?: LatLng; address?: string; cadastralRef?: string; microzoneId?: string };
+export type UrbanismQuery = {
+  point?: LatLng;
+  address?: string;
+  cadastralRef?: string;
+  microzoneId?: string;
+  /** Covered city the parcel belongs to; a connector configured for another city must refuse, not answer. */
+  cityId?: string;
+};
 
 export type ProtectionLevel = "none" | "D" | "C" | "B" | "A" | "BIC" | "unknown";
 

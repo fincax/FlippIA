@@ -1,4 +1,5 @@
 import { SEVILLA } from "@/modules/city/sevilla";
+import type { CityProfile } from "@/modules/city/types";
 
 /**
  * MapLayers (schematic). A lightweight SVG projection of Sevilla microzones:
@@ -17,7 +18,10 @@ export function MicrozoneMap({
   hits,
   focusIds,
   candidates,
+  city = SEVILLA,
 }: {
+  /** Covered city to draw; Sevilla by default. */
+  city?: CityProfile;
   activeId?: string;
   point?: { lat: number; lng: number };
   comparables?: Array<{ id: string; distanceM: number; ppm2: number }>;
@@ -25,7 +29,7 @@ export function MicrozoneMap({
   focusIds?: string[];
   candidates?: Array<{ microzoneId: string; count: number }>;
 }) {
-  const [minLng, minLat, maxLng, maxLat] = SEVILLA.bbox;
+  const [minLng, minLat, maxLng, maxLat] = city.bbox;
   const w = 320;
   const h = 300;
   const sx = (lng: number) => ((lng - minLng) / (maxLng - minLng)) * w;
@@ -51,7 +55,7 @@ export function MicrozoneMap({
         strokeWidth={6}
         fill="none"
       />
-      {SEVILLA.microzones.map((z) => {
+      {city.microzones.map((z) => {
         const hit = hits?.find((x) => x.microzoneId === z.id);
         const candidate = candidates?.find((x) => x.microzoneId === z.id && x.count > 0);
         const r = Math.max(10, Math.min(28, z.radiusM / 45));

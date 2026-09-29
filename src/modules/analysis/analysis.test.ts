@@ -135,15 +135,58 @@ describe("discoverPotential — improvements are reproducible overrides", () => 
 });
 
 describe("runAnalysis — jurisdiction", () => {
-  it("refuses an address in another municipality instead of applying Sevilla's planning to it", async () => {
+  it("refuses an address in a municipality that is not covered instead of applying another city's planning", async () => {
+    const intake = parseIntake("Analiza Calle Larga 4, Utrera, 90 m2 por 150.000 €");
+    expect(intake.property?.municipality).toBe("Utrera");
+    const params = { intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" };
+    await expect(runAnalysis(params)).rejects.toBeInstanceOf(NotCoveredError);
+    await expect(runAnalysis(params)).rejects.toThrow(/Utrera tiene su propio planeamiento/);
+  }, 30_000);
+  it("analyses a covered municipality with its own jurisdiction chain and flags what its registry lacks", async () => {
     const intake = parseIntake("Analiza Calle Real 12, Dos Hermanas, 90 m2 por 180.000 €");
-    expect(intake.property?.municipality).toBe("Dos Hermanas");
-    await expect(
-      runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" }),
-    ).rejects.toBeInstanceOf(NotCoveredError);
-    await expect(
-      runAnalysis({ intake, organizationId: "org_test", userId: "usr_test", analysisDate: "2026-01-15" }),
-    ).rejects.toThrow(/Dos Hermanas tiene su propio planeamiento/);
+    const result = await runAnalysis({
+      intake,
+      organizationId: "org_test",
+      userId: "usr_test",
+      analysisDate: "2026-01-15",
+    });
+    expect(result.property.property.cityId).toBe("dos-hermanas");
+    expect(result.property.property.address.municipality).toBe("Dos Hermanas");
+    expect(result.property.microzone.id.startsWith("dh-")).toBe(true);
+    expect(result.regulatory.jurisdictionChain.at(-1)?.label).toBe("Dos Hermanas");
+    expect(result.regulatory.entries.some((e) => e.jurisdiction.level === "municipality")).toBe(false);
+    expect(
+      result.regulatory.gaps.some((g) => g.topic === "planning" && g.note.includes("Dos Hermanas")),
+    ).toBe(true);
+    expect(result.strategies.length).toBeGreaterThan(0);
+    expect(result.demo).toBe(true);
+  }, 30_000);
+  it("in public mode a covered city without a planning geoservice gets UNKNOWN planning, never Sevilla's layers", async () => {
+    const { adapters } = await import("@/modules/adapters/registry");
+    const base = adapters();
+    const publicLike = {
+      ...base,
+      urbanism: {
+        ...base.urbanism,
+        mode: "public" as const,
+        async isAvailable() {
+          return true;
+        },
+        async query() {
+          throw new Error("must not be called for a city without public sources");
+        },
+      },
+    };
+    const result = await runAnalysis({
+      intake: parseIntake("Analiza piso en Montequinto, Dos Hermanas, 80 m2 por 160.000 €"),
+      organizationId: "org_test",
+      userId: "usr_test",
+      adapters: publicLike,
+      analysisDate: "2026-01-15",
+    });
+    expect(result.urbanism.planning.status).toBe("UNKNOWN");
+    expect(result.urbanism.planning.notes[0]).toContain("Dos Hermanas");
+    expect(result.urbanism.requiredChecks.some((c) => c.blocking)).toBe(true);
   }, 30_000);
   it("records how the microzone was matched", async () => {
     const intake = parseIntake("Analiza Calle Pureza 45, Triana, 95 m2 por 285.000 €");

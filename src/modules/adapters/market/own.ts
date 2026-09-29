@@ -1,4 +1,4 @@
-import { defaultCity, haversineM } from "@/modules/city/registry";
+import { findMicrozone, haversineM } from "@/modules/city/registry";
 import { appError, err, ok, type Result } from "@/modules/core/result";
 import type { Comparable } from "@/modules/engines/valuation/types";
 import type { NewEvidence } from "@/modules/evidence/store";
@@ -37,9 +37,9 @@ export class OwnComparablesAdapter implements DataSourceAdapter<MarketQuery, Mar
   }
 
   async query(q: MarketQuery): Promise<Result<AdapterResponse<MarketSnapshot>>> {
-    const city = defaultCity();
-    const zone = city.microzones.find((m) => m.id === q.microzoneId);
-    if (!zone) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const found = findMicrozone(q.microzoneId);
+    if (!found) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const { zone } = found;
     const centre = q.point ?? zone.centroid;
     const rows = await this.repository.list({
       microzoneId: zone.id,

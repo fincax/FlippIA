@@ -1,4 +1,4 @@
-import { defaultCity } from "@/modules/city/registry";
+import { findMicrozone } from "@/modules/city/registry";
 import { err, ok, appError } from "@/modules/core/result";
 import type { NewEvidence } from "@/modules/evidence/store";
 import type { Comparable } from "@/modules/engines/valuation/types";
@@ -22,9 +22,9 @@ export class MarketDemoAdapter implements DataSourceAdapter<MarketQuery, MarketS
   }
 
   async query(q: MarketQuery) {
-    const city = defaultCity();
-    const zone = city.microzones.find((m) => m.id === q.microzoneId);
-    if (!zone) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const found = findMicrozone(q.microzoneId);
+    if (!found) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const { city, zone } = found;
     const seed = `${zone.id}:${q.assetUse}:${Math.round(q.areaM2 / 10)}`;
     const m = zone.demoMarket;
     const isCommercial = q.assetUse !== "residential";

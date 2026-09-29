@@ -1,4 +1,4 @@
-import { defaultCity, haversineM } from "@/modules/city/registry";
+import { findMicrozone, haversineM } from "@/modules/city/registry";
 import type { LatLng } from "@/modules/city/types";
 import { appError, err, ok, type Result } from "@/modules/core/result";
 import type { Comparable } from "@/modules/engines/valuation/types";
@@ -82,9 +82,9 @@ export class IdealistaMarketAdapter implements DataSourceAdapter<MarketQuery, Ma
       return err(
         appError("SOURCE_NOT_CONFIGURED", "Idealista: faltan IDEALISTA_API_KEY / IDEALISTA_API_SECRET."),
       );
-    const city = defaultCity();
-    const zone = city.microzones.find((m) => m.id === q.microzoneId);
-    if (!zone) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const found = findMicrozone(q.microzoneId);
+    if (!found) return err(appError("MICROZONE_NOT_FOUND", `Microzona ${q.microzoneId} desconocida.`));
+    const { zone } = found;
     const centre = q.point ?? zone.centroid;
     const radiusM = q.point ? this.radiusM : Math.max(this.radiusM, zone.radiusM);
     const propertyType = idealistaPropertyType(q.assetUse);

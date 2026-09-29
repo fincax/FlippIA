@@ -189,7 +189,8 @@ export function municipalityFromText(text: string, coveredCity = "Sevilla"): str
       const after = t.slice(start + n.length);
       if (STREET_WORDS.test(before.trimEnd() + " ")) continue;
       if (AMBIGUOUS.has(n)) {
-        const locality = /(,|\ben)\s*$/.test(before) && !/^\s*,?\s*(n[ºo°.]?\s*)?\d/.test(after);
+        // A street number right after the name ("Utrera 12") makes it a street; "Utrera, 90 m2" does not.
+        const locality = /(,|\ben)\s*$/.test(before) && !/^\s*(n[ºo°.]?\s*)?\d/.test(after);
         if (!locality) continue;
       }
       if (!best || n.length > best.len) best = { name, len: n.length };

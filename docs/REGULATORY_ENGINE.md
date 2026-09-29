@@ -32,9 +32,19 @@ Cada versión municipal cita boletín, número y fecha, y enlaza el documento of
 
 La fecha de vigencia de la OROA es la de publicación de cada texto; la entrada en vigor exacta depende de su disposición final y se anota en la versión. `pnpm db:seed` actualiza las filas de `regulation_versions` ya existentes (`onConflictDoUpdate`), así que corregir una cita en el registro y volver a sembrar basta.
 
+## Municipios cubiertos
+
+| Municipio          | INE   | Perfil                                   | Catastro OVC | Planeamiento                                                                             | Normas municipales en el registro                     | Fiscalidad municipal                                                                        |
+| ------------------ | ----- | ---------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Sevilla            | 41091 | `src/modules/city/sevilla.ts`            | Sí           | IDE Sevilla (capas públicas)                                                             | PGOU, PEPCH, OROA, ICIO, MP 44, límite VUT            | `tax.es.and.sevilla.2025` (ICIO 4 % por ordenanza citada)                                   |
+| Dos Hermanas       | 41038 | `src/modules/city/dos-hermanas.ts`       | Sí           | **No consultado**: sin geoservicio configurado; `UNKNOWN` con comprobaciones bloqueantes | Ninguna: el snapshot lo declara como laguna municipal | `tax.es.and.2025` (`REVIEW_REQUIRED`: ICIO al máximo legal del 4 % como hipótesis prudente) |
+| Alcalá de Guadaíra | 41004 | `src/modules/city/alcala-de-guadaira.ts` | Sí           | **No consultado**: sin geoservicio configurado; `UNKNOWN` con comprobaciones bloqueantes | Ninguna: el snapshot lo declara como laguna municipal | `tax.es.and.2025` (`REVIEW_REQUIRED`)                                                       |
+
+Cualquier otro municipio de la provincia se rechaza (`NotCoveredError`). Para completar Dos Hermanas o Alcalá: (1) localizar su geoservicio de planeamiento (ArcGIS REST o WFS) y declararlo en `urbanism.publicSources` con `pnpm urbanismo:discover <raíz>`; (2) añadir al registro su PGOU, ordenanza de obras y ordenanzas fiscales con boletín y enlace oficial; (3) crear su `TaxRuleSet` municipal. Las microzonas de ambos son DEMO (`sampleSize: 0`); los comparables reales llegan por coordenadas (Idealista, testigos propios).
+
 ## Reglas de rigor (no negociables)
 
-1. **Ámbito jurisdiccional**: el registro y las capas de planeamiento cubren hoy el municipio de Sevilla (`CityProfile` `sevilla`). Una dirección de otro municipio de la provincia (`src/modules/city/province.ts`, detección determinista en el intake y contraste con el municipio que devuelve el Catastro) se **rechaza** con `NotCoveredError` ("X tiene su propio planeamiento y sus propias ordenanzas, que no están en el registro") en lugar de analizarse con datos de Sevilla. Añadir un municipio = añadir su `CityProfile`, su cadena jurisdiccional y sus normas al registro.
+1. **Ámbito jurisdiccional**: cada municipio cubierto tiene su `CityProfile` y su cadena jurisdiccional; la ciudad de un análisis se resuelve por el municipio nombrado (`cityForIntake`). Una dirección de un municipio no cubierto (`src/modules/city/province.ts`, detección determinista en el intake y contraste con el municipio que devuelve el Catastro) se **rechaza** con `NotCoveredError` ("X tiene su propio planeamiento y sus propias ordenanzas, que no están en el registro") en lugar de analizarse con datos de Sevilla. Añadir un municipio = añadir su `CityProfile`, su cadena jurisdiccional y sus normas al registro.
 2. **Microzona trazable**: `PropertyProfile.microzoneMatch` (`inside | nearest | text | default`) dice cómo se asignó la microzona; fuera de las microzonas definidas el resumen lo declara ("asignada por proximidad", "referencia orientativa").
 3. **Nada en tramitación se aplica**: una versión `pending` nunca es "vigente" (`versionInForce` la excluye); el snapshot la lista en `pending` y la UI la muestra como "en tramitación (no aplicado)".
 4. **Ninguna cita sin fuente oficial**: el test de integridad exige `sourceUrl` en dominios oficiales (eur-lex, boe.es, juntadeandalucia.es, urbanismosevilla.org, sevilla.org, dipusevilla.es), `verifiedAt` para pasar a `VERIFIED`, `effectiveFrom` no futura para `in_force` y, en normas municipales, cita de BOP/BOJA/Gerencia/Agencia Tributaria. Una fecha de entrada en vigor no cotejada baja la entrada a `REVIEW_REQUIRED` (Ley 5/2021, Decreto 550/2022) aunque su contenido aplicable sea seguro.
@@ -44,7 +54,7 @@ La fecha de vigencia de la OROA es la de publicación de cada texto; la entrada 
 ## Motor
 
 - `applicableRegulations({ jurisdictionChain, topics, assetUse, analysisDate })` → normas vigentes en la fecha, ordenadas de lo más específico a lo más general; `pendingRegulations` → instrumentos en tramitación, solo informativos.
-- `buildRegulatorySnapshot` → `RegulatorySnapshot` con versiones, fingerprint (sha256 de versionIds) y lagunas (`gaps`). Se persiste por análisis (`regulatory_snapshots`) para reconstruir meses después por qué se concluyó algo.
+- `buildRegulatorySnapshot` → `RegulatorySnapshot` con versiones, fingerprint (sha256 de versionIds) y lagunas (`gaps`), incluidas las **lagunas municipales**: una materia municipal (`MUNICIPAL_TOPICS`: planeamiento, calificación, parámetros, licencia, ICIO, IBI, turismo) sin instrumento del propio municipio en el registro es una laguna aunque una ley autonómica la cubra. Se persiste por análisis (`regulatory_snapshots`) para reconstruir meses después por qué se concluyó algo.
 - `regulatoryPreamble` → "Conforme a la normativa identificada como vigente a <fecha>…" (nunca "la normativa dice").
 
 ## Watcher

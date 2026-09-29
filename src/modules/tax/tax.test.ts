@@ -7,6 +7,17 @@ describe("tax rules resolution", () => {
     const r = resolveTaxRules({ country: "ES", region: "AND", municipalityCode: "41091" }, "2025-06-01");
     expect(r?.id).toBe("tax.es.and.sevilla.2025");
   });
+  it("resolves the regional rule set, marked for review, for a covered municipality without ordinances", () => {
+    const r = resolveTaxRules({ country: "ES", region: "AND", municipalityCode: "41038" }, "2026-01-15");
+    expect(r?.id).toBe("tax.es.and.2025");
+    expect(r?.status).toBe("REVIEW_REQUIRED");
+    expect(r?.acquisition.itpRate).toBe(0.07);
+    expect(r?.works.icioRate).toBe(0.04);
+    expect(r?.notes.some((n) => n.includes("hipótesis prudente"))).toBe(true);
+    expect(
+      resolveTaxRules({ country: "ES", region: "AND", municipalityCode: "41091" }, "2026-01-15")?.id,
+    ).toBe("tax.es.and.sevilla.2025");
+  });
   it("returns undefined before effectiveFrom", () => {
     expect(resolveTaxRules({ country: "ES", region: "AND" }, "2020-01-01")).toBeUndefined();
   });

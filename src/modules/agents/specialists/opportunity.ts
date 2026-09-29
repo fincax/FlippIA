@@ -1,5 +1,11 @@
 import type { PropertyProfile } from "@/modules/analysis/types";
-import { defaultCity, microzoneFromPoint, microzoneFromText, normalizeText } from "@/modules/city/registry";
+import {
+  defaultCity,
+  fallbackMicrozone,
+  microzoneFromPoint,
+  microzoneFromText,
+  normalizeText,
+} from "@/modules/city/registry";
 import { municipalityFromText } from "@/modules/city/province";
 import { notCoveredMessage } from "@/modules/analysis/errors";
 import { newId } from "@/modules/core/ids";
@@ -39,7 +45,7 @@ export function intakeAgent(intake: IntakeRequest): AgentDefinition<IntakeResolu
       const zone =
         (p.coordinates && microzoneFromPoint(city, p.coordinates)) ||
         microzoneFromText(city, text) ||
-        city.microzones.find((m) => m.id === "sev-centro")!;
+        fallbackMicrozone(city);
       ctx.progress(`Zona: ${zone.name}`);
       const typology: PropertyTypology = p.typology ?? "flat";
       const assetUse =

@@ -39,7 +39,7 @@ export function unknownPlanning(planningInstrument: string, reason: string): Pla
     inHistoricCentre: false,
     knownFiles: [],
     notes: [
-      `La fuente de planeamiento no ha respondido (${reason}). Verificar calificación y protección en la Gerencia de Urbanismo.`,
+      `Planeamiento no obtenido (${reason}). Verificar calificación, altura y protección en el Ayuntamiento antes de asumir cualquier parámetro urbanístico.`,
     ],
     status: "UNKNOWN",
   };
@@ -60,12 +60,20 @@ export const planningAgent: AgentDefinition<{
   timeoutMs: 45_000,
   async run(ctx) {
     const profile = output<PropertyProfile>(ctx, "data.catastro");
+    if (ctx.adapters.urbanism.mode !== "demo" && !ctx.city.urbanism.publicSources) {
+      // A city without a configured planning source: nothing is asserted about its plan.
+      const reason = `sin geoservicio público de planeamiento configurado para ${ctx.city.name}`;
+      ctx.progress(`Planeamiento no consultado: ${reason}`);
+      const planning = unknownPlanning(ctx.city.urbanism.planningInstrument, reason);
+      return { planning, evidenceIds: [], summary: `Planeamiento no consultado en ${ctx.city.name}.` };
+    }
     const res = await ctx.tool("urbanism.query", { microzoneId: profile.microzone.id }, () =>
       ctx.adapters.urbanism.query({
         point: profile.property.coordinates,
         address: profile.property.address.raw,
         cadastralRef: profile.property.cadastralRef,
         microzoneId: profile.microzone.id,
+        cityId: ctx.city.id,
       }),
     );
     if (!res.ok) {

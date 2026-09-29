@@ -117,6 +117,29 @@ describe("snapshot", () => {
     expect(snap.gaps.map((g) => g.topic)).toContain("consumer");
     expect(regulatoryPreamble(snap)).toContain("2026-01-15");
   });
+  it("reports municipal matters no municipal instrument in the registry answers", () => {
+    const dosHermanas = [
+      JURISDICTIONS.EU,
+      JURISDICTIONS.ES,
+      JURISDICTIONS.AND,
+      JURISDICTIONS.SE_PROV,
+      JURISDICTIONS.DOS_HERMANAS,
+    ];
+    const snap = buildRegulatorySnapshot({
+      jurisdictionChain: dosHermanas,
+      topics: ["planning", "zoning", "licence", "tax.works", "tax.exit"],
+      analysisDate: "2026-01-15",
+    });
+    expect(snap.entries.some((e) => e.jurisdiction.level === "municipality")).toBe(false);
+    expect(snap.gaps.map((g) => g.topic).sort()).toEqual(["licence", "planning", "tax.works", "zoning"]);
+    expect(snap.gaps[0]?.note).toContain("Dos Hermanas");
+    const sevilla = buildRegulatorySnapshot({
+      jurisdictionChain: chain,
+      topics: ["planning", "zoning", "licence", "tax.works"],
+      analysisDate: "2026-01-15",
+    });
+    expect(sevilla.gaps).toEqual([]);
+  });
   it("same query → same fingerprint", () => {
     const a = buildRegulatorySnapshot({
       jurisdictionChain: chain,

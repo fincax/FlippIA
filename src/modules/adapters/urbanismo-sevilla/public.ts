@@ -79,6 +79,13 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
   }
 
   async query(input: UrbanismQuery) {
+    if (input.cityId && input.cityId !== this.city.id)
+      return err(
+        appError(
+          "SOURCE_NOT_CONFIGURED",
+          `Sin geoservicio público de planeamiento configurado para ${input.cityId}; este conector sirve ${this.city.name}.`,
+        ),
+      );
     const notes: string[] = [];
     const outcomes: LayerOutcome[] = [];
     let point = input.point;

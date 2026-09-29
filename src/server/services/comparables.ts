@@ -8,7 +8,7 @@ import {
   type ComparablesRepository,
   type OwnComparable,
 } from "@/modules/adapters/market";
-import { defaultCity, microzoneFromPoint } from "@/modules/city/registry";
+import { nearestMicrozone } from "@/modules/city/registry";
 import { newId } from "@/modules/core/ids";
 import { NotFoundError, requireRole, type TenantContext } from "../context";
 
@@ -52,11 +52,10 @@ export async function listComparables(
 
 export async function addComparables(ctx: TenantContext, input: ComparableInput[]) {
   requireRole(ctx, "analyst");
-  const city = defaultCity();
   const rows = input.map((c) => {
     const parsed = comparableSchema.parse(c);
     const zone =
-      parsed.microzoneId ?? microzoneFromPoint(city, { lat: parsed.lat, lng: parsed.lng })?.id ?? null;
+      parsed.microzoneId ?? nearestMicrozone({ lat: parsed.lat, lng: parsed.lng })?.zone.id ?? null;
     return {
       id: newId("cmp"),
       organizationId: ctx.organizationId,
