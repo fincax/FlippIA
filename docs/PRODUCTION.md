@@ -1,6 +1,6 @@
 # Puesta en producción
 
-Lista de comprobación para desplegar FlippIA con clientes reales. Cada punto es verificable.
+Lista de comprobación para desplegar FlippIA con clientes reales. Cada punto es verificable. El despliegue paso a paso en un servidor propio (Docker Compose + Caddy) está en `docs/DEPLOY.md`.
 
 ## 1. Entorno
 

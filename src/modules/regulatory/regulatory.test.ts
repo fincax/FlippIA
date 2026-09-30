@@ -21,7 +21,7 @@ describe("regulatory registry integrity", () => {
   });
   it("cites only official sources and never claims VERIFIED without a verification date", () => {
     const official =
-      /^https:\/\/(eur-lex\.europa\.eu|www\.boe\.es|www\.juntadeandalucia\.es|www\.urbanismosevilla\.org|www\.sevilla\.org|www\.dipusevilla\.es)\//;
+      /^https:\/\/(eur-lex\.europa\.eu|www\.boe\.es|www\.juntadeandalucia\.es|www\.urbanismosevilla\.org|www\.sevilla\.org|www\.dipusevilla\.es|www\.doshermanas\.es|www\.alcaladeguadaira\.es)\//;
     const today = new Date().toISOString().slice(0, 10);
     for (const r of REGULATORY_REGISTRY) {
       for (const v of r.versions) {
@@ -130,8 +130,9 @@ describe("snapshot", () => {
       topics: ["planning", "zoning", "licence", "tax.works", "tax.exit"],
       analysisDate: "2026-01-15",
     });
-    expect(snap.entries.some((e) => e.jurisdiction.level === "municipality")).toBe(false);
-    expect(snap.gaps.map((g) => g.topic).sort()).toEqual(["licence", "planning", "tax.works", "zoning"]);
+    // The PGOU of Dos Hermanas is registered (planning, zoning); its ordinances are not.
+    expect(snap.entries.map((e) => e.regulationId)).toContain("reg.es.doshermanas.pgou-2002");
+    expect(snap.gaps.map((g) => g.topic).sort()).toEqual(["licence", "tax.works"]);
     expect(snap.gaps[0]?.note).toContain("Dos Hermanas");
     const sevilla = buildRegulatorySnapshot({
       jurisdictionChain: chain,

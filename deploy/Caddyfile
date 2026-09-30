@@ -1,0 +1,16 @@
+# HTTPS for FlippIA. DOMAIN comes from .env (a real domain pointing at the
+# server, or the sslip.io name of its IP, e.g. 27-0-174-32.sslip.io).
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# SSE streaming of /api/analyze: no buffering, long timeouts.
+		flush_interval -1
+		transport http {
+			read_timeout 300s
+			write_timeout 300s
+		}
+	}
+	header {
+		-Server
+	}
+}

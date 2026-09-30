@@ -1,0 +1,68 @@
+# Production stack for a single small server (Ubuntu 24.04, 1 vCPU, 2 GB RAM):
+#   db     PostgreSQL 16 + PostGIS, only reachable inside the compose network
+#   app    FlippIA (Next.js), built from this repository
+#   caddy  HTTPS termination with automatic Let's Encrypt certificates
+#
+# Usage: see docs/DEPLOY.md. Environment comes from ./.env (deploy/.env.production.example).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: flippia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flippia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: flippia
+    volumes:
+      - flippia-db:/var/lib/postgresql/data
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flippia"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    shm_size: 128m
+
+  app:
+    build: .
+    image: flippia-app:latest
+    container_name: flippia-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "3000"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  caddy:
+    image: caddy:2
+    container_name: flippia-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  flippia-db:
+  caddy-data:
+  caddy-config:

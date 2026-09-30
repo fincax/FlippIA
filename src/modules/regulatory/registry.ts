@@ -793,6 +793,72 @@ export const REGULATORY_REGISTRY: Regulation[] = [
       },
     ],
   }),
+  // ── Dos Hermanas ─────────────────────────────────────────────────────────
+  // Búsqueda de geoservicios el 2026-09-30: el Ayuntamiento no publica capas de
+  // planeamiento (ArcGIS REST / WFS); el PGOU se difunde en PDF en su web.
+  reg({
+    id: "reg.es.doshermanas.pgou-2002",
+    shortName: "PGOU Dos Hermanas (2002, adaptado a la LOUA en 2008)",
+    jurisdiction: JURISDICTIONS.DOS_HERMANAS,
+    topics: ["planning", "zoning", "land_use", "building_parameters", "change_of_use", "subdivision"],
+    assetUses: [],
+    versions: [
+      {
+        version: "2002",
+        title:
+          "II Plan General de Ordenación Urbanística de Dos Hermanas (aprobación definitiva 26/07/2002) y su Adaptación Parcial a la Ley 7/2002 (Pleno de 07/11/2008), con las innovaciones y modificaciones posteriores",
+        sourceDate: "2002-07-26",
+        publicationDate: "2002-08-07",
+        effectiveFrom: "2002-08-07",
+        status: "in_force",
+        sourceUrl:
+          "https://www.doshermanas.es/concejalias/urbanismo/Instrumentos-Ordenacion-Urbanistica/pgou/",
+        sourceName:
+          "BOP Sevilla núm. 182, 07/08/2002 (aprobación definitiva de 26/07/2002); Adaptación Parcial a la LOUA aprobada por el Pleno el 07/11/2008; documentos en la web del Ayuntamiento de Dos Hermanas",
+        ingestedAt: "2026-09-30T00:00:00.000Z",
+        verificationStatus: "REVIEW_REQUIRED",
+        summary:
+          "Instrumento de planeamiento general vigente en Dos Hermanas: clasificación y calificación del suelo, ordenanzas por zona, usos y parámetros de edificación. Sin geoservicio público: la calificación de una parcela concreta debe consultarse en los planos del PGOU (PDF) o en la Concejalía de Urbanismo. Más de diez innovaciones y modificaciones posteriores (por ejemplo, Innovación 8 «Antiguo Hipervalme», BOJA 106/2008; reordenación de equipamientos docentes, BOJA 96/2016): comprobar las que afectan a la parcela. Las fechas citadas proceden de la web municipal y del BOJA y no se han cotejado contra el BOP desde el repositorio.",
+        keyPoints: [
+          "Calificación, altura y usos de la parcela: planos del PGOU y ordenanzas de zona; no hay capa consultable en línea.",
+          "Comprobar en el registro municipal de instrumentos las innovaciones vigentes sobre la parcela.",
+          "Licencias y declaración responsable: ordenanza municipal de obras no incluida en el registro (laguna declarada).",
+        ],
+      },
+    ],
+  }),
+  // ── Alcalá de Guadaíra ───────────────────────────────────────────────────
+  // Búsqueda de geoservicios el 2026-09-30: sin capas de planeamiento publicadas;
+  // texto refundido del PGOU 94 en PDF en la web municipal; nuevo PGOU en tramitación.
+  reg({
+    id: "reg.es.alcala-guadaira.pgou-1994",
+    shortName: "PGOU Alcalá de Guadaíra (1994, adaptado a la LOUA en 2009)",
+    jurisdiction: JURISDICTIONS.ALCALA_DE_GUADAIRA,
+    topics: ["planning", "zoning", "land_use", "building_parameters", "change_of_use", "subdivision"],
+    assetUses: [],
+    versions: [
+      {
+        version: "1994-TR2023",
+        title:
+          "Revisión-Adaptación del Plan General Municipal de Ordenación de Alcalá de Guadaíra (aprobación definitiva por Resolución de 21/03/1994), Adaptación Parcial a la LOUA (Pleno de 16/07/2009) y Texto Refundido de las Normas Urbanísticas actualizado (septiembre de 2023)",
+        sourceDate: "1994-03-21",
+        effectiveFrom: "1994-03-21",
+        status: "in_force",
+        sourceUrl: "https://www.juntadeandalucia.es/boja/1994/43/9",
+        sourceName:
+          "BOJA núm. 43 de 1994 (Resolución de 21/03/1994); Adaptación Parcial a la LOUA de 16/07/2009 y Texto Refundido del PGOU 94 actualizado (sept. 2023) en la web del Ayuntamiento de Alcalá de Guadaíra; modificación sobre instalaciones solares: Orden de 31/03/2023, BOJA núm. 143, 26/07/2023",
+        ingestedAt: "2026-09-30T00:00:00.000Z",
+        verificationStatus: "REVIEW_REQUIRED",
+        summary:
+          "Planeamiento general vigente en Alcalá de Guadaíra: el PGOU de 1994 con su adaptación parcial a la LOUA y las modificaciones posteriores, refundidas por el Ayuntamiento en septiembre de 2023. Sin geoservicio público: la calificación de una parcela debe consultarse en los planos del texto refundido (PDF) o en el Servicio de Urbanismo. Hay un nuevo PGOU en tramitación (aprobación inicial acordada por el Pleno; fecha y estado actual pendientes de cotejo) que no se aplica hasta su aprobación definitiva y publicación. La fecha de vigencia registrada es la de la resolución de aprobación, no la de su publicación (día pendiente de cotejo).",
+        keyPoints: [
+          "Calificación, altura y usos: texto refundido del PGOU 94 (sept. 2023) y sus planos; no hay capa consultable en línea.",
+          "Nuevo PGOU en tramitación: no aplicable; puede cambiar la ordenación de la parcela a medio plazo.",
+          "Licencias y declaración responsable: ordenanza municipal no incluida en el registro (laguna declarada).",
+        ],
+      },
+    ],
+  }),
 ];
 
 export function findRegulation(id: string): Regulation | undefined {

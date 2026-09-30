@@ -10,8 +10,10 @@ export const ALCALA_DE_GUADAIRA = provinceCity({
   centroid: { lat: 37.3382, lng: -5.8395 },
   bbox: [-5.94, 37.27, -5.74, 37.42],
   authority: "Ayuntamiento de Alcalá de Guadaíra",
-  authorityUrl: "https://www.ciudadalcala.org/",
-  planningInstrument: "PGOU de Alcalá de Guadaíra (no consultado: sin geoservicio público configurado)",
+  authorityUrl: "https://www.alcaladeguadaira.es/",
+  planningInstrument:
+    "PGOU de Alcalá de Guadaíra 1994, adaptado a la LOUA en 2009, texto refundido 2023 (sin geoservicio público: calificación no consultada)",
+  planningRegulationId: "reg.es.alcala-guadaira.pgou-1994",
   microzones: [
     {
       id: "ag-centro",

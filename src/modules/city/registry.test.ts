@@ -22,7 +22,8 @@ describe("city registry — covered municipalities", () => {
     });
     expect(dh.cadastre).toEqual({ province: "SEVILLA", municipality: "DOS HERMANAS" });
     expect(dh.urbanism.publicSources).toBeUndefined();
-    expect(dh.urbanism.planningInstrument).toContain("no consultado");
+    expect(dh.urbanism.planningInstrument).toContain("no consultada");
+    expect(dh.urbanism.planningRegulationId).toBe("reg.es.doshermanas.pgou-2002");
     const ag = cityByName("Alcala de Guadaira")!;
     expect(ag.municipalityCode).toBe("41004");
     expect(ag.cadastre?.municipality).toBe("ALCALA DE GUADAIRA");

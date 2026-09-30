@@ -154,10 +154,10 @@ describe("runAnalysis — jurisdiction", () => {
     expect(result.property.property.address.municipality).toBe("Dos Hermanas");
     expect(result.property.microzone.id.startsWith("dh-")).toBe(true);
     expect(result.regulatory.jurisdictionChain.at(-1)?.label).toBe("Dos Hermanas");
-    expect(result.regulatory.entries.some((e) => e.jurisdiction.level === "municipality")).toBe(false);
-    expect(
-      result.regulatory.gaps.some((g) => g.topic === "planning" && g.note.includes("Dos Hermanas")),
-    ).toBe(true);
+    expect(result.regulatory.entries.map((e) => e.regulationId)).toContain("reg.es.doshermanas.pgou-2002");
+    expect(result.regulatory.gaps.some((g) => g.topic === "licence" && g.note.includes("Dos Hermanas"))).toBe(
+      true,
+    );
     expect(result.strategies.length).toBeGreaterThan(0);
     expect(result.demo).toBe(true);
   }, 30_000);

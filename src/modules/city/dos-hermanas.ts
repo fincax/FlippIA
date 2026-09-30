@@ -11,7 +11,9 @@ export const DOS_HERMANAS = provinceCity({
   bbox: [-6.03, 37.2, -5.85, 37.36],
   authority: "Ayuntamiento de Dos Hermanas",
   authorityUrl: "https://www.doshermanas.es/",
-  planningInstrument: "PGOU de Dos Hermanas (no consultado: sin geoservicio público configurado)",
+  planningInstrument:
+    "PGOU de Dos Hermanas 2002, adaptado a la LOUA en 2008 (sin geoservicio público: calificación no consultada)",
+  planningRegulationId: "reg.es.doshermanas.pgou-2002",
   microzones: [
     {
       id: "dh-centro",

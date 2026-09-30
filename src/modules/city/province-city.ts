@@ -21,6 +21,8 @@ export interface ProvinceCityInput {
   authority: string;
   authorityUrl: string;
   planningInstrument: string;
+  /** Registry id of the municipality's general plan, when registered. */
+  planningRegulationId?: string;
   microzones: Array<{
     id: string;
     name: string;
@@ -78,8 +80,7 @@ export function provinceCity(input: ProvinceCityInput): CityProfile {
     ],
     urbanism: {
       planningInstrument: input.planningInstrument,
-      // No entry of the regulatory registry cites this municipality's plan yet.
-      planningRegulationId: "",
+      planningRegulationId: input.planningRegulationId ?? "",
       authority: input.authority,
       authorityUrl: input.authorityUrl,
       zoningCatalogue: {
