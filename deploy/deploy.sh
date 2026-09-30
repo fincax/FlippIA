@@ -15,9 +15,9 @@ fi
 echo "▸ Imagen de la aplicación (la primera compilación tarda varios minutos en 1 vCPU)"
 "${COMPOSE[@]}" build app
 
-echo "▸ Base de datos"
-"${COMPOSE[@]}" up -d db
-"${COMPOSE[@]}" run --rm --no-deps app pnpm db:migrate
+echo "▸ Base de datos (espera a que PostGIS acepte conexiones)"
+"${COMPOSE[@]}" up -d --wait db
+"${COMPOSE[@]}" run --rm app pnpm db:migrate
 
 echo "▸ Aplicación y proxy HTTPS"
 "${COMPOSE[@]}" up -d app caddy

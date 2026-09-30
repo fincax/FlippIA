@@ -48,7 +48,7 @@ Revisa `/opt/flippia/.env`:
 cd /opt/flippia/app && bash deploy/deploy.sh
 ```
 
-Compila la imagen (la primera vez, varios minutos en 1 vCPU), arranca PostGIS, aplica las migraciones y levanta la aplicación y Caddy. Termina mostrando la URL. Para actualizar tras un `git push` a `main`, el mismo comando.
+Compila la imagen (la primera vez, varios minutos en 1 vCPU), arranca PostGIS y espera a que acepte conexiones, aplica las migraciones y levanta la aplicación y Caddy. Termina mostrando la URL. Para actualizar tras un `git push` a `main`, el mismo comando.
 
 Tareas programadas (Smart Watcher cada hora, sincronización del Radar cada día):
 

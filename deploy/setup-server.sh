@@ -31,12 +31,18 @@ fi
 systemctl enable --now docker
 
 echo "▸ Swap de ${SWAP_GB} GB (la compilación de Next.js no cabe en 2 GB de RAM)"
-if ! swapon --show | grep -q '^/swapfile'; then
+# Total swap active now, in GB; a provider image often ships a tiny swap file.
+CURRENT_SWAP_GB="$(awk '/SwapTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)"
+if (( CURRENT_SWAP_GB < SWAP_GB )); then
+  if [[ -f /swapfile ]]; then swapoff /swapfile 2>/dev/null || true; rm -f /swapfile; fi
   fallocate -l "${SWAP_GB}G" /swapfile
   chmod 600 /swapfile
-  mkswap /swapfile
+  mkswap /swapfile >/dev/null
   swapon /swapfile
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo "   swap activo: $(awk '/SwapTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo) GB"
+else
+  echo "   ya hay ${CURRENT_SWAP_GB} GB de swap; no se toca."
 fi
 sysctl -w vm.swappiness=10 >/dev/null
 grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
