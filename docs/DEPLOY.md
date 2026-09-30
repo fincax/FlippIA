@@ -4,20 +4,35 @@ Stack: Docker Compose con PostGIS, la aplicación y Caddy (HTTPS automático). T
 
 ## 1. Preparar el servidor (una vez, como root)
 
+Si el repositorio ya está clonado (por ejemplo en `/opt/flippia/app`), indícalo con `APP_DIR`; el script no vuelve a clonar y solo hace `git pull`.
+
 ```bash
 ssh root@27.0.174.32
-git clone https://github.com/fincax/FlippIA.git /opt/flippia   # el repo es privado: usa un token o una deploy key
-bash /opt/flippia/deploy/setup-server.sh https://github.com/fincax/FlippIA.git
+cd /opt/flippia/app && git pull --ff-only
+DOMAIN=flippia.es APP_DIR=/opt/flippia/app bash deploy/setup-server.sh https://github.com/fincax/FlippIA.git
 ```
 
-El script instala Docker desde el repositorio oficial, crea 4 GB de swap (la compilación de Next.js no cabe en 2 GB de RAM), abre solo SSH, 80 y 443 en `ufw`, activa `fail2ban` y genera `/opt/flippia/.env` con secretos aleatorios (`APP_SECRET`, `POSTGRES_PASSWORD`, `CRON_SECRET`) a partir de `deploy/.env.production.example`.
+El script instala Docker desde el repositorio oficial, crea 4 GB de swap (la compilación de Next.js no cabe en 2 GB de RAM), abre solo SSH, 80 y 443 en `ufw`, activa `fail2ban` y genera `.env` con secretos aleatorios (`APP_SECRET`, `POSTGRES_PASSWORD`, `CRON_SECRET`) a partir de `deploy/.env.production.example`. Un `.env` existente no se toca.
+
+Antes de desplegar comprueba que los puertos 80 y 443 están libres y que no queda ningún proceso de un despliegue manual anterior (`next start`, nginx, PostgreSQL en el host escuchando en 5432 no molesta porque el stack usa su propia base de datos interna):
+
+```bash
+ss -tlnp | grep -E ':80 |:443 |:3000 '
+docker ps
+```
+
+Si aparece la pila de desarrollo (`docker-compose.yml`, contenedor `flippia-db`), páralo con `docker compose down` (sin `-v` conserva sus datos). La pila de producción usa su propio nombre de proyecto (`flippia-prod`) y sus propios volúmenes, así que no colisionan. `node_modules` y `.next` de un `pnpm install` en el host no se usan: la imagen se construye desde el código fuente.
 
 ## 2. Dominio y TLS
 
-Caddy pide el certificado a Let's Encrypt para `DOMAIN`. Dos opciones:
+Caddy pide el certificado a Let's Encrypt para `DOMAIN` y para `www.DOMAIN`, y redirige `www` al dominio principal. En el DNS (IONOS) hacen falta:
 
-- **Sin dominio propio**: el script deja `DOMAIN=27-0-174-32.sslip.io`, un nombre público que resuelve a la IP del servidor y obtiene certificado válido. Funciona desde el primer minuto.
-- **Con dominio propio**: crea un registro A `app.tudominio.com → 27.0.174.32` y pon `DOMAIN` y `APP_URL` en `.env`.
+| Tipo  | Host | Valor       |
+| ----- | ---- | ----------- |
+| A     | @    | 27.0.174.32 |
+| CNAME | www  | flippia.es  |
+
+El registro A ya está creado; el CNAME `www` es el que falta. Sin dominio propio, `DOMAIN=27-0-174-32.sslip.io` funciona igual.
 
 ## 3. Completar `.env`
 
@@ -30,7 +45,7 @@ Revisa `/opt/flippia/.env`:
 ## 4. Desplegar
 
 ```bash
-cd /opt/flippia && bash deploy/deploy.sh
+cd /opt/flippia/app && bash deploy/deploy.sh
 ```
 
 Compila la imagen (la primera vez, varios minutos en 1 vCPU), arranca PostGIS, aplica las migraciones y levanta la aplicación y Caddy. Termina mostrando la URL. Para actualizar tras un `git push` a `main`, el mismo comando.
@@ -54,7 +69,7 @@ Desde el navegador: `https://<DOMAIN>/` responde, `/app` redirige a `/login`. Co
 
 ## 6. Operación
 
-- **Copias de seguridad**: `docker exec flippia-db pg_dump -U flippia flippia | gzip > /opt/backups/flippia-$(date +%F).sql.gz` en un cron diario; guarda una copia fuera del servidor.
+- **Copias de seguridad**: `docker exec flippia-prod-db pg_dump -U flippia flippia | gzip > /opt/backups/flippia-$(date +%F).sql.gz` en un cron diario; guarda una copia fuera del servidor.
 - **Memoria**: `app` limitado a 1 GB y `db` a 512 MB; con 2 GB de RAM y 4 GB de swap el servidor aguanta análisis concurrentes moderados (el límite de 3 análisis simultáneos por organización ya está en la aplicación).
 - **Logs**: JSON por línea (`docker compose logs app`). Rotación por Docker (`/etc/docker/daemon.json` con `log-opts` si crecen).
 - **Actualizaciones del sistema**: `unattended-upgrades` queda activado; reinicia cuando `/var/run/reboot-required` exista.

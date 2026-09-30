@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One-time preparation of an Ubuntu 24.04 server (1 vCPU / 2 GB RAM / 30 GB) for FlippIA.
-# Run as root:  bash deploy/setup-server.sh https://github.com/fincax/FlippIA.git
+# Run as root:  DOMAIN=flippia.es bash deploy/setup-server.sh https://github.com/fincax/FlippIA.git
+# APP_DIR (default /opt/flippia) may point at an existing checkout, e.g. /opt/flippia/app.
 # Idempotent: safe to run again.
 set -euo pipefail
 
@@ -58,7 +59,7 @@ echo "▸ Entorno"
 if [[ ! -f "$APP_DIR/.env" ]]; then
   cp "$APP_DIR/deploy/.env.production.example" "$APP_DIR/.env"
   IP="$(curl -fsS https://api.ipify.org || hostname -I | awk '{print $1}')"
-  SSLIP="${IP//./-}.sslip.io"
+  SSLIP="${DOMAIN:-${IP//./-}.sslip.io}"
   APP_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
   PG_PASS="$(openssl rand -hex 24)"
   CRON="$(openssl rand -hex 24)"
@@ -71,7 +72,7 @@ if [[ ! -f "$APP_DIR/.env" ]]; then
     -e "s|^DATABASE_URL=.*|DATABASE_URL=postgres://flippia:${PG_PASS}@db:5432/flippia|" \
     "$APP_DIR/.env"
   chmod 600 "$APP_DIR/.env"
-  echo "   .env creado con secretos generados; dominio provisional ${SSLIP}."
+  echo "   .env creado con secretos generados; dominio ${SSLIP} (cámbialo en .env si no es el definitivo)."
 else
   echo "   .env ya existe: no se toca."
 fi

@@ -4,10 +4,13 @@
 #   caddy  HTTPS termination with automatic Let's Encrypt certificates
 #
 # Usage: see docs/DEPLOY.md. Environment comes from ./.env (deploy/.env.production.example).
+# Its own project name keeps volumes and containers apart from the development
+# docker-compose.yml, even when both live in the same directory.
+name: flippia-prod
 services:
   db:
     image: postgis/postgis:16-3.4
-    container_name: flippia-db
+    container_name: flippia-prod-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: flippia
@@ -30,7 +33,7 @@ services:
   app:
     build: .
     image: flippia-app:latest
-    container_name: flippia-app
+    container_name: flippia-prod-app
     restart: unless-stopped
     env_file: .env
     environment:
@@ -48,7 +51,7 @@ services:
 
   caddy:
     image: caddy:2
-    container_name: flippia-caddy
+    container_name: flippia-prod-caddy
     restart: unless-stopped
     ports:
       - "80:80"

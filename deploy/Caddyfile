@@ -1,5 +1,5 @@
-# HTTPS for FlippIA. DOMAIN comes from .env (a real domain pointing at the
-# server, or the sslip.io name of its IP, e.g. 27-0-174-32.sslip.io).
+# HTTPS for FlippIA. DOMAIN comes from .env: the apex domain (flippia.es) or,
+# without one, the sslip.io name of the server IP (27-0-174-32.sslip.io).
 {$DOMAIN} {
 	encode zstd gzip
 	reverse_proxy app:3000 {
@@ -13,4 +13,10 @@
 	header {
 		-Server
 	}
+}
+
+# www → apex. Needs a DNS record for www (CNAME to the apex or A to the IP);
+# until it exists Caddy simply keeps retrying that certificate.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
 }
