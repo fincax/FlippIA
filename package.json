@@ -31,6 +31,7 @@
     "market:check": "tsx scripts/market-check.ts",
     "comparables:import": "tsx scripts/comparables-import.ts",
     "radar:sync": "tsx scripts/radar-sync.ts",
+    "env:check": "tsx scripts/env-check.ts",
     "listings:import": "tsx scripts/listings-import.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },

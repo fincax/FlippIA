@@ -36,9 +36,15 @@ El registro A ya está creado; el CNAME `www` es el que falta. Sin dominio propi
 
 ## 3. Completar `.env`
 
-Revisa `/opt/flippia/.env`:
+Revisa `.env` en el directorio del repositorio. La validación de arranque es estricta: con `idealista` en `MARKET_SOURCE_MODE` o `RADAR_SOURCES` y sin `IDEALISTA_API_KEY`/`IDEALISTA_API_SECRET`, o con `feeds` sin `RADAR_FEEDS`, el servidor no arranca (todas las peticiones responden 500). `deploy.sh` ejecuta `pnpm env:check` antes de arrancar y muestra el problema exacto; también puedes lanzarlo a mano:
 
-- `IDEALISTA_API_KEY` / `IDEALISTA_API_SECRET` (comparables y Radar reales), `ANTHROPIC_API_KEY` (narrativa; opcional).
+```bash
+docker compose -f docker-compose.prod.yml run --rm --no-deps app pnpm env:check
+```
+
+Valores:
+
+- `IDEALISTA_API_KEY` / `IDEALISTA_API_SECRET` y entonces `MARKET_SOURCE_MODE=own,idealista,demo` y `RADAR_SOURCES=idealista,demo`; sin claves, `own,demo` y `demo`. `ANTHROPIC_API_KEY` (narrativa; opcional).
 - `RADAR_FEEDS` con los feeds Kyero/JSON de las agencias, o `[]`.
 - `DEMO_MODE=false`, o `true` con `DEMO_USER_PASSWORD` privada si quieres la organización demo.
 

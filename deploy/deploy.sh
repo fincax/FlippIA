@@ -15,6 +15,12 @@ fi
 echo "▸ Imagen de la aplicación (la primera compilación tarda varios minutos en 1 vCPU)"
 "${COMPOSE[@]}" build app
 
+echo "▸ Comprobación del entorno (.env)"
+if ! "${COMPOSE[@]}" run --rm --no-deps app pnpm --silent env:check; then
+  echo "Corrige .env y vuelve a ejecutar deploy.sh --no-pull." >&2
+  exit 1
+fi
+
 echo "▸ Base de datos (espera a que PostGIS acepte conexiones)"
 "${COMPOSE[@]}" up -d --wait db
 "${COMPOSE[@]}" run --rm app pnpm db:migrate

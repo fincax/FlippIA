@@ -6,7 +6,9 @@
 set -euo pipefail
 
 REPO_URL="${1:-}"
-APP_DIR="${APP_DIR:-/opt/flippia}"
+# Default: the checkout this script lives in when run from one; /opt/flippia otherwise.
+SCRIPT_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null || true)"
+APP_DIR="${APP_DIR:-${SCRIPT_REPO:-/opt/flippia}}"
 SWAP_GB="${SWAP_GB:-4}"
 
 if [[ $EUID -ne 0 ]]; then echo "Ejecuta como root (sudo -i)." >&2; exit 1; fi
