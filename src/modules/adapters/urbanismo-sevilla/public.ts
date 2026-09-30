@@ -155,15 +155,16 @@ export class UrbanismoPublicConnector implements DataSourceAdapter<UrbanismQuery
 
   private async run(role: PlanningLayerRole, layer: PlanningLayer, q: GeoQuery): Promise<LayerOutcome> {
     let lastError = "";
+    const timeoutMs = layer.timeoutMs ?? TIMEOUT_MS;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const r = await queryLayer(layer.source, q, { fetchImpl: this.fetchImpl, timeoutMs: TIMEOUT_MS });
+        const r = await queryLayer(layer.source, q, { fetchImpl: this.fetchImpl, timeoutMs });
         if (r.features.length === 0 && q.point && !q.distanceM && TOLERANT_ROLES.has(role)) {
           // Nothing under the exact point: look a few metres around (street-side geocoding).
           const near = await queryLayer(
             layer.source,
             { ...q, distanceM: TOLERANCE_M },
-            { fetchImpl: this.fetchImpl, timeoutMs: TIMEOUT_MS },
+            { fetchImpl: this.fetchImpl, timeoutMs },
           );
           if (near.features.length)
             return { role, layer, features: rankFeatures(near.features, layer), url: near.url };

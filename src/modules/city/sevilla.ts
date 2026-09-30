@@ -453,6 +453,8 @@ export const SEVILLA: CityProfile = {
         },
         fields: { name: "nombre", instrument: "planeamien", status: "estado", approvedAt: "aprob_defi" },
         note: "Ámbito, instrumento (plan especial, estudio de detalle, modificación) y estado de tramitación.",
+        // Heavy MapServer layer: it has needed more than 12 s from production.
+        timeoutMs: 25_000,
       },
     },
   },

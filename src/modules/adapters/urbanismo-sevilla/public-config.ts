@@ -11,6 +11,8 @@ export interface PlanningLayer<F extends string = string> {
   fields: Partial<Record<F, string>>;
   /** Free text shown with the evidence (dataset title, licence, last known update). */
   note?: string;
+  /** Per-layer request timeout for slow publishers (default 12 s). */
+  timeoutMs?: number;
 }
 
 export interface PublicPlanningConfig {
