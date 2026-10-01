@@ -72,7 +72,12 @@ export function rankStrategies(strategies: StrategyResult[], investor: InvestorD
           weights.objective * objectiveFit),
     );
 
-    if (fReturn > 0.6) reasons.push(`ROE anualizado ${formatPercent(roe)}.`);
+    if (fReturn > 0.6)
+      reasons.push(
+        s.headline.durationMonths < 12
+          ? `ROE ${formatPercent(s.headline.roe ?? 0)} en ${s.headline.durationMonths} meses.`
+          : `ROE anualizado ${formatPercent(roe)}.`,
+      );
     else if (roe < 0) reasons.push("Retorno negativo en el escenario base.");
     if (equity <= investor.maxEquityPerDeal)
       reasons.push(`Capital necesario ${formatMoney(equity)} dentro de tu límite.`);
@@ -299,11 +304,28 @@ export function templateSynthesis(params: {
   const missingData: string[] = [];
   if (profile.askingPriceSource === "estimated") missingData.push("Precio de compra real.");
   if (!profile.cadastral.found) missingData.push("Referencia catastral confirmada.");
+  if (profile.cadastral.unitAmbiguous)
+    missingData.push(
+      `Planta y puerta del inmueble, o su superficie real (la referencia agrupa ${profile.cadastral.unitCount ?? "varios"} inmuebles).`,
+    );
   if (!profile.property.bedrooms) missingData.push("Distribución actual (dormitorios, baños) o plano.");
   if (urbanism.demo) missingData.push("Consulta urbanística oficial de la parcela.");
   const obviousFirst = strategies.find((s) => s.id === "flip_integral" || s.id === "buy_hold");
   const notObvious = top && obviousFirst && top.id !== obviousFirst.id;
   const thesisParts: string[] = [];
+  // Data that cannot be trusted comes first: no figure below is operative until it is resolved.
+  const dataAlerts = risk.findings.filter(
+    (f) =>
+      (f.agent === "data_integrity" || f.agent === "anomaly") &&
+      (f.severity === "high" || f.severity === "critical"),
+  );
+  if (top && dataAlerts.length)
+    thesisParts.push(
+      `Aviso: ${dataAlerts
+        .map((f) => f.title.toLowerCase())
+        .slice(0, 3)
+        .join("; ")}. Las cifras que siguen no son operativas hasta resolverlo.`,
+    );
   if (top) {
     thesisParts.push(`La vía más defendible es «${top.label}»: ${top.whyRanked.slice(0, 3).join(" ")}`);
     if (notObvious)

@@ -114,7 +114,7 @@ export const zoningAgent: AgentDefinition<SubFinding> = {
       {
         key: "uses",
         title: "Usos",
-        detail: `Admitidos: ${planning.allowedUses.join("; ")}. Condicionados: ${planning.conditionedUses.join("; ") || "ninguno"}. Prohibidos: ${planning.forbiddenUses.join("; ")}.`,
+        detail: `Admitidos: ${planning.allowedUses.join("; ")}. Condicionados: ${planning.conditionedUses.join("; ") || "ninguno"}. Prohibidos: ${planning.forbiddenUses.join("; ") || "ninguno declarado en la fuente"}.`,
         status: planning.status,
         kind: "info",
         regulationIds: ids,

@@ -76,7 +76,47 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
           mode: res.value.mode,
         };
         property.cadastralRef = d.cadastralRef;
-        if (!property.builtAreaM2 && d.builtAreaM2) property.builtAreaM2 = d.builtAreaM2;
+        // A parcel groups several units: never present their aggregated area as one
+        // dwelling. Pick the unit the intake identifies (floor); otherwise analyse the
+        // whole building when nothing says it is a flat, or an average unit, flagged.
+        const units = d.units.filter((u) => u.cadastralRef.length >= 20);
+        const userFloor = intake.property?.floor;
+        const matched =
+          userFloor !== undefined
+            ? units.find((u) => u.floor !== undefined && Number(u.floor) === userFloor)
+            : undefined;
+        cadastral.unitCount = units.length || (d.cadastralRef.length >= 20 ? 1 : undefined);
+        if (units.length > 1) {
+          if (matched?.builtAreaM2) {
+            cadastral.unitMatched = matched.cadastralRef;
+            cadastral.cadastralRef = matched.cadastralRef;
+            cadastral.builtAreaM2 = matched.builtAreaM2;
+            cadastral.yearBuilt = matched.yearBuilt ?? cadastral.yearBuilt;
+            cadastral.useLabel = matched.useLabel || cadastral.useLabel;
+            cadastral.areaBasis = "unit";
+            property.cadastralRef = matched.cadastralRef;
+            if (!property.builtAreaM2) property.builtAreaM2 = matched.builtAreaM2;
+          } else if (property.builtAreaM2) {
+            cadastral.areaBasis = "user";
+          } else if (!intake.property?.typology) {
+            cadastral.areaBasis = "parcel";
+            cadastral.unitAmbiguous = true;
+            property.typology = "building";
+            if (d.builtAreaM2) property.builtAreaM2 = d.builtAreaM2;
+          } else {
+            const same = units.filter((u) => u.builtAreaM2 > 0);
+            const average = same.length
+              ? Math.round(same.reduce((a, u) => a + u.builtAreaM2, 0) / same.length)
+              : undefined;
+            cadastral.areaBasis = "average";
+            cadastral.unitAmbiguous = true;
+            cadastral.builtAreaM2 = average;
+            if (average) property.builtAreaM2 = average;
+          }
+        } else if (!property.builtAreaM2 && d.builtAreaM2) {
+          property.builtAreaM2 = d.builtAreaM2;
+          cadastral.areaBasis = "unit";
+        }
         if (!property.yearBuilt && d.yearBuilt) property.yearBuilt = d.yearBuilt;
         if (!property.coordinates && d.coordinates) property.coordinates = d.coordinates;
         const residentialHints = Boolean(
@@ -85,7 +125,12 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
           intake.property?.floor ||
           /\b(piso|vivienda|habitaci|dormitori|ático|atico|casa)\b/i.test(intake.rawText),
         );
-        if (d.useCode === "C" && property.typology === "flat" && !residentialHints) {
+        if (
+          d.useCode === "C" &&
+          property.typology === "flat" &&
+          !residentialHints &&
+          !cadastral.unitAmbiguous
+        ) {
           property.typology = "premises";
           property.assetUse = "commercial";
         }
@@ -114,6 +159,13 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
         ? "text"
         : "default";
     property.microzoneId = microzone.id;
+    const unitNote = cadastral.unitAmbiguous
+      ? cadastral.areaBasis === "parcel"
+        ? ` La referencia agrupa ${cadastral.unitCount} inmuebles y no se ha indicado planta: se analiza el edificio completo (${property.builtAreaM2} m² agregados).`
+        : ` La referencia agrupa ${cadastral.unitCount} inmuebles y no se ha indicado planta ni superficie: se usa la superficie media (${property.builtAreaM2} m²), orientativa.`
+      : cadastral.unitMatched
+        ? ` Inmueble identificado por planta dentro de la parcela (${cadastral.unitMatched}).`
+        : "";
     const zoneNote =
       microzoneMatch === "nearest"
         ? ` Microzona asignada por proximidad (a ${microzoneDistanceM} m del centro de ${microzone.name}): las referencias de zona son orientativas.`
@@ -135,7 +187,7 @@ export const catastroAgent: AgentDefinition<PropertyProfile> = {
           ? "listing"
           : "user"
         : "estimated",
-      summary: `${labelTypology(property.typology)} de ${property.builtAreaM2} m² en ${microzone.name}${property.yearBuilt ? ` (${property.yearBuilt})` : ""}, estado: ${property.condition}.${zoneNote}`,
+      summary: `${labelTypology(property.typology)} de ${property.builtAreaM2} m² en ${microzone.name}${property.yearBuilt ? ` (${property.yearBuilt})` : ""}, estado: ${property.condition}.${unitNote}${zoneNote}`,
     };
   },
 };

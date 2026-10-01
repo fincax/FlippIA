@@ -223,6 +223,42 @@ export const dataIntegrityAgent: AgentDefinition<Findings> = {
           `Usuario: ${userArea} m²; Catastro: ${profile.cadastral.builtAreaM2} m². La valoración usa ${userArea} m².`,
         ),
       );
+    if (profile.cadastral.unitAmbiguous)
+      out.push(
+        f(
+          "data_integrity",
+          "high",
+          "Inmueble no identificado dentro de la parcela",
+          `La referencia ${profile.cadastral.cadastralRef ?? ""} agrupa ${profile.cadastral.unitCount ?? "varios"} inmuebles. ${
+            profile.cadastral.areaBasis === "parcel"
+              ? `Sin planta ni puerta se ha analizado el edificio completo (${profile.property.builtAreaM2} m²).`
+              : `Sin planta, puerta ni superficie se ha usado la superficie media (${profile.property.builtAreaM2} m²).`
+          } Indica planta y puerta, o la superficie real, antes de usar estas cifras.`,
+        ),
+      );
+    const strategies = output<StrategyResult[]>(ctx, "investment.strategies");
+    const extreme = strategies.filter(
+      (s) => (s.headline.roe ?? 0) > 1.5 || (s.headline.annualizedRoe ?? 0) > 3,
+    );
+    if (extreme.length)
+      out.push(
+        f(
+          "data_integrity",
+          "high",
+          "Resultado fuera de rango",
+          `${extreme.map((s) => `${s.label}: ROE ${Math.round((s.headline.roe ?? 0) * 100)} %`).join("; ")}. Una rentabilidad así casi siempre indica un precio o una superficie incorrectos, no una oportunidad.`,
+          extreme.map((s) => s.id),
+        ),
+      );
+    if (market.askingVsValue.discount > 0.4)
+      out.push(
+        f(
+          "data_integrity",
+          "high",
+          "Precio incompatible con el valor de la zona",
+          `El precio está ${Math.round(market.askingVsValue.discount * 100)} % por debajo del valor sin reformar de la zona. Comprobar superficie, precio, cargas y situación jurídica antes de concluir.`,
+        ),
+      );
     if (profile.askingPriceSource === "estimated")
       out.push(
         f(
@@ -320,7 +356,7 @@ export const anomalyAgent: AgentDefinition<Findings> = {
       out.push(
         f(
           "anomaly",
-          "medium",
+          ppm2 < ref * 0.5 ? "high" : "medium",
           "Precio anormalmente bajo",
           `${Math.round(ppm2)} €/m² frente a ${ref} €/m² sin reformar en la zona: comprobar cargas, ocupación, estado estructural o situación jurídica.`,
         ),

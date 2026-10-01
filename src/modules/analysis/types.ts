@@ -34,6 +34,14 @@ export interface PropertyProfile {
     useLabel?: string;
     accessLevel?: "public" | "protected";
     mode: string;
+    /** Units (20-character references) the parcel groups in the Catastro. */
+    unitCount?: number;
+    /** Unit reference the analysis settled on, when the intake identified one (floor). */
+    unitMatched?: string;
+    /** Several units and no way to tell which one: the area is aggregated or averaged, not the dwelling's. */
+    unitAmbiguous?: boolean;
+    /** How the area was chosen when the parcel has several units. */
+    areaBasis?: "unit" | "parcel" | "average" | "user";
   };
   askingPrice: number;
   askingPriceSource: "user" | "listing" | "estimated";

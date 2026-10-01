@@ -233,3 +233,95 @@ describe("runAnalysis — planning source down", () => {
     expect(result.urbanism.requiredChecks.length).toBeGreaterThan(0);
   });
 });
+
+describe("runAnalysis — parcel with several units", () => {
+  const unit = (ref: string, floor: string, area: number) => ({
+    cadastralRef: ref,
+    address: `CL PUREZA 45 Pl:${floor}`,
+    useCode: "V",
+    useLabel: "Residencial",
+    builtAreaM2: area,
+    yearBuilt: 1990,
+    floor,
+  });
+  async function withParcel(text: string) {
+    const { adapters } = await import("@/modules/adapters/registry");
+    const base = adapters();
+    const stub = {
+      ...base,
+      catastro: {
+        ...base.catastro,
+        mode: "public" as const,
+        async isAvailable() {
+          return true;
+        },
+        async query() {
+          return {
+            ok: true as const,
+            value: {
+              data: {
+                cadastralRef: "4419020TG3441N",
+                address: "CL PUREZA 45",
+                municipality: "SEVILLA",
+                province: "SEVILLA",
+                coordinates: { lat: 37.384185, lng: -6.001223 },
+                builtAreaM2: 255,
+                yearBuilt: 1990,
+                useCode: "V",
+                useLabel: "Residencial",
+                units: [unit("4419020TG3441N0002ZB", "00", 120), unit("4419020TG3441N0003XZ", "02", 135)],
+                cadastralValue: null,
+                landValue: null,
+                accessLevel: "public" as const,
+              },
+              evidence: [],
+              retrievedAt: "2026-10-01T00:00:00.000Z",
+              mode: "public" as const,
+            },
+          };
+        },
+      },
+    };
+    return runAnalysis({
+      intake: parseIntake(text),
+      organizationId: "org_test",
+      userId: "usr_test",
+      adapters: stub,
+      analysisDate: "2026-10-01",
+    });
+  }
+  it("without floor or typology it analyses the whole building, flags it and warns in the thesis", async () => {
+    const r = await withParcel("Analiza Calle Pureza 45, Sevilla por 285.000 €");
+    expect(r.property.property.typology).toBe("building");
+    expect(r.property.property.builtAreaM2).toBe(255);
+    expect(r.property.cadastral).toMatchObject({ unitCount: 2, unitAmbiguous: true, areaBasis: "parcel" });
+    expect(r.property.summary).toContain("edificio completo");
+    const alert = r.risk.findings.find((f) => f.title === "Inmueble no identificado dentro de la parcela");
+    expect(alert?.severity).toBe("high");
+    expect(r.synthesis.thesis.startsWith("Aviso:")).toBe(true);
+    expect(r.synthesis.missingData.some((m) => m.includes("Planta y puerta"))).toBe(true);
+    expect(r.risk.overall).not.toBe("low");
+  }, 30_000);
+  it("with a floor it settles on that unit and its area", async () => {
+    const r = await withParcel("Analiza piso en Calle Pureza 45, 2º, Sevilla por 285.000 €");
+    expect(r.property.cadastral.unitMatched).toBe("4419020TG3441N0003XZ");
+    expect(r.property.property.builtAreaM2).toBe(135);
+    expect(r.property.property.typology).toBe("flat");
+    expect(r.property.cadastral.unitAmbiguous).toBeUndefined();
+  }, 30_000);
+  it("a flat without floor or area uses the average unit, flagged", async () => {
+    const r = await withParcel("Analiza piso en Calle Pureza 45, Sevilla por 285.000 €");
+    expect(r.property.property.typology).toBe("flat");
+    expect(r.property.property.builtAreaM2).toBe(128);
+    expect(r.property.cadastral).toMatchObject({ unitAmbiguous: true, areaBasis: "average" });
+    expect(r.property.summary).toContain("superficie media");
+  }, 30_000);
+  it("flags an out-of-range result instead of celebrating it", async () => {
+    const r = await withParcel("Analiza piso de 95 m2 en Calle Pureza 45, Sevilla por 60.000 €");
+    const titles = r.risk.findings.filter((f) => f.severity === "high").map((f) => f.title);
+    expect(titles).toContain("Resultado fuera de rango");
+    expect(titles).toContain("Precio incompatible con el valor de la zona");
+    expect(r.synthesis.thesis).toContain("no son operativas");
+    expect(r.synthesis.thesis).not.toContain("ROE anualizado");
+  }, 30_000);
+});
