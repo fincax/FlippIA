@@ -123,7 +123,18 @@ export default async function StrategiesPage({ params }: { params: Promise<{ id:
                               : formatNumber(a.value) + (a.unit === "currency" ? " €" : "")
                           : String(a.value)}
                       </span>
-                      <EvidenceBadge status={a.status} />
+                      {a.source === "user" ? (
+                        <Badge
+                          tone="neutral"
+                          title="Dato declarado por el usuario; no contrastado con una fuente."
+                        >
+                          Usuario
+                        </Badge>
+                      ) : a.source === "demo" ? (
+                        <Badge tone="warning">DEMO</Badge>
+                      ) : (
+                        <EvidenceBadge status={a.status} />
+                      )}
                     </span>
                   </div>
                 ))}

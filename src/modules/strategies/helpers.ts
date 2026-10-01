@@ -136,10 +136,13 @@ export function baseInputs(
         : ctx.property.askingPriceSource === "listing"
           ? "adapter"
           : "engine",
-      ctx.property.askingPriceSource === "estimated" ? "INFERRED" : "VERIFIED",
+      // A price the user typed is a declared input, not a verified fact; a listing price is observed at its source.
+      ctx.property.askingPriceSource === "listing" ? "VERIFIED" : "INFERRED",
       ctx.property.askingPriceSource === "estimated"
         ? "Sin precio indicado: se usa el valor de mercado sin reformar."
-        : undefined,
+        : ctx.property.askingPriceSource === "user"
+          ? "Precio indicado por el usuario; no contrastado con ninguna fuente."
+          : undefined,
     ),
     assumption(
       "transformation.renovationBudget",
