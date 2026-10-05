@@ -1,5 +1,5 @@
 import { NoAnalysis } from "@/components/flippia/no-analysis";
-import { Badge, FinancialMetric, SectionTitle, Surface } from "@/components/ds";
+import { Badge, EvidenceBadge, FinancialMetric, SectionTitle, Surface } from "@/components/ds";
 import { MaxPricePanel } from "@/components/flippia/max-price-panel";
 import { ProfessionalInputsPanel } from "@/components/flippia/professional-inputs-panel";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -41,14 +41,75 @@ export default async function FinancePage({ params }: { params: Promise<{ id: st
             Desglose completo
           </SectionTitle>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-            <FinancialMetric label="Coste total" metric={base.metrics.totalProjectCost} size="sm" />
+            <FinancialMetric label="Coste total (caja)" metric={base.metrics.totalProjectCost} size="sm" />
+            <FinancialMetric label="Coste efectivo" metric={base.metrics.effectiveProjectCost} size="sm" />
             <FinancialMetric label="Salida de caja" metric={base.metrics.totalCashOut} size="sm" />
             <FinancialMetric label="Beneficio bruto" metric={base.metrics.grossProfit} size="sm" />
-            <FinancialMetric label="Neto tras impuestos" metric={base.metrics.netProfitAfterTax} size="sm" />
+            <FinancialMetric
+              label="Beneficio operativo (antes de IRPF/IS)"
+              metric={base.metrics.netProfit}
+              size="sm"
+            />
+            <FinancialMetric
+              label="Tras IRPF/IS estimado"
+              metric={base.metrics.netProfitAfterTax}
+              size="sm"
+            />
+            <FinancialMetric label="IVA recuperable" metric={base.metrics.recoverableTax} size="sm" />
             <FinancialMetric label="LTV" metric={base.metrics.ltv} size="sm" />
             <FinancialMetric label="LTC" metric={base.metrics.ltc} size="sm" />
             <FinancialMetric label="Margen" metric={base.metrics.margin} size="sm" />
             <FinancialMetric label="Precio de equilibrio" metric={base.metrics.breakEvenPrice} size="sm" />
+          </div>
+          <div className="mb-5">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-fg-3 mb-2">
+              Base, impuestos y coste efectivo
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="text-left text-fg-3 text-[11px] uppercase tracking-[0.12em]">
+                    <th className="py-1 font-normal">Concepto</th>
+                    <th className="py-1 font-normal text-right">Base</th>
+                    <th className="py-1 font-normal text-right">Impuestos</th>
+                    <th className="py-1 font-normal text-right">Total</th>
+                    <th className="py-1 font-normal text-right">Recuperable</th>
+                    <th className="py-1 font-normal text-right">Coste efectivo</th>
+                    <th className="py-1 font-normal">Tratamiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {base.tax.concepts.map((c) => (
+                    <tr key={c.key} className="border-t border-line">
+                      <td className="py-1.5">
+                        {c.label}
+                        {c.note ? <div className="text-[11px] text-fg-3">{c.note}</div> : null}
+                      </td>
+                      <td className="py-1.5 text-right num">{formatMoney(c.base)}</td>
+                      <td className="py-1.5 text-right num">
+                        {c.taxStatus === "UNKNOWN" ? "sin determinar" : formatMoney(c.taxAmount)}
+                      </td>
+                      <td className="py-1.5 text-right num">
+                        {c.taxStatus === "UNKNOWN"
+                          ? `${formatMoney(c.base)} + impuestos`
+                          : formatMoney(c.gross)}
+                      </td>
+                      <td className="py-1.5 text-right num">{formatMoney(c.recoverableTax)}</td>
+                      <td className="py-1.5 text-right num">{formatMoney(c.effectiveCost)}</td>
+                      <td className="py-1.5">
+                        <EvidenceBadge status={c.taxStatus} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[11px] text-fg-3">
+              Deducibilidad del IVA soportado: {base.tax.vatRecoverability.note} Coste efectivo{" "}
+              {formatMoney(base.tax.effectiveProjectCost)} · caja necesaria{" "}
+              {formatMoney(base.tax.cashRequirement)}. Beneficio, ROI y precio de equilibrio se calculan sobre
+              el coste efectivo, antes de IRPF/IS del inversor; el capital necesario, sobre la caja.
+            </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">

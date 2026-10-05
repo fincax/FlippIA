@@ -49,7 +49,7 @@ function professionalNote(strategy: StrategyResult | undefined): string {
   const parts = used.map(
     (a) => `${formatMoney(a.value as number)} como ${PROFESSIONAL_LABEL[a.path] ?? a.label.toLowerCase()}`,
   );
-  return ` Utilizo ${parts.join(" y ")}: ${used.length > 1 ? "son datos que has introducido" : "es un dato que has introducido"} bajo tu responsabilidad, no una estimación mía.`;
+  return ` Utilizo ${parts.join(" y ")}: ${used.length > 1 ? "son datos que has introducido" : "es un dato que has introducido"} bajo tu responsabilidad, no una estimación mía. Los impuestos aplicables se muestran por separado, sin mezclarlos con esos importes.`;
 }
 
 /**

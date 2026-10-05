@@ -11,6 +11,10 @@ import type { EvidenceStatus } from "@/modules/core/evidence-status";
 export const PROFESSIONAL_INPUT_KEYS = [
   "acquisition.purchasePrice",
   "transformation.renovationBudget",
+  "transformation.professionalFees",
+  "acquisition.taxableBase",
+  "acquisition.transferTaxManual",
+  "tax.vatRecoverabilityRatio",
 ] as const;
 export type ProfessionalInputKey = (typeof PROFESSIONAL_INPUT_KEYS)[number];
 
@@ -25,6 +29,13 @@ export const PROFESSIONAL_SOURCE_TYPES = [
 export type ProfessionalSourceType = (typeof PROFESSIONAL_SOURCE_TYPES)[number];
 
 export type ProfessionalInputUnit = "currency" | "ratio" | "months" | "number";
+
+/**
+ * Whether the figure as entered carries indirect tax. `included` figures are
+ * normalised to their base when the tax treatment is resolvable; otherwise
+ * they stay pending and are not applied (never double-taxed, never guessed).
+ */
+export type ProfessionalInputTaxMode = "excluded" | "included" | "not_applicable";
 
 /** `deal`: applies to every strategy. `strategy`: each strategy has its own value (its own works). */
 export type ProfessionalInputScope = "deal" | "strategy";
@@ -65,6 +76,14 @@ export interface ProfessionalInput {
   marginRate?: number;
   /** value − netValue. */
   marginAmount: number;
+  /** Absent on records created before tax modes existed: excluded. */
+  taxMode?: ProfessionalInputTaxMode;
+  /** The figure as typed when `taxMode` is `included` (tax inside). */
+  enteredAmount?: number;
+  /** Indirect tax rate used to normalise an `included` figure to its base. */
+  taxRateApplied?: number;
+  /** `included` figure whose tax treatment could not be resolved: kept, shown, not applied. */
+  taxBreakdownPending?: boolean;
   unit: ProfessionalInputUnit;
   sourceType: ProfessionalSourceType;
   /** Evidence status derived from the source type at entry time. */
@@ -94,4 +113,10 @@ export interface ProfessionalInputDefinition {
   unit: ProfessionalInputUnit;
   scope: ProfessionalInputScope;
   description: string;
+  /** The path may be absent from the base inputs (optional engine input); the estimate comes from the base result. */
+  optional?: boolean;
+  /** Currency figure that may be typed with its indirect tax included; names the rate to normalise with. */
+  taxable?: "works";
+  /** Group shown in the UI. */
+  group: "price" | "works" | "tax";
 }

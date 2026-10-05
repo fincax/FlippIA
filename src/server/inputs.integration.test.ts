@@ -113,15 +113,82 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     expect(price.effective).toEqual({ value: 218_000, source: "professional" });
     expect(view.maxPrice?.headroom).toBe(view.maxPrice!.maximumPrice - 218_000);
     // Taxes are the engine's, on top of the figure in use, never inside the margin.
-    expect(price.tax?.label).toBe("ITP");
-    expect(price.tax!.amount).toBeGreaterThan(0);
-    expect(price.tax!.totalWithTax).toBe(218_000 + price.tax!.amount);
+    expect(price.tax?.key).toBe("acquisition");
+    expect(price.tax!.base).toBe(218_000);
+    expect(price.tax!.taxAmount).toBeGreaterThan(0);
+    expect(price.tax!.gross).toBe(218_000 + price.tax!.taxAmount);
+    expect(price.tax!.recoverableTax).toBe(0);
+    expect(price.tax!.effectiveCost).toBe(price.tax!.gross);
+    expect(view.taxSummary?.vatRecoverability.recoverability).toBe("unknown");
+    expect(view.taxSummary?.effectiveProjectCost).toBe(view.taxSummary?.cashRequirement);
     const works = view.items.filter((i) => i.key === "transformation.renovationBudget");
     expect(works.length).toBe(pristine.strategies.length);
     expect(works.every((w) => w.effective.source === "estimate")).toBe(true);
     const withWorks = works.find((w) => (w.effective.value ?? 0) > 0)!;
-    expect(withWorks.tax?.label).toMatch(/^IVA/);
-    expect(withWorks.tax!.totalWithTax).toBeCloseTo(withWorks.effective.value! + withWorks.tax!.amount, 0);
+    expect(withWorks.tax?.key).toBe("construction");
+    expect(withWorks.tax!.gross).toBeCloseTo(withWorks.tax!.base + withWorks.tax!.taxAmount, 0);
+    expect(withWorks.tax!.base).toBe(withWorks.effective.value);
+    // Tax slots exist with their estimates, none active yet.
+    const ratio = view.items.find((i) => i.key === "tax.vatRecoverabilityRatio")!;
+    expect(ratio.estimate?.status).toBe("UNKNOWN");
+    expect(ratio.active).toBeNull();
+    // The taxable base defaults to the price: the system estimate is the stored price, the value in use the negotiated one.
+    const taxableBase = view.items.find((i) => i.key === "acquisition.taxableBase")!;
+    expect(taxableBase.estimate?.value).toBe(245_000);
+    expect(taxableBase.effective.value).toBe(218_000);
+    const transferTax = view.items.find((i) => i.key === "acquisition.transferTaxManual")!;
+    expect(transferTax.estimate?.value).toBe(17_150); // rule on the stored price (7 % of 245.000 €)
+    expect(transferTax.effective.value).toBe(price.tax!.taxAmount); // rule on the price in use
+
+    // A budget typed with VAT included is normalised to its base with the rate in force; nothing is taxed twice.
+    const grossTyped = await setProfessionalInput(ctx, deal.id, {
+      key: "transformation.renovationBudget",
+      strategyId: top,
+      value: 72_600,
+      taxMode: "included",
+      sourceType: "contractor_quote",
+      acknowledged: true,
+    });
+    expect(grossTyped.input.taxBreakdownPending).toBeUndefined();
+    expect(grossTyped.input.enteredAmount).toBe(72_600);
+    expect(grossTyped.input.value).toBeCloseTo(72_600 / (1 + grossTyped.input.taxRateApplied!), 2);
+    const grossView = await professionalInputsView(ctx, deal.id, pristine);
+    const grossSlot = grossView.items.find(
+      (i) => i.key === "transformation.renovationBudget" && i.strategyId === top,
+    )!;
+    expect(grossSlot.tax!.gross).toBeCloseTo(72_600, 0);
+    await revertProfessionalInput(ctx, deal.id, { key: "transformation.renovationBudget", strategyId: top });
+
+    // Deducibility stated by the adviser: effective cost drops below cash; the works line stays gross.
+    await setProfessionalInput(ctx, deal.id, {
+      key: "tax.vatRecoverabilityRatio",
+      value: 1,
+      sourceType: "document_verified",
+      acknowledged: true,
+    });
+    const taxed = await professionalInputsView(ctx, deal.id, pristine);
+    expect(taxed.taxSummary?.vatRecoverability.recoverability).toBe("full");
+    expect(taxed.taxSummary!.effectiveProjectCost).toBeLessThan(taxed.taxSummary!.cashRequirement);
+    expect(taxed.taxSummary!.recoverableTotal).toBeGreaterThan(0);
+    await revertProfessionalInput(ctx, deal.id, { key: "tax.vatRecoverabilityRatio" });
+
+    // A professional settlement of the transfer tax keeps the rule-based estimate.
+    await setProfessionalInput(ctx, deal.id, {
+      key: "acquisition.transferTaxManual",
+      value: 13_400,
+      sourceType: "document_verified",
+      issuer: { kind: "technician", name: "Asesoría fiscal" },
+      acknowledged: true,
+    });
+    const settled = (await getLatestAnalysis(ctx, deal.id))!;
+    const settledBase = settled.strategies
+      .find((s) => s.id === top)!
+      .scenarioSet.scenarios.find((x) => x.kind === "base")!.result!;
+    expect(settledBase.costLines.find((l) => l.key === "transfer_tax")!.amount).toBe(13_400);
+    expect(settledBase.tax.components.find((c) => c.key === "transfer_tax")!.estimatedAmount).toBe(
+      price.tax!.taxAmount,
+    );
+    await revertProfessionalInput(ctx, deal.id, { key: "acquisition.transferTaxManual" });
 
     // Strategy-scoped works budget; unknown strategy refused.
     await expect(
@@ -227,8 +294,8 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       reverted.strategies.find((s) => s.id === top)!.scenarioSet.base.transformation.renovationBudget,
     ).toBe(66_000);
     const history = (await getDeal(ctx, deal.id)).professionalInputs;
-    expect(history).toHaveLength(4);
-    expect(history.filter((i) => i.state === "reverted")).toHaveLength(1);
+    expect(history).toHaveLength(7);
+    expect(history.filter((i) => i.state === "reverted")).toHaveLength(4);
     await expect(
       revertProfessionalInput(ctx, deal.id, { key: "acquisition.purchasePrice" }),
     ).rejects.toBeInstanceOf(NotFoundError);
@@ -237,8 +304,8 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     const trail = await d().select().from(activities).where(eq(activities.dealId, deal.id));
     const sets = trail.filter((t) => t.kind === "input.professional_set");
     const reverts = trail.filter((t) => t.kind === "input.professional_reverted");
-    expect(sets).toHaveLength(4);
-    expect(reverts).toHaveLength(1);
+    expect(sets).toHaveLength(7);
+    expect(reverts).toHaveLength(4);
     const first = sets.find(
       (t) => (t.payload as { key: string; before: { value: number } }).before.value === 245_000,
     )!;
@@ -248,7 +315,10 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       after: { value: 218_000, sourceType: "professional_confirmed" },
       reason: "Precio negociado directamente con el vendedor",
     });
-    expect(reverts[0]!.payload).toMatchObject({ before: { value: 215_000 }, reason: "Operación caída" });
+    const priceRevert = reverts.find(
+      (t) => (t.payload as { key: string }).key === "acquisition.purchasePrice",
+    )!;
+    expect(priceRevert.payload).toMatchObject({ before: { value: 215_000 }, reason: "Operación caída" });
 
     // Tenant isolation.
     const b = await register(d(), { email: "other@example.com", name: "Otra", password: "password-oth-123" });
@@ -262,6 +332,6 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
     const [rowB] = await d().select().from(deals).where(eq(deals.id, deal.id));
-    expect(rowB!.professionalInputs).toHaveLength(4);
+    expect(rowB!.professionalInputs).toHaveLength(7);
   }, 120_000);
 });
