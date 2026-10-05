@@ -7,8 +7,14 @@ import {
   type Overrides,
   type ScenarioSet,
 } from "@/modules/engines/scenario";
-import { NotFoundError, requireRole, type TenantContext } from "../context";
-import { logActivity } from "./deals";
+import {
+  applyToScenarioSet,
+  isProfessionalInputKey,
+  pickProfessionalInput,
+  PROFESSIONAL_INPUT_REGISTRY,
+} from "@/modules/inputs";
+import { ForbiddenError, NotFoundError, requireRole, type TenantContext } from "../context";
+import { getDeal, logActivity } from "./deals";
 import { z } from "zod";
 
 const FORBIDDEN_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
@@ -54,6 +60,23 @@ export async function listScenarioSets(ctx: TenantContext, dealId: string): Prom
   return rows.map((r) => r.set);
 }
 
+/** The twin as readers see it: the stored set with the deal's professional inputs laid over it (never persisted). */
+export async function getEffectiveScenarioSet(
+  ctx: TenantContext,
+  dealId: string,
+  strategyId: string,
+): Promise<ScenarioSet> {
+  const deal = await getDeal(ctx, dealId);
+  return applyToScenarioSet(await getScenarioSet(ctx, dealId, strategyId), deal.professionalInputs).result;
+}
+
+export async function listEffectiveScenarioSets(ctx: TenantContext, dealId: string): Promise<ScenarioSet[]> {
+  const deal = await getDeal(ctx, dealId);
+  return (await listScenarioSets(ctx, dealId)).map(
+    (s) => applyToScenarioSet(s, deal.professionalInputs).result,
+  );
+}
+
 /** Digital Investment Twin: update base assumptions, recompute only what changed. */
 export async function updateScenarioBase(
   ctx: TenantContext,
@@ -62,8 +85,18 @@ export async function updateScenarioBase(
   changes: Overrides,
 ) {
   requireRole(ctx, "analyst");
+  const parsed = overridesSchema.parse(changes);
+  // A professional input outranks a twin hypothesis: changing it here would be silently masked.
+  const deal = await getDeal(ctx, dealId);
+  const governed = Object.keys(parsed).filter(
+    (p) => isProfessionalInputKey(p) && pickProfessionalInput(deal.professionalInputs, p, strategyId),
+  );
+  if (governed.length)
+    throw new ForbiddenError(
+      `${governed.map((p) => (isProfessionalInputKey(p) ? PROFESSIONAL_INPUT_REGISTRY[p].label : p)).join(", ")}: hay un dato profesional activo. Edítalo o vuelve a la estimación desde Finanzas › Datos profesionales.`,
+    );
   const set = await getScenarioSet(ctx, dealId, strategyId);
-  const { set: next, report } = updateBase(set, overridesSchema.parse(changes));
+  const { set: next, report } = updateBase(set, parsed);
   await ctx.db
     .update(scenarioSets)
     .set({ set: next, version: next.version, updatedAt: new Date() })
@@ -115,6 +148,6 @@ export async function whatIf(
   overrides: Overrides,
   fromScenarioId?: string,
 ) {
-  const set = await getScenarioSet(ctx, dealId, strategyId);
+  const set = await getEffectiveScenarioSet(ctx, dealId, strategyId);
   return evaluateWhatIf(set, overridesSchema.parse(overrides), fromScenarioId);
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { handle, jsonOk, readJson } from "@/lib/api";
 import { computeMaximumAcquisitionPrice } from "@/modules/engines/financial";
 import { requireMutation } from "@/server/auth/current";
-import { getScenarioSet } from "@/server/services/scenarios";
+import { getEffectiveScenarioSet } from "@/server/services/scenarios";
 
 const schema = z.object({
   strategyId: z.string().min(1),
@@ -21,6 +21,6 @@ export const POST = handle(async (req: Request, { params }: { params: Promise<{ 
   const { ctx } = await requireMutation();
   const { id } = await params;
   const { strategyId, constraints } = schema.parse(await readJson(req));
-  const set = await getScenarioSet(ctx, id, strategyId);
+  const set = await getEffectiveScenarioSet(ctx, id, strategyId);
   return jsonOk(computeMaximumAcquisitionPrice(set.base, constraints));
 });

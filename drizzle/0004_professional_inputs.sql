@@ -1,0 +1,1 @@
+ALTER TABLE "deals" ADD COLUMN "professional_inputs" jsonb DEFAULT '[]'::jsonb NOT NULL;

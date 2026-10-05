@@ -1,17 +1,22 @@
 import { NoAnalysis } from "@/components/flippia/no-analysis";
 import { Badge, FinancialMetric, SectionTitle, Surface } from "@/components/ds";
 import { MaxPricePanel } from "@/components/flippia/max-price-panel";
+import { ProfessionalInputsPanel } from "@/components/flippia/professional-inputs-panel";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { loadDeal, topStrategy } from "@/server/deal-page";
+import { getStoredAnalysis } from "@/server/services/deals";
+import { professionalInputsView } from "@/server/services/inputs";
 
 export default async function FinancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { deal, analysis } = await loadDeal(id);
+  const { ctx, deal, analysis } = await loadDeal(id);
   if (!analysis) return <NoAnalysis deal={deal} />;
   const top = topStrategy(analysis);
   const base = top?.scenarioSet.scenarios.find((s) => s.kind === "base")?.result;
+  const inputsView = await professionalInputsView(ctx, id, await getStoredAnalysis(ctx, id));
   return (
     <div className="space-y-6">
+      <ProfessionalInputsPanel dealId={id} canEdit={ctx.role !== "viewer"} view={inputsView} />
       <MaxPricePanel
         dealId={id}
         strategies={analysis.strategies.map((s) => ({

@@ -12,6 +12,7 @@ import {
 import type { AnalysisResult } from "@/modules/analysis/types";
 import { eventBus } from "@/modules/core/events";
 import { newId } from "@/modules/core/ids";
+import { applyToAnalysis } from "@/modules/inputs";
 import type { IntakeRequest } from "@/modules/property/intake";
 import { NotFoundError, requireRole, type TenantContext } from "../context";
 
@@ -149,6 +150,13 @@ export async function persistAnalysis(
   const p = result.property.property;
   await ctx.db.transaction(async (tx) => {
     const propertyId = p.id;
+    // The deal's professional inputs survive a re-analysis: the summary reflects the effective figures.
+    const [current] = await tx
+      .select({ professionalInputs: deals.professionalInputs })
+      .from(deals)
+      .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)))
+      .limit(1);
+    const effective = applyToAnalysis(stored, current?.professionalInputs ?? []).result;
     await tx
       .insert(properties)
       .values({
@@ -182,17 +190,7 @@ export async function persistAnalysis(
         latestAnalysisId: analysisId,
         askingPrice: result.property.askingPrice,
         title: `${p.address.raw} · ${result.property.microzone.name}`,
-        summary: {
-          headline: result.synthesis.headline,
-          topStrategy: result.strategies[0]?.label ?? null,
-          netProfit: result.strategies[0]?.headline.netProfit ?? null,
-          roe: result.strategies[0]?.headline.roe ?? null,
-          dna: result.dna.composite.score,
-          gap: result.gap.gap,
-          risk: result.risk.overall,
-          demo: result.demo,
-          strategies: result.strategies.length,
-        },
+        summary: summaryOf(effective),
         updatedAt: new Date(),
       })
       .where(and(eq(deals.id, dealId), eq(deals.organizationId, ctx.organizationId)));
@@ -277,8 +275,22 @@ export async function persistAnalysis(
   });
 }
 
-export async function getLatestAnalysis(ctx: TenantContext, dealId: string): Promise<AnalysisResult | null> {
-  const deal = await getDeal(ctx, dealId);
+/** Deal list summary: top strategy figures of an analysis (effective when professional inputs apply). */
+export function summaryOf(result: AnalysisResult): Record<string, unknown> {
+  return {
+    headline: result.synthesis.headline,
+    topStrategy: result.strategies[0]?.label ?? null,
+    netProfit: result.strategies[0]?.headline.netProfit ?? null,
+    roe: result.strategies[0]?.headline.roe ?? null,
+    dna: result.dna.composite.score,
+    gap: result.gap.gap,
+    risk: result.risk.overall,
+    demo: result.demo,
+    strategies: result.strategies.length,
+  };
+}
+
+async function storedAnalysisOf(ctx: TenantContext, deal: DealRow): Promise<AnalysisResult | null> {
   if (!deal.latestAnalysisId) return null;
   const [row] = await ctx.db
     .select({ result: analyses.result })
@@ -286,6 +298,22 @@ export async function getLatestAnalysis(ctx: TenantContext, dealId: string): Pro
     .where(and(eq(analyses.id, deal.latestAnalysisId), eq(analyses.organizationId, ctx.organizationId)))
     .limit(1);
   return row?.result ?? null;
+}
+
+/** The analysis exactly as persisted: every estimate intact, no professional input applied. */
+export async function getStoredAnalysis(ctx: TenantContext, dealId: string): Promise<AnalysisResult | null> {
+  return storedAnalysisOf(ctx, await getDeal(ctx, dealId));
+}
+
+/**
+ * The effective analysis: the stored result with the deal's active professional
+ * inputs resolved over it (`applyToAnalysis`). Without inputs it is the stored
+ * object itself.
+ */
+export async function getLatestAnalysis(ctx: TenantContext, dealId: string): Promise<AnalysisResult | null> {
+  const deal = await getDeal(ctx, dealId);
+  const stored = await storedAnalysisOf(ctx, deal);
+  return stored ? applyToAnalysis(stored, deal.professionalInputs).result : null;
 }
 
 export async function listDealActivity(ctx: TenantContext, dealId: string, limit = 30) {

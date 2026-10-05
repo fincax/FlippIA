@@ -7,6 +7,7 @@ PostgreSQL 16 + PostGIS (+ pgvector opcional). Drizzle ORM; migraciones en `driz
 - `scripts/migrate.ts` crea `postgis` y `pgcrypto` (y `vector` si existe) antes de aplicar `drizzle/`. En Postgres gestionado esto requiere un rol con permiso para `CREATE EXTENSION`; si no, créalas una vez a mano y ejecuta después `pnpm db:migrate`.
 - `0000_init.sql`: esquema inicial. `0001_investor_unique_profile.sql`: índice único `(organization_id, user_id)` en `investor_profiles` (deduplica antes) y `properties.location` pasa a `geometry(Point, 4326)`; el servicio escribe con `ST_SetSRID(ST_MakePoint(lng, lat), 4326)`.
 - `0002_cascade_fks_rate_limits.sql`: FKs `ON DELETE CASCADE` hacia `organizations`, `deals` y `analyses` en todas las tablas de negocio (`agent_runs`, `evidence`, `regulatory_snapshots`, `scenario_sets`, `watches`, `alerts`, `human_reviews`, `documents`, `activities`, `conversations`, `messages`, `audit_events`, `opportunity_listings`, `partners`, `projects`, `milestones`) y tabla `rate_limits` (contadores compartidos). `deleteOrganization` (`src/server/services/organization.ts`) se apoya en estas cascadas.
+- `0004_professional_inputs.sql`: columna `deals.professional_inputs` (JSONB, `'[]'` por defecto) con los datos profesionales del deal y su historial (`docs/MANUAL_INPUT_IMPLEMENTATION.md`). Aditiva; los deals existentes no cambian.
 
 ## Conexión
 
@@ -17,7 +18,7 @@ PostgreSQL 16 + PostGIS (+ pgvector opcional). Drizzle ORM; migraciones en `driz
 - `organizations`, `users`, `memberships` (rol), `sessions`, `audit_events`
 - `investor_profiles` (Investor DNA JSONB, versión)
 - `properties` (JSONB + `location geometry(Point, 4326)` + `cadastral_ref`)
-- `deals` (estado, modo deal/project, intake, `latest_analysis_id`, resumen)
+- `deals` (estado, modo deal/project, intake, `latest_analysis_id`, resumen, `professional_inputs`: datos profesionales con procedencia e historial, aplicados sobre el análisis en lectura, nunca escritos en `analyses.result` ni en `scenario_sets`)
 - `analyses` (resultado JSONB completo, estado, fecha de análisis)
 - `agent_runs` (registro completo por agente), `evidence` (procedencia), `regulatory_snapshots`
 - `scenario_sets` (Digital Investment Twin por deal y estrategia, versión)
