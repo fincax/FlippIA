@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>FlippIA · Guía rápida · Versión DEMO</title>
+<style>
+  @page { size: A4; margin: 0; }
+  :root {
+    --bg: #f6f5f1; --bg2: #efede7; --surface: #ffffff; --raised: #faf9f6;
+    --fg: #15181d; --fg2: #4d545e; --fg3: #6b7280;
+    --accent: #8a6412; --accent-strong: #71510e; --accent-soft: rgba(180,131,28,0.12);
+    --line: #e1ded6; --line-strong: #c9c5bb;
+    --dark-bg: #0b0d10; --dark-surface: #161a20; --dark-fg: #f2f1ec; --dark-fg2: #a3a9b3; --dark-fg3: #858c97;
+    --dark-accent: #e6b450; --dark-line: #262c35;
+    --success: #4fbf8b; --inferred: #7aa7e0; --review: #e9a23b; --unknown: #7c8390; --danger: #e5484d;
+    --display: "Bitstream Charter", "Iowan Old Style", Palatino, Georgia, serif;
+    --sans: "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Liberation Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 10.2pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a { color: inherit; text-decoration: none; }
+  .page { width: 210mm; height: 297mm; padding: 15mm 16mm 13mm; position: relative; overflow: hidden; page-break-after: always; break-after: page; background: var(--bg); }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .page.dark { background: var(--dark-bg); color: var(--dark-fg); }
+  .grid-bg { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px); background-size: 12mm 12mm; pointer-events: none; }
+  .kicker { font-family: var(--sans); font-size: 7.4pt; letter-spacing: 0.2em; text-transform: uppercase; color: var(--fg3); }
+  .dark .kicker { color: var(--dark-fg3); }
+  h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 23pt; line-height: 1.12; margin: 1.2mm 0 3mm; }
+  h3 { font-size: 13.5pt; margin: 0 0 1.5mm; }
+  p { margin: 0 0 2.2mm; color: var(--fg2); }
+  .lead { font-size: 11pt; color: var(--fg); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .accent { color: var(--accent); }
+  .dark .accent { color: var(--dark-accent); }
+  .wordmark { font-family: var(--display); letter-spacing: -0.02em; }
+  .wordmark .ia { color: var(--dark-accent); }
+  .page.light .wordmark .ia { color: var(--accent); }
+  .footer { position: absolute; left: 16mm; right: 16mm; bottom: 8mm; display: flex; justify-content: space-between; font-size: 7.4pt; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg3); border-top: 1px solid var(--line); padding-top: 2.5mm; }
+  .dark .footer { color: var(--dark-fg3); border-color: var(--dark-line); }
+  .surface { background: var(--surface); border: 1px solid var(--line); border-radius: 3mm; padding: 4mm 4.5mm; }
+  .raised { background: var(--raised); }
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .cols-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3.5mm; }
+  .badge { display: inline-block; font-size: 7pt; font-weight: 600; letter-spacing: 0.04em; padding: 0.6mm 2mm; border-radius: 99px; border: 1px solid; line-height: 1.5; vertical-align: middle; }
+  .b-demo { color: #9a6508; border-color: rgba(233,162,59,.5); background: rgba(233,162,59,.12); }
+  .b-ok { color: #2f7d58; border-color: rgba(79,191,139,.5); background: rgba(79,191,139,.12); }
+  .b-inf { color: #3d6aa8; border-color: rgba(122,167,224,.5); background: rgba(122,167,224,.14); }
+  .b-rev { color: #9a6508; border-color: rgba(233,162,59,.5); background: rgba(233,162,59,.12); }
+  .b-unk { color: #5b6270; border-color: rgba(124,131,144,.5); background: rgba(124,131,144,.12); }
+  .b-con { color: #b0353a; border-color: rgba(229,72,77,.5); background: rgba(229,72,77,.12); }
+  .b-pro { color: var(--accent); border-color: rgba(138,100,18,.45); background: var(--accent-soft); }
+  .b-pub { color: var(--fg2); border-color: var(--line-strong); background: var(--raised); }
+  .step { display: grid; grid-template-columns: 11mm 1fr; gap: 3mm; align-items: start; }
+  .step .n { font-family: var(--display); font-size: 26pt; line-height: 1; color: var(--accent); }
+  .chip { display: inline-block; border: 1px solid var(--line-strong); border-radius: 99px; padding: 0.9mm 2.6mm; font-size: 8.2pt; color: var(--fg2); margin: 0 1.2mm 1.2mm 0; background: var(--surface); }
+  .quote { font-family: var(--display); font-size: 11.5pt; color: var(--fg); border-left: 2px solid var(--accent); padding-left: 3.5mm; margin: 2mm 0 3mm; }
+  .shot { border: 1px solid var(--line); border-radius: 2.5mm; overflow: hidden; background: var(--dark-bg); position: relative; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .caption { font-size: 7.6pt; color: var(--fg3); margin-top: 1.2mm; }
+  .flow { display: grid; grid-template-columns: 1fr; gap: 0; }
+  .flow .node { border: 1px solid var(--line-strong); border-radius: 2mm; padding: 2mm 3mm; background: var(--surface); font-family: var(--display); font-size: 11pt; text-align: center; }
+  .flow .arrow { text-align: center; color: var(--accent); font-size: 11pt; line-height: 1.4; }
+  .flow .multi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.5mm; }
+  .flow .multi .node { font-size: 8pt; padding: 1.8mm 1mm; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--sans); color: var(--fg2); }
+  .flow .node.final { background: var(--accent-soft); border-color: rgba(138,100,18,.45); color: var(--accent-strong); font-size: 12pt; }
+  .metric { border-top: 2px solid var(--line-strong); padding-top: 1.8mm; }
+  .metric .k { font-size: 7.4pt; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg3); }
+  .metric .v { font-family: var(--display); font-size: 15pt; margin: 0.6mm 0 1mm; }
+  .metric p { font-size: 8.6pt; margin: 0; }
+  .eq { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1.4fr; gap: 1.5mm; align-items: center; text-align: center; }
+  .eq .box { border: 1px solid var(--line-strong); border-radius: 2mm; padding: 2.4mm 1mm; font-size: 8pt; letter-spacing: 0.1em; text-transform: uppercase; background: var(--surface); }
+  .eq .box.final { background: var(--accent-soft); border-color: rgba(138,100,18,.45); color: var(--accent-strong); }
+  .eq .op { font-family: var(--display); font-size: 16pt; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+  th { text-align: left; font-weight: 400; font-size: 7.2pt; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg3); padding: 0 2mm 1.2mm 0; }
+  td { padding: 1.4mm 2mm 1.4mm 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--fg2); }
+  td:first-child { color: var(--fg); }
+  .route { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1.2mm; }
+  .route .r { border: 1px solid var(--line-strong); border-radius: 2mm; padding: 2mm 1mm; text-align: center; background: var(--surface); font-size: 7.6pt; line-height: 1.25; }
+  .route .r b { display: block; font-family: var(--display); font-size: 14pt; color: var(--accent); font-weight: 400; margin-bottom: 0.8mm; }
+  .legal { font-size: 8pt; color: var(--fg3); }
+  .small { font-size: 8.6pt; }
+  ul { margin: 0; padding-left: 4mm; color: var(--fg2); }
+  li { margin-bottom: 1mm; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 1.6mm; }
+</style>
+</head>
+<body>
+
+<!-- ───────────── PÁGINA 1 · PORTADA ───────────── -->
+<section class="page dark">
+  <div class="grid-bg"></div>
+  <div style="position:absolute; left:16mm; top:15mm; font-size:7.4pt; letter-spacing:.22em; text-transform:uppercase; color:var(--dark-fg3);">Real Estate Transformation OS · City Zero: Sevilla</div>
+  <div style="position:absolute; left:16mm; top:70mm;">
+    <div class="wordmark" style="font-size:78pt; line-height:1;">Flipp<span class="ia">IA</span></div>
+    <div style="margin-top:6mm; font-size:11pt; letter-spacing:.24em; text-transform:uppercase; color:var(--dark-fg2);">Guía rápida · <span style="color:var(--dark-accent)">Versión DEMO</span></div>
+  </div>
+  <div style="position:absolute; left:16mm; top:132mm; width:150mm;">
+    <div style="font-family:var(--display); font-size:30pt; line-height:1.15; color:var(--dark-fg);">Una dirección.<br>Varios futuros posibles.</div>
+    <p style="margin-top:6mm; font-size:11.5pt; line-height:1.5; color:var(--dark-fg2); max-width:135mm;">Guía de inicio para explorar oportunidades, analizar inversiones y descubrir el potencial de un inmueble.</p>
+  </div>
+  <div style="position:absolute; left:16mm; bottom:34mm; display:grid; grid-template-columns:repeat(6,1fr); gap:2mm; width:178mm;">
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Mercado</div>
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Urbanismo</div>
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Arquitectura</div>
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Inversión</div>
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Financiación</div>
+    <div style="border-top:1px solid var(--dark-accent); padding-top:2mm; font-size:7.2pt; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-fg3);">Riesgo</div>
+  </div>
+  <div class="footer"><span><a href="https://flippia.es">flippia.es</a></span><span>Generada el 5 de octubre de 2026</span></div>
+</section>
+
+<!-- ───────────── PÁGINA 2 · EMPIEZA AQUÍ ───────────── -->
+<section class="page light">
+  <div class="kicker">01 · Empieza aquí</div>
+  <h2>Empieza en 3 pasos</h2>
+  <p class="lead">FlippIA no busca casas, busca posibilidades. Tres pasos bastan para ver el primer resultado.</p>
+
+  <div class="cols-3" style="margin-top:4mm;">
+    <div class="surface step">
+      <div class="n">1</div>
+      <div>
+        <h3>Completa tu Investor DNA</h3>
+        <p class="small">Menú <b>Investor DNA</b>. Indica capital, aportación máxima, horizonte, rentabilidad objetivo, riesgo, zonas y estrategias. LIA utilizará estos criterios para personalizar Radar y los análisis.</p>
+      </div>
+    </div>
+    <div class="surface step">
+      <div class="n">2</div>
+      <div>
+        <h3>Dile a LIA qué buscas</h3>
+        <p class="small">En <b>Pulso</b>, la barra «¿Qué quieres descubrir?» entiende lenguaje natural y ofrece accesos directos:</p>
+        <div><span class="chip">Analizar un inmueble</span><span class="chip">Encontrar oportunidad</span><span class="chip">Tengo capital</span><span class="chip">Buscar para un proyecto</span></div>
+      </div>
+    </div>
+    <div class="surface step">
+      <div class="n">3</div>
+      <div>
+        <h3>Introduce una dirección</h3>
+        <p class="small">FlippIA convierte el inmueble en un deal y estudia diferentes estrategias posibles: qué puede ser, cuánto costaría y qué habría que comprobar.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="kicker" style="margin-top:7mm;">Investor DNA · lo que LIA necesita saber de ti</div>
+  <div class="cols-4" style="margin-top:2.5mm;">
+    <div class="metric"><div class="k">Capital</div><div class="v">disponible</div><p>Cuánto puedes invertir en total.</p></div>
+    <div class="metric"><div class="k">Aportación máxima</div><div class="v">por operación</div><p>Capital propio que pondrías en un solo deal.</p></div>
+    <div class="metric"><div class="k">Horizonte</div><div class="v">meses</div><p>Cuánto tiempo quieres tener el dinero comprometido.</p></div>
+    <div class="metric"><div class="k">ROE objetivo</div><div class="v">%</div><p>Rentabilidad mínima sobre tu capital.</p></div>
+    <div class="metric"><div class="k">Beneficio objetivo</div><div class="v">€</div><p>Ganancia mínima por operación.</p></div>
+    <div class="metric"><div class="k">Riesgo</div><div class="v">baja · media · alta</div><p>Tolerancia y necesidad de liquidez.</p></div>
+    <div class="metric"><div class="k">Zonas</div><div class="v">microzonas</div><p>Barrios de Sevilla donde quieres buscar.</p></div>
+    <div class="metric"><div class="k">Estrategias</div><div class="v">preferidas</div><p>Vías que te interesan; vacío = todas.</p></div>
+  </div>
+  <p class="small" style="margin-top:2.5mm;">También: perfil, experiencia, objetivo (plusvalía, rentas o mixto), financiación y cómo tributas (persona física o sociedad).</p>
+  <div class="quote">Cuanto mejor conozca LIA tus criterios, mejor podrá filtrar lo que realmente te interesa.</div>
+
+  <div class="shot" style="margin-top:2mm;">
+    <img src="shots/pulso.png" alt="Pulso: saludo, barra de LIA con accesos directos, alertas y radar">
+  </div>
+  <div class="caption">Pulso, la pantalla de entrada: la barra de LIA con sus accesos directos, lo que necesita atención y lo que Radar ha descubierto. Organización DEMO.</div>
+
+  <div class="footer"><span>FlippIA · Guía rápida</span><span>02 / 06</span></div>
+</section>
+
+<!-- ───────────── PÁGINA 3 · EL PRIMER WOW ───────────── -->
+<section class="page light">
+  <div class="kicker">02 · El primer wow</div>
+  <h2>Dale una dirección a LIA</h2>
+  <p class="lead">FlippIA coordina distintos análisis para estudiar qué puede hacerse con un inmueble y comparar alternativas. No busca solo pisos baratos: busca discrepancias entre lo que un activo es hoy y lo que podría llegar a ser.</p>
+
+  <div class="cols-2" style="margin-top:4mm; align-items:start;">
+    <div class="flow">
+      <div class="node">Dirección</div>
+      <div class="arrow">↓</div>
+      <div class="node">Activo <span style="font-family:var(--sans); font-size:8pt; color:var(--fg3);">· Catastro, microzona, tipología</span></div>
+      <div class="arrow">↓</div>
+      <div class="multi">
+        <div class="node">Mercado</div><div class="node">Urbanismo</div><div class="node">Arquitectura</div><div class="node">Finanzas</div><div class="node">Riesgo</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node final">Futuros posibles</div>
+      <p class="small" style="margin-top:3mm;">Cada bloque lo trabajan especialistas que dejan evidencia: de dónde sale cada dato, con qué fecha y con qué estado de verificación. Las cifras salen de motores de cálculo deterministas; LIA explica, no inventa números.</p>
+    </div>
+    <div>
+      <div class="kicker">Escríbele así</div>
+      <div class="surface raised" style="margin-top:1.5mm; font-size:8.8pt;">
+        <div style="margin-bottom:1.6mm;"><span class="accent">◆</span> Analiza Calle Pureza 45, Triana, 95 m², 3 habitaciones, para reformar por 255.000 €</div>
+        <div style="margin-bottom:1.6mm;"><span class="accent">◆</span> Tengo 300.000 €. Quiero aportar máximo 120.000 €. Sevilla. Horizonte inferior a 12 meses.</div>
+        <div style="margin-bottom:1.6mm;"><span class="accent">◆</span> Busco un local en Triana o la Alameda de hasta 200.000 € para convertirlo en vivienda</div>
+        <div style="margin-top:2.5mm; padding-top:2mm; border-top:1px solid var(--line); color:var(--fg3); font-size:8pt;">Dentro de un deal, pestaña LIA:</div>
+        <div style="margin-top:1.2mm;"><span class="accent">◆</span> ¿Qué puede salir mal?</div>
+        <div style="margin-top:1.2mm;"><span class="accent">◆</span> ¿Hasta cuánto puedo pagar?</div>
+        <div style="margin-top:1.2mm;"><span class="accent">◆</span> ¿Por qué recomiendas esta estrategia?</div>
+        <div style="margin-top:1.2mm;"><span class="accent">◆</span> ¿Qué pasa si la reforma cuesta 15.000 € más?</div>
+      </div>
+      <p class="small" style="margin-top:2.5mm;">Cobertura actual: Sevilla. Fuera del municipio cubierto, FlippIA lo dice y no aproxima.</p>
+    </div>
+  </div>
+
+  <div class="kicker" style="margin-top:5mm;">Futuros que FlippIA sabe comparar hoy</div>
+  <div class="tag-row" style="margin-top:2mm;">
+    <span class="chip">Reforma integral + venta</span><span class="chip">Reforma ligera + venta</span><span class="chip">Redistribución + venta</span><span class="chip">Reforma + alquiler</span><span class="chip">Compra + alquiler sin reforma</span><span class="chip">Cambio de uso a vivienda</span><span class="chip">División en dos viviendas</span><span class="chip">Rehabilitación energética + venta</span><span class="chip">Venta con proyecto y licencia</span><span class="chip">Explotación turística</span>
+  </div>
+  <p class="small" style="margin-top:2mm;">Según el activo, FlippIA evalúa las vías que tienen sentido y las ordena explicando sus motivos. <b>Que FlippIA detecte una posibilidad no significa que esté confirmada legal o técnicamente</b>: cada futuro muestra su estado de verificación y las comprobaciones que requiere.</p>
+
+  <div class="shot" style="margin-top:2.5mm;">
+    <img src="shots/deal.png" alt="Deal: tesis de inversión y tarjetas de futuros">
+  </div>
+  <div class="caption">Un deal DEMO: los futuros ordenados, cada uno con beneficio o renta, ROE o TIR, capital y plazo. Las vías condicionadas indican cuántas comprobaciones requieren.</div>
+
+  <div class="footer"><span>FlippIA · Guía rápida</span><span>03 / 06</span></div>
+</section>
+
+<!-- ───────────── PÁGINA 4 · CÓMO LEER UN DEAL ───────────── -->
+<section class="page light">
+  <div class="kicker">03 · Cómo leer un deal</div>
+  <h2>Entiende una oportunidad en segundos</h2>
+  <p class="lead">Cada deal resume la mejor estrategia con cinco indicadores. Todos salen de los motores de cálculo y se pueden desplegar hasta su fórmula.</p>
+
+  <div class="cols-3" style="margin-top:4mm;">
+    <div class="metric"><div class="k">Beneficio</div><div class="v">€</div><p>Beneficio operativo del proyecto en el escenario base de la mejor estrategia: ingresos menos costes de venta y coste efectivo. Antes de la fiscalidad directa del inversor (IRPF o IS), que se muestra aparte.</p></div>
+    <div class="metric"><div class="k">ROE</div><div class="v">%</div><p>Beneficio entre el capital propio que necesitas en el peor momento del proyecto, tras deuda y socios. Antes de IRPF o IS. En rentas, FlippIA añade TIR, cap rate y cash-on-cash.</p></div>
+    <div class="metric"><div class="k">DNA</div><div class="v">0 – 100</div><p>Compuesto de nueve dimensiones: adquisición, mercado, transformación, urbanismo, arquitectura, financiación, ejecución, liquidez y riesgo. Orientativo: las dimensiones importan más que el número.</p></div>
+    <div class="metric"><div class="k">Futuros</div><div class="v">n</div><p>Estrategias evaluadas para ese activo. Las condicionadas («condicionado a 3 comprobaciones») no se presentan como viables hasta validarlas.</p></div>
+    <div class="metric"><div class="k">Riesgo</div><div class="v">bajo · medio · alto</div><p>Nivel global que combina los hallazgos de los agentes adversariales (abogado del diablo, conflicto normativo, integridad de datos, anomalías) y el test de estrés.</p></div>
+    <div class="metric"><div class="k">Pestañas</div><div class="v">12</div><p>Overview · Estrategias · Escenarios · Finanzas · Riesgo · Urbanismo · Arquitectura · Mercado · Evidencia · Passport · Actividad · LIA.</p></div>
+  </div>
+
+  <div class="cols-2" style="margin-top:6mm; align-items:start;">
+    <div>
+      <div class="kicker">¿Conoces un dato mejor?</div>
+      <h3 style="margin-top:1mm;">Datos profesionales</h3>
+      <p class="small">FlippIA estima cuando no sabe. Si conoces un dato real o profesional, un precio ya negociado o un presupuesto de obra del constructor, introdúcelo en <b>Finanzas › Datos profesionales</b>: los análisis dependientes pasan a usar ese valor, la estimación original se conserva y el dato queda marcado como <span class="badge b-pro">Profesional</span> con quién lo aportó, cuándo y por qué. Puedes volver a la estimación en cualquier momento.</p>
+      <p class="small">Admite precio de compra, presupuesto de obra (materiales, mano de obra y margen comercial), honorarios técnicos y, en Fiscalidad, base imponible, impuesto liquidado y deducibilidad del IVA. Cada dato se aporta bajo la responsabilidad de quien lo introduce.</p>
+    </div>
+    <div>
+      <div class="surface raised" style="font-size:9pt;">
+        <div class="kicker" style="margin-bottom:2mm;">Precio de compra</div>
+        <table>
+          <tr><td>Estimación FlippIA</td><td class="num" style="text-align:right;">245.000 €</td></tr>
+          <tr><td>Precio negociado <span class="badge b-pro">Profesional</span></td><td class="num" style="text-align:right;">218.000 €</td></tr>
+          <tr><td style="color:var(--accent);">Utilizado en el análisis</td><td class="num" style="text-align:right; color:var(--accent); font-size:11pt;">218.000 €</td></tr>
+        </table>
+        <div class="kicker" style="margin:4mm 0 2mm;">Impuestos aparte</div>
+        <table>
+          <tr><td>Base (sin impuestos)</td><td class="num" style="text-align:right;">65.500 €</td></tr>
+          <tr><td>Impuestos aplicables</td><td class="num" style="text-align:right;">+ impuestos</td></tr>
+          <tr><td>Total · Recuperable · Coste efectivo</td><td class="num" style="text-align:right;">desglosados</td></tr>
+        </table>
+        <p class="small" style="margin:2mm 0 0; color:var(--fg3);">Los importes se indican sin impuestos. FlippIA separa base, impuestos, total y coste efectivo para no confundir precio neto con desembolso real, y dice si cada cifra va antes o después de IRPF o IS.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot" style="margin-top:3mm;">
+    <img src="shots/finance.png" alt="Finanzas: panel de datos profesionales y precio máximo">
+  </div>
+  <div class="caption">Pestaña Finanzas, panel Datos profesionales: por cada concepto, estimación · profesional · en uso. Debajo, el precio máximo para tus objetivos y el desglose con base, impuestos y coste efectivo.</div>
+
+  <div class="footer"><span>FlippIA · Guía rápida</span><span>04 / 06</span></div>
+</section>
+
+<!-- ───────────── PÁGINA 5 · RADAR + VIGILANCIA + PULSO ───────────── -->
+<section class="page light">
+  <div class="kicker">04 · Radar, Vigilancia y Pulso</div>
+  <h2>FlippIA sigue buscando</h2>
+  <p class="lead">Discrepancias de valor, no pisos baratos. Radar utiliza tu Investor DNA para detectar oportunidades compatibles con tus criterios y te explica por qué encajan.</p>
+
+  <div class="eq" style="margin-top:4mm;">
+    <div class="box">Tu DNA</div><div class="op">+</div>
+    <div class="box">Activos</div><div class="op">+</div>
+    <div class="box">Análisis</div><div class="op">=</div>
+    <div class="box final">Oportunidades compatibles</div>
+  </div>
+  <p class="small" style="margin-top:3mm;">Cada hallazgo muestra precio, beneficio rápido, ROE, capital, plazo y la estrategia que lo defiende, con sus motivos. Desde ahí puedes <b>Construir el caso</b> (análisis completo), ver su <b>Autopsia</b> (qué criterio no cumple y por qué) o <b>Vigilar este deal</b>. Si le hablas a LIA de un proyecto («un local para convertirlo en vivienda»), Radar evalúa cada activo con esa vía.</p>
+
+  <div class="shot" style="margin-top:2mm;">
+    <img src="shots/radar.png" alt="Radar: hallazgos con motivos y mapa de densidad de oportunidad">
+  </div>
+  <div class="caption">Radar DEMO: criterios activos, hallazgos con sus motivos y el mapa de densidad de oportunidad por microzona. Listados DEMO de la red FlippIA; sin scraping.</div>
+
+  <div class="cols-2" style="margin-top:5mm; align-items:start;">
+    <div class="surface">
+      <div class="kicker">Vigilancia</div>
+      <h3 style="margin-top:1mm;">Si todavía no encaja, vigílalo</h3>
+      <p class="small">Desde un deal o desde Radar, «Vigilar». FlippIA avisa cuando:</p>
+      <ul class="small">
+        <li>el precio baja de un umbral o cae un porcentaje;</li>
+        <li>el activo vuelve a cumplir tus criterios;</li>
+        <li>cambia una norma que afecta a una estrategia;</li>
+        <li>lleva demasiados días en mercado;</li>
+        <li>aparece un comparable nuevo.</li>
+      </ul>
+      <div class="quote" style="font-size:10.5pt; margin-bottom:0;">Una oportunidad descartada hoy puede convertirse en interesante mañana.</div>
+    </div>
+    <div class="surface">
+      <div class="kicker">Pulso</div>
+      <h3 style="margin-top:1mm;">Tu punto de entrada diario</h3>
+      <p class="small">Lo importante ahora, en una pantalla:</p>
+      <ul class="small">
+        <li><b>Qué necesita mi atención</b>: oportunidades activadas, riesgos nuevos, cambios normativos.</li>
+        <li><b>Qué se ha descubierto</b>: los mejores hallazgos de Radar.</li>
+        <li><b>Qué tengo activo</b>: tu cartera de deals con beneficio, ROE y DNA.</li>
+        <li><b>LIA</b>: la barra para empezar algo nuevo.</li>
+      </ul>
+      <p class="small" style="margin-top:1mm; color:var(--fg3);">Deals reúne todas tus operaciones, con su estado: borrador, analizado, vigilado, aprobado, descartado, adquirido, proyecto o cerrado.</p>
+    </div>
+  </div>
+
+  <div class="footer"><span>FlippIA · Guía rápida</span><span>05 / 06</span></div>
+</section>
+
+<!-- ───────────── PÁGINA 6 · DEMO ───────────── -->
+<section class="page light">
+  <div class="kicker">05 · Lee esto antes de decidir</div>
+  <h2>Estás utilizando una versión DEMO</h2>
+  <p class="lead">Toda cifra dice de dónde viene. Cada deal indica, en <b>Passport › Fuentes</b> y en <b>Evidencia</b>, qué fuente se ha consultado y en qué modo. Lo que una fuente no dio aparece como desconocido con su comprobación, nunca como un dato.</p>
+
+  <div class="cols-2" style="margin-top:3.5mm; align-items:start;">
+    <div>
+      <div class="kicker" style="margin-bottom:2mm;">Fuentes que FlippIA puede usar</div>
+      <table>
+        <tr><th>Fuente</th><th>Modo</th></tr>
+        <tr><td>Sede Electrónica del Catastro (OVC)</td><td><span class="badge b-pub">Fuente pública</span></td></tr>
+        <tr><td>Gerencia de Urbanismo de Sevilla · IDE Sevilla</td><td><span class="badge b-pub">Fuente pública</span></td></tr>
+        <tr><td>Testigos propios · Idealista (API oficial)</td><td><span class="badge b-pub">Si están configurados</span></td></tr>
+        <tr><td>Mercado Sevilla</td><td><span class="badge b-demo">DEMO</span></td></tr>
+        <tr><td>FlippIA Funding (financiación)</td><td><span class="badge b-demo">DEMO</span></td></tr>
+        <tr><td>Red FlippIA (listados del Radar)</td><td><span class="badge b-demo">DEMO</span></td></tr>
+      </table>
+      <p class="small" style="margin-top:2mm; color:var(--fg3);">El modo activo de cada fuente depende de la configuración del entorno; la aplicación lo muestra siempre junto al dato. Sin scraping: solo fuentes públicas, APIs oficiales, feeds autorizados y tus propios listados.</p>
+    </div>
+    <div>
+      <div class="kicker" style="margin-bottom:2mm;">Etiquetas que verás</div>
+      <table>
+        <tr><td style="width:34mm;"><span class="badge b-pub">Fuente pública</span></td><td>Información obtenida de una fuente pública configurada.</td></tr>
+        <tr><td><span class="badge b-demo">DEMO</span></td><td>Información simulada o preparada para probar funcionalidades. Nunca se presenta como real.</td></tr>
+        <tr><td><span class="badge b-pro">Profesional</span></td><td>Dato introducido por un profesional o usuario autorizado, bajo su responsabilidad.</td></tr>
+        <tr><td><span class="badge b-ok">Verificado</span></td><td>Evidencia directa y fiable de la fuente.</td></tr>
+        <tr><td><span class="badge b-inf">Inferido</span></td><td>Conclusión derivada de evidencia indirecta.</td></tr>
+        <tr><td><span class="badge b-rev">Requiere revisión</span></td><td>Necesita la comprobación de un técnico o profesional.</td></tr>
+        <tr><td><span class="badge b-unk">Desconocido</span></td><td>No existe evidencia suficiente.</td></tr>
+        <tr><td><span class="badge b-con">Conflicto</span></td><td>Fuentes inconsistentes entre sí.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="surface" style="margin-top:4mm; border-color:var(--line-strong);">
+    <p class="legal" style="margin:0;"><b style="color:var(--fg);">Aclaración importante.</b> FlippIA es una herramienta de apoyo a la inversión y transformación inmobiliaria. Las estimaciones no sustituyen una tasación oficial, una licencia, una resolución administrativa ni la revisión técnica, jurídica, fiscal o profesional que corresponda. Los datos introducidos por el profesional o el usuario se aportan bajo su responsabilidad.</p>
+  </div>
+
+  <div class="cols-2" style="margin-top:4mm; align-items:start;">
+    <div>
+      <div class="kicker">Función avanzada</div>
+      <h3 style="margin-top:1mm;">¿Quieres mirar bajo el capó?</h3>
+      <p class="small">En <b>Agentes</b> (visible para cuentas administradoras; la demo lo es) puedes ver cómo FlippIA ha organizado los análisis: qué especialistas han intervenido, qué fuentes han utilizado, cuánto han tardado y qué evidencia han generado. En cada deal, la pestaña <b>Actividad</b> muestra lo mismo para ese análisis.</p>
+    </div>
+    <div>
+      <div class="kicker">Tu primer recorrido</div>
+      <div class="route" style="margin-top:2mm;">
+        <div class="r"><b>1</b>Investor DNA</div>
+        <div class="r"><b>2</b>Pulso</div>
+        <div class="r"><b>3</b>Habla con LIA</div>
+        <div class="r"><b>4</b>Analiza una dirección</div>
+        <div class="r"><b>5</b>Abre sus futuros</div>
+        <div class="r"><b>6</b>Revisa el deal</div>
+        <div class="r"><b>7</b>Prueba Radar</div>
+        <div class="r"><b>8</b>Añade una vigilancia</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:absolute; left:16mm; right:16mm; bottom:22mm; display:grid; grid-template-columns:1fr 30mm; gap:6mm; align-items:center; border-top:1px solid var(--line-strong); padding-top:5mm;">
+    <div>
+      <div style="font-family:var(--display); font-size:19pt; line-height:1.2;">Empieza con una dirección.</div>
+      <p style="margin:1.5mm 0 2.5mm; font-size:10.5pt;">El mejor modo de entender FlippIA es utilizarla.</p>
+      <a href="https://flippia.es/app" style="display:inline-block; background:var(--fg); color:var(--bg); font-size:10pt; padding:2.4mm 5mm; border-radius:2.5mm; letter-spacing:.02em;">https://flippia.es/app</a>
+    </div>
+    <div style="text-align:center;">
+      <svg viewBox="0 0 27 27" width="28mm" height="28mm" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:2mm;"><path d="M1,1H2V2H1zM2,1H3V2H2zM3,1H4V2H3zM4,1H5V2H4zM5,1H6V2H5zM6,1H7V2H6zM7,1H8V2H7zM12,1H13V2H12zM15,1H16V2H15zM17,1H18V2H17zM19,1H20V2H19zM20,1H21V2H20zM21,1H22V2H21zM22,1H23V2H22zM23,1H24V2H23zM24,1H25V2H24zM25,1H26V2H25zM1,2H2V3H1zM7,2H8V3H7zM11,2H12V3H11zM12,2H13V3H12zM13,2H14V3H13zM14,2H15V3H14zM16,2H17V3H16zM17,2H18V3H17zM19,2H20V3H19zM25,2H26V3H25zM1,3H2V4H1zM3,3H4V4H3zM4,3H5V4H4zM5,3H6V4H5zM7,3H8V4H7zM9,3H10V4H9zM11,3H12V4H11zM15,3H16V4H15zM16,3H17V4H16zM17,3H18V4H17zM19,3H20V4H19zM21,3H22V4H21zM22,3H23V4H22zM23,3H24V4H23zM25,3H26V4H25zM1,4H2V5H1zM3,4H4V5H3zM4,4H5V5H4zM5,4H6V5H5zM7,4H8V5H7zM9,4H10V5H9zM10,4H11V5H10zM11,4H12V5H11zM12,4H13V5H12zM14,4H15V5H14zM16,4H17V5H16zM19,4H20V5H19zM21,4H22V5H21zM22,4H23V5H22zM23,4H24V5H23zM25,4H26V5H25zM1,5H2V6H1zM3,5H4V6H3zM4,5H5V6H4zM5,5H6V6H5zM7,5H8V6H7zM9,5H10V6H9zM11,5H12V6H11zM14,5H15V6H14zM17,5H18V6H17zM19,5H20V6H19zM21,5H22V6H21zM22,5H23V6H22zM23,5H24V6H23zM25,5H26V6H25zM1,6H2V7H1zM7,6H8V7H7zM9,6H10V7H9zM14,6H15V7H14zM15,6H16V7H15zM16,6H17V7H16zM19,6H20V7H19zM25,6H26V7H25zM1,7H2V8H1zM2,7H3V8H2zM3,7H4V8H3zM4,7H5V8H4zM5,7H6V8H5zM6,7H7V8H6zM7,7H8V8H7zM9,7H10V8H9zM11,7H12V8H11zM13,7H14V8H13zM15,7H16V8H15zM17,7H18V8H17zM19,7H20V8H19zM20,7H21V8H20zM21,7H22V8H21zM22,7H23V8H22zM23,7H24V8H23zM24,7H25V8H24zM25,7H26V8H25zM9,8H10V9H9zM11,8H12V9H11zM13,8H14V9H13zM15,8H16V9H15zM17,8H18V9H17zM1,9H2V10H1zM3,9H4V10H3zM4,9H5V10H4zM5,9H6V10H5zM6,9H7V10H6zM7,9H8V10H7zM10,9H11V10H10zM11,9H12V10H11zM12,9H13V10H12zM13,9H14V10H13zM14,9H15V10H14zM15,9H16V10H15zM19,9H20V10H19zM20,9H21V10H20zM21,9H22V10H21zM22,9H23V10H22zM23,9H24V10H23zM3,10H4V11H3zM5,10H6V11H5zM6,10H7V11H6zM8,10H9V11H8zM9,10H10V11H9zM11,10H12V11H11zM12,10H13V11H12zM20,10H21V11H20zM24,10H25V11H24zM1,11H2V12H1zM2,11H3V12H2zM4,11H5V12H4zM6,11H7V12H6zM7,11H8V12H7zM10,11H11V12H10zM16,11H17V12H16zM17,11H18V12H17zM18,11H19V12H18zM21,11H22V12H21zM22,11H23V12H22zM24,11H25V12H24zM25,11H26V12H25zM2,12H3V13H2zM3,12H4V13H3zM5,12H6V13H5zM8,12H9V13H8zM10,12H11V13H10zM11,12H12V13H11zM12,12H13V13H12zM15,12H16V13H15zM16,12H17V13H16zM19,12H20V13H19zM20,12H21V13H20zM25,12H26V13H25zM1,13H2V14H1zM2,13H3V14H2zM4,13H5V14H4zM5,13H6V14H5zM6,13H7V14H6zM7,13H8V14H7zM10,13H11V14H10zM11,13H12V14H11zM12,13H13V14H12zM14,13H15V14H14zM15,13H16V14H15zM16,13H17V14H16zM18,13H19V14H18zM19,13H20V14H19zM21,13H22V14H21zM23,13H24V14H23zM24,13H25V14H24zM25,13H26V14H25zM1,14H2V15H1zM5,14H6V15H5zM8,14H9V15H8zM10,14H11V15H10zM13,14H14V15H13zM15,14H16V15H15zM17,14H18V15H17zM20,14H21V15H20zM22,14H23V15H22zM24,14H25V15H24zM1,15H2V16H1zM6,15H7V16H6zM7,15H8V16H7zM8,15H9V16H8zM10,15H11V16H10zM16,15H17V16H16zM17,15H18V16H17zM20,15H21V16H20zM21,15H22V16H21zM22,15H23V16H22zM24,15H25V16H24zM25,15H26V16H25zM1,16H2V17H1zM4,16H5V17H4zM6,16H7V17H6zM9,16H10V17H9zM10,16H11V17H10zM11,16H12V17H11zM13,16H14V17H13zM16,16H17V17H16zM18,16H19V17H18zM19,16H20V17H19zM20,16H21V17H20zM21,16H22V17H21zM25,16H26V17H25zM1,17H2V18H1zM3,17H4V18H3zM4,17H5V18H4zM5,17H6V18H5zM6,17H7V18H6zM7,17H8V18H7zM8,17H9V18H8zM9,17H10V18H9zM10,17H11V18H10zM11,17H12V18H11zM13,17H14V18H13zM14,17H15V18H14zM15,17H16V18H15zM17,17H18V18H17zM18,17H19V18H18zM19,17H20V18H19zM20,17H21V18H20zM21,17H22V18H21zM23,17H24V18H23zM9,18H10V19H9zM11,18H12V19H11zM15,18H16V19H15zM16,18H17V19H16zM17,18H18V19H17zM21,18H22V19H21zM22,18H23V19H22zM1,19H2V20H1zM2,19H3V20H2zM3,19H4V20H3zM4,19H5V20H4zM5,19H6V20H5zM6,19H7V20H6zM7,19H8V20H7zM10,19H11V20H10zM11,19H12V20H11zM12,19H13V20H12zM13,19H14V20H13zM17,19H18V20H17zM19,19H20V20H19zM21,19H22V20H21zM23,19H24V20H23zM24,19H25V20H24zM25,19H26V20H25zM1,20H2V21H1zM7,20H8V21H7zM9,20H10V21H9zM10,20H11V21H10zM12,20H13V21H12zM17,20H18V21H17zM21,20H22V21H21zM22,20H23V21H22zM1,21H2V22H1zM3,21H4V22H3zM4,21H5V22H4zM5,21H6V22H5zM7,21H8V22H7zM9,21H10V22H9zM10,21H11V22H10zM12,21H13V22H12zM16,21H17V22H16zM17,21H18V22H17zM18,21H19V22H18zM19,21H20V22H19zM20,21H21V22H20zM21,21H22V22H21zM23,21H24V22H23zM24,21H25V22H24zM25,21H26V22H25zM1,22H2V23H1zM3,22H4V23H3zM4,22H5V23H4zM5,22H6V23H5zM7,22H8V23H7zM9,22H10V23H9zM11,22H12V23H11zM13,22H14V23H13zM14,22H15V23H14zM16,22H17V23H16zM18,22H19V23H18zM19,22H20V23H19zM21,22H22V23H21zM22,22H23V23H22zM23,22H24V23H23zM24,22H25V23H24zM25,22H26V23H25zM1,23H2V24H1zM3,23H4V24H3zM4,23H5V24H4zM5,23H6V24H5zM7,23H8V24H7zM9,23H10V24H9zM10,23H11V24H10zM14,23H15V24H14zM15,23H16V24H15zM16,23H17V24H16zM18,23H19V24H18zM22,23H23V24H22zM23,23H24V24H23zM25,23H26V24H25zM1,24H2V25H1zM7,24H8V25H7zM10,24H11V25H10zM11,24H12V25H11zM13,24H14V25H13zM14,24H15V25H14zM17,24H18V25H17zM19,24H20V25H19zM20,24H21V25H20zM21,24H22V25H21zM22,24H23V25H22zM25,24H26V25H25zM1,25H2V26H1zM2,25H3V26H2zM3,25H4V26H3zM4,25H5V26H4zM5,25H6V26H5zM6,25H7V26H6zM7,25H8V26H7zM9,25H10V26H9zM13,25H14V26H13zM15,25H16V26H15zM19,25H20V26H19zM20,25H21V26H20zM21,25H22V26H21zM22,25H23V26H22zM23,25H24V26H23zM24,25H25V26H24zM25,25H26V26H25z" fill="#15181d"/></svg>
+      <div style="font-size:7pt; letter-spacing:.12em; text-transform:uppercase; color:var(--fg3); margin-top:1.5mm;">flippia.es/app</div>
+    </div>
+  </div>
+
+  <div class="footer"><span>FlippIA · Guía rápida · Versión DEMO</span><span>06 / 06</span></div>
+</section>
+
+</body>
+</html>
