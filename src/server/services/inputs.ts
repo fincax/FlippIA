@@ -39,6 +39,12 @@ export interface ProfessionalInputItemView {
   estimate: { value: number; label: string; status: EvidenceStatus; note?: string } | null;
   active: ProfessionalInput | null;
   effective: { value: number | null; source: "professional" | "manual_assumption" | "estimate" | "unknown" };
+  /**
+   * Taxes the engine applies on top of the figure in use (never inside the margin):
+   * works VAT on a budget, ITP or IVA + AJD on a purchase price. Read from the base
+   * scenario's cost lines of the effective analysis.
+   */
+  tax: { label: string; amount: number; totalWithTax: number } | null;
   /** Set when the active input could not be applied to the analysis. */
   error?: string;
 }
@@ -59,6 +65,27 @@ function estimateLabel(analysis: AnalysisResult, key: ProfessionalInputDefinitio
       estimated: "Estimación FlippIA (valor as-is sin reformar)",
     }[analysis.property.askingPriceSource];
   return "Estimación FlippIA";
+}
+
+/** The tax lines the engine derives from a figure: separate from the figure and from any commercial margin. */
+function taxFor(
+  key: ProfessionalInputDefinition["key"],
+  strategy: AnalysisResult["strategies"][number] | undefined,
+  value: number | null,
+): ProfessionalInputItemView["tax"] {
+  const base = strategy?.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
+  if (!base || value === null) return null;
+  if (key === "acquisition.purchasePrice") {
+    const lines = base.costLines.filter((l) => l.category === "acquisition_taxes");
+    if (!lines.length) return null;
+    const amount = lines.reduce((a, l) => a + l.amount, 0);
+    return { label: lines.map((l) => l.label).join(" + "), amount, totalWithTax: value + amount };
+  }
+  const construction = base.costLines.find((l) => l.key === "construction");
+  if (!construction) return null;
+  const rate = base.inputs.transformation.worksVatReduced ? "IVA reducido" : "IVA";
+  const amount = Math.round((construction.amount - value) * 100) / 100;
+  return { label: `${rate} de obra`, amount, totalWithTax: construction.amount };
 }
 
 function rejectionFor(rejected: RejectedInput[], input: ProfessionalInput | null): string | undefined {
@@ -134,6 +161,7 @@ export async function professionalInputsView(
                   ? "unknown"
                   : "estimate",
         },
+        tax: taxFor(key, effectiveStrategy, value),
         error,
       });
     }

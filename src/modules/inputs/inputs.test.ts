@@ -238,6 +238,10 @@ describe("commercial margin and responsibility", () => {
     expect(note).toContain("bajo su responsabilidad");
     expect(note).toContain("margen comercial");
     expect(note).toContain("66.000");
+    expect(note).toContain("sin impuestos");
+    expect(provenanceNote(negotiated(), { value: 245_000, source: "user", status: "INFERRED" })).toContain(
+      "los impuestos aplicables se calculan aparte",
+    );
   });
 });
 

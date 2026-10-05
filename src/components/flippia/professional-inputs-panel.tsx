@@ -255,7 +255,8 @@ function Slot({
           ) : null}
           {a && a.marginAmount > 0 ? (
             <div className="mt-1 text-[11px] text-fg-3">
-              Neto <Money value={a.netValue} /> + margen comercial <Money value={a.marginAmount} />
+              Neto <Money value={a.netValue} /> + margen comercial <Money value={a.marginAmount} /> (sin
+              impuestos)
             </div>
           ) : null}
           {a?.reason ? <div className="mt-1 text-[11px] text-fg-2">{a.reason}</div> : null}
@@ -285,7 +286,14 @@ function Slot({
                 : item.effective.source === "estimate"
                   ? "Estimación FlippIA"
                   : "Sin dato"}
+            {item.effective.value !== null ? " · sin impuestos" : ""}
           </div>
+          {item.tax ? (
+            <div className="mt-1 text-[11px] text-fg-3">
+              {item.tax.label} aparte: <Money value={item.tax.amount} /> · con impuestos{" "}
+              <Money value={item.tax.totalWithTax} />
+            </div>
+          ) : null}
         </div>
       </div>
       {item.error ? (
@@ -437,7 +445,7 @@ function InputForm({
         <div className="grid gap-3 sm:grid-cols-3">
           {lines.map(([label, amount, setAmount, m, setM]) => (
             <div key={label} className="grid gap-2">
-              <Field label={`${label} (€, neto)`}>
+              <Field label={`${label} (€, neto sin impuestos)`}>
                 <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
               </Field>
               <Field label="Margen de la partida (%)">
@@ -454,7 +462,7 @@ function InputForm({
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         <Field
-          label={isWorks ? "Total obra neto (PEM + GG/BI, sin IVA)" : "Importe neto (€)"}
+          label={isWorks ? "Total obra neto (PEM + GG/BI, sin IVA)" : "Importe neto (€, sin impuestos)"}
           hint={sum !== undefined ? "Suma del desglose." : undefined}
         >
           <Input
@@ -469,8 +477,8 @@ function InputForm({
           label="Margen comercial (%)"
           hint={
             gross !== undefined && netValue !== undefined && gross !== netValue
-              ? `En el análisis: ${formatMoney(Math.round(gross))}`
-              : "Sobre el neto; cada partida puede fijar el suyo."
+              ? `En el análisis: ${formatMoney(Math.round(gross))} sin impuestos`
+              : "Sobre el neto, sin impuestos; cada partida puede fijar el suyo. El IVA o ITP se calcula aparte."
           }
         >
           <Input
