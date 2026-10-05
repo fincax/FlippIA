@@ -88,12 +88,28 @@ export function resolveEffectiveValue(params: {
   return { value: undefined, source: "unknown" };
 }
 
+/**
+ * A figure typed with its indirect tax inside, brought back to its base when
+ * the rate is known. `rate` undefined → nothing is invented: the figure is
+ * kept as typed and flagged as pending.
+ */
+export function normalizeTaxIncluded(
+  amount: number,
+  rate: number | undefined,
+): { base: number; pending: boolean } {
+  if (rate === undefined) return { base: round2(amount), pending: true };
+  return { base: round2(amount / (1 + rate)), pending: false };
+}
+
 export interface ProfessionalInputDraft {
   key: ProfessionalInputKey;
   strategyId?: string;
-  /** Net figure as entered; the margin is added on top. */
+  /** Figure as entered: net before margin, and before tax unless `taxMode` is `included`. */
   value: number;
   marginRate?: number;
+  taxMode?: ProfessionalInput["taxMode"];
+  /** Indirect tax rate to normalise an `included` figure; undefined → pending. */
+  taxRate?: number;
   sourceType: ProfessionalSourceType;
   enteredBy: string;
   enteredByName?: string;
@@ -106,8 +122,24 @@ export interface ProfessionalInputDraft {
 
 export function newProfessionalInput(draft: ProfessionalInputDraft, now = new Date()): ProfessionalInput {
   const def = PROFESSIONAL_INPUT_REGISTRY[draft.key];
-  const breakdown = draft.breakdown?.length ? draft.breakdown : undefined;
-  const money = withMargin(draft.value, draft.marginRate, breakdown);
+  const taxMode = draft.taxMode ?? (def.unit === "currency" ? "excluded" : "not_applicable");
+  const included = taxMode === "included";
+  // An included figure is the invoice total: back to base first, then the margin is read inside it.
+  const norm = included ? normalizeTaxIncluded(draft.value, draft.taxRate) : null;
+  const breakdownNet = draft.breakdown?.length
+    ? draft.breakdown.map((l) =>
+        included ? { ...l, amount: normalizeTaxIncluded(l.amount, draft.taxRate).base } : l,
+      )
+    : undefined;
+  const money = included
+    ? (() => {
+        const base = breakdownNet
+          ? round2(breakdownNet.reduce((a, l) => a + l.amount, 0))
+          : (norm?.base ?? draft.value);
+        const net = round2(base / (1 + (draft.marginRate ?? 0)));
+        return { value: base, netValue: net, marginAmount: round2(base - net) };
+      })()
+    : withMargin(draft.value, draft.marginRate, breakdownNet);
   return {
     id: newId("pin"),
     key: draft.key,
@@ -116,6 +148,10 @@ export function newProfessionalInput(draft: ProfessionalInputDraft, now = new Da
     netValue: money.netValue,
     marginRate: draft.marginRate,
     marginAmount: money.marginAmount,
+    taxMode,
+    enteredAmount: included ? draft.value : undefined,
+    taxRateApplied: included && !norm?.pending ? draft.taxRate : undefined,
+    taxBreakdownPending: included && norm?.pending ? true : undefined,
     unit: def.unit,
     sourceType: draft.sourceType,
     status: SOURCE_TYPE_META[draft.sourceType].status,
@@ -126,7 +162,7 @@ export function newProfessionalInput(draft: ProfessionalInputDraft, now = new Da
     responsibilityAcknowledgedAt: now.toISOString(),
     reason: draft.reason || undefined,
     note: draft.note || undefined,
-    breakdown,
+    breakdown: breakdownNet,
     estimateAtEntry: draft.estimateAtEntry,
     state: "active",
   };

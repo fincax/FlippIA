@@ -22,6 +22,9 @@ import {
   type RejectedInput,
 } from "@/modules/inputs";
 import { getPath } from "@/modules/engines/scenario";
+import type { ConceptBreakdown, FinancialResult } from "@/modules/engines/financial";
+import { estimateForOptionalKey } from "@/modules/inputs";
+import { resolveTaxRules } from "@/modules/tax";
 import type { EvidenceStatus } from "@/modules/core/evidence-status";
 import { NotFoundError, requireRole, type TenantContext } from "../context";
 import { getDeal, getStoredAnalysis, logActivity, summaryOf, type DealRow } from "./deals";
@@ -31,6 +34,10 @@ import { formatMoney } from "@/lib/format";
 export interface ProfessionalInputItemView {
   key: ProfessionalInputDefinition["key"];
   label: string;
+  description: string;
+  group: ProfessionalInputDefinition["group"];
+  /** The figure may be typed with its indirect tax included. */
+  taxable: boolean;
   unit: ProfessionalInputDefinition["unit"];
   scope: ProfessionalInputDefinition["scope"];
   strategyId?: string;
@@ -40,11 +47,10 @@ export interface ProfessionalInputItemView {
   active: ProfessionalInput | null;
   effective: { value: number | null; source: "professional" | "manual_assumption" | "estimate" | "unknown" };
   /**
-   * Taxes the engine applies on top of the figure in use (never inside the margin):
-   * works VAT on a budget, ITP or IVA + AJD on a purchase price. Read from the base
-   * scenario's cost lines of the effective analysis.
+   * The concept seen four ways by the engine (base, taxes, gross, recoverable,
+   * effective cost, cash), from the effective base scenario. Never inside the margin.
    */
-  tax: { label: string; amount: number; totalWithTax: number } | null;
+  tax: ConceptBreakdown | null;
   /** Set when the active input could not be applied to the analysis. */
   error?: string;
 }
@@ -52,40 +58,53 @@ export interface ProfessionalInputItemView {
 export interface ProfessionalInputsView {
   hasAnalysis: boolean;
   items: ProfessionalInputItemView[];
+  /** Effective tax summary of the top strategy: recoverability, effective cost, cash requirement. */
+  taxSummary: FinancialResult["tax"] | null;
   /** FlippIA's own maximum for the top strategy, to compare against a negotiated price. */
   maxPrice: { strategyLabel: string; maximumPrice: number; headroom: number } | null;
   history: ProfessionalInput[];
 }
 
 function estimateLabel(analysis: AnalysisResult, key: ProfessionalInputDefinition["key"]): string {
-  if (key === "acquisition.purchasePrice")
-    return {
-      user: "Precio indicado en la petición",
-      listing: "Precio del anuncio",
-      estimated: "Estimación FlippIA (valor as-is sin reformar)",
-    }[analysis.property.askingPriceSource];
-  return "Estimación FlippIA";
+  switch (key) {
+    case "acquisition.purchasePrice":
+      return {
+        user: "Precio indicado en la petición",
+        listing: "Precio del anuncio",
+        estimated: "Estimación FlippIA (valor as-is sin reformar)",
+      }[analysis.property.askingPriceSource];
+    case "acquisition.taxableBase":
+      return "Precio de compra (base por defecto)";
+    case "acquisition.transferTaxManual":
+      return "Regla fiscal vigente";
+    case "tax.vatRecoverabilityRatio":
+      return "No determinada: tratado como coste";
+    default:
+      return "Estimación FlippIA";
+  }
 }
 
-/** The tax lines the engine derives from a figure: separate from the figure and from any commercial margin. */
-function taxFor(
-  key: ProfessionalInputDefinition["key"],
-  strategy: AnalysisResult["strategies"][number] | undefined,
-  value: number | null,
-): ProfessionalInputItemView["tax"] {
-  const base = strategy?.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
-  if (!base || value === null) return null;
-  if (key === "acquisition.purchasePrice") {
-    const lines = base.costLines.filter((l) => l.category === "acquisition_taxes");
-    if (!lines.length) return null;
-    const amount = lines.reduce((a, l) => a + l.amount, 0);
-    return { label: lines.map((l) => l.label).join(" + "), amount, totalWithTax: value + amount };
+/** The concept a key belongs to in the engine's tax breakdown. */
+function conceptFor(key: ProfessionalInputDefinition["key"]): ConceptBreakdown["key"] | null {
+  switch (key) {
+    case "acquisition.purchasePrice":
+    case "acquisition.taxableBase":
+    case "acquisition.transferTaxManual":
+      return "acquisition";
+    case "transformation.renovationBudget":
+      return "construction";
+    case "transformation.professionalFees":
+      return "professional_fees";
+    default:
+      return null;
   }
-  const construction = base.costLines.find((l) => l.key === "construction");
-  if (!construction) return null;
-  const rate = base.inputs.transformation.worksVatReduced ? "IVA reducido" : "IVA";
-  const amount = Math.round((construction.amount - value) * 100) / 100;
-  return { label: `${rate} de obra`, amount, totalWithTax: construction.amount };
+}
+
+/** Works VAT rate in force for a strategy's base inputs, to normalise a budget typed with VAT included. */
+function worksVatRateFor(base: FinancialResult["inputs"]): number | undefined {
+  const rules = resolveTaxRules(base.jurisdiction, base.analysisDate);
+  if (!rules) return undefined;
+  return base.transformation.worksVatReduced ? rules.works.ivaWorksReducedRate : rules.works.ivaWorksRate;
 }
 
 function rejectionFor(rejected: RejectedInput[], input: ProfessionalInput | null): string | undefined {
@@ -110,6 +129,7 @@ export async function professionalInputsView(
     return {
       hasAnalysis: false,
       items: [],
+      taxSummary: null,
       maxPrice: null,
       history,
     };
@@ -127,23 +147,40 @@ export async function professionalInputsView(
       if (!s) continue;
       const assumption = s.scenarioSet.assumptions.find((a) => a.path === key);
       const current = getPath(s.scenarioSet.base, key);
-      const estimate =
+      const baseResult = s.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
+      const estimateValue =
         typeof current === "number"
+          ? current
+          : def.optional && baseResult
+            ? estimateForOptionalKey(key, baseResult)
+            : null;
+      const estimate =
+        estimateValue !== null || def.optional
           ? {
-              value: current,
+              value: estimateValue ?? 0,
               label: estimateLabel(stored, key),
-              status: assumption?.status ?? "INFERRED",
+              status: assumption?.status ?? (estimateValue === null ? "UNKNOWN" : "INFERRED"),
               note: assumption?.note,
             }
           : null;
       const active = pickProfessionalInput(inputs, key, slot.strategyId);
       const error = rejectionFor(rejected, active);
       const effectiveStrategy = effective.strategies.find((x) => x.id === s.id);
+      const effectiveBase = effectiveStrategy?.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
       const used = effectiveStrategy ? getPath(effectiveStrategy.scenarioSet.base, key) : undefined;
-      const value = typeof used === "number" ? used : null;
+      const value =
+        typeof used === "number"
+          ? used
+          : def.optional && effectiveBase
+            ? estimateForOptionalKey(key, effectiveBase)
+            : null;
+      const concept = conceptFor(key);
       items.push({
         key,
         label: def.label,
+        description: def.description,
+        group: def.group,
+        taxable: Boolean(def.taxable),
         unit: def.unit,
         scope: def.scope,
         strategyId: slot.strategyId,
@@ -161,15 +198,20 @@ export async function professionalInputsView(
                   ? "unknown"
                   : "estimate",
         },
-        tax: taxFor(key, effectiveStrategy, value),
+        tax:
+          concept && effectiveBase
+            ? (effectiveBase.tax.concepts.find((c) => c.key === concept) ?? null)
+            : null,
         error,
       });
     }
   }
   const top = effective.strategies.find((s) => s.rank === 1) ?? effective.strategies[0];
+  const topBase = top?.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
   return {
     hasAnalysis: true,
     items,
+    taxSummary: topBase?.tax ?? null,
     maxPrice:
       top?.maxPrice && top
         ? {
@@ -241,14 +283,28 @@ export async function setProfessionalInput(
     throw new NotFoundError("Estrategia no encontrada en el análisis");
   const ref = def.scope === "deal" ? stored?.strategies[0] : strategy;
   const current = ref ? getPath(ref.scenarioSet.base, data.key) : undefined;
+  const refBase = ref?.scenarioSet.scenarios.find((x) => x.kind === "base")?.result;
+  const estimateValue =
+    typeof current === "number"
+      ? current
+      : def.optional && refBase
+        ? estimateForOptionalKey(data.key, refBase)
+        : null;
   const assumption = ref?.scenarioSet.assumptions.find((a) => a.path === data.key);
   const estimate =
-    typeof current === "number" ? { value: current, source: assumption?.source ?? "engine" } : null;
+    estimateValue !== null ? { value: estimateValue, source: assumption?.source ?? "engine" } : null;
+  // A budget typed with VAT included is normalised with the rate in force for that strategy's works.
+  const taxRate =
+    data.taxMode === "included" && def.taxable === "works" && refBase
+      ? worksVatRateFor(refBase.inputs)
+      : undefined;
   const input = newProfessionalInput({
     key: data.key,
     strategyId: data.strategyId,
     value: data.value,
     marginRate: data.marginRate,
+    taxMode: data.taxMode,
+    taxRate,
     sourceType: data.sourceType,
     enteredBy: ctx.userId,
     enteredByName: await userName(ctx),
@@ -279,6 +335,9 @@ export async function setProfessionalInput(
         value: input.value,
         netValue: input.netValue,
         marginAmount: input.marginAmount,
+        taxMode: input.taxMode ?? null,
+        enteredAmount: input.enteredAmount ?? null,
+        taxBreakdownPending: input.taxBreakdownPending ?? false,
         sourceType: input.sourceType,
         status: input.status,
         issuer: input.issuer,

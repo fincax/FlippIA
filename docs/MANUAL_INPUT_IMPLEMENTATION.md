@@ -4,6 +4,8 @@ Fecha: 2026-10-05. Auditoría previa: `docs/MANUAL_INPUT_AUDIT.md`. Decisión: A
 
 Mantra: _estimar cuando no sabemos; usar el dato profesional cuando existe; conservar ambos; trazarlo todo._
 
+Ampliación fiscal (claves de impuestos, modo «impuestos incluidos», coste efectivo frente a caja): `docs/PROFESSIONAL_INPUTS_TAX_IMPLEMENTATION.md`.
+
 ## Qué existía
 
 - Precio declarado en el intake (`askingPrice` + `askingPriceSource`), fijado una sola vez al analizar.

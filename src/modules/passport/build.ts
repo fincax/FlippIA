@@ -183,18 +183,39 @@ export function buildPassport(
                     },
                   ]
                 : []),
-              { label: "Coste total", value: money(base.totals.totalProjectCost) },
+              {
+                label: "Coste total (caja necesaria)",
+                value: money(base.totals.totalProjectCost),
+                note: "Bruto: incluye todo el IVA soportado.",
+              },
+              {
+                label: "Coste económico efectivo",
+                value: money(base.tax.effectiveProjectCost),
+                note:
+                  base.tax.recoverableTotal > 0
+                    ? `IVA recuperable ${money(base.tax.recoverableTotal)} descontado (deducibilidad ${Math.round(base.tax.vatRecoverability.ratio * 100)} %).`
+                    : base.tax.vatRecoverability.note,
+              },
               { label: "Capital necesario", value: money(base.metrics.equityRequired.value) },
               {
                 label: "Deuda",
                 value: money(base.metrics.debt.value),
                 note: base.financing.instruments.map((i) => i.label).join(", ") || "Sin deuda",
               },
-              { label: "Beneficio neto", value: money(base.metrics.netProfit.value) },
-              { label: "Beneficio tras impuestos", value: money(base.metrics.netProfitAfterTax.value) },
+              {
+                label: "Beneficio operativo del proyecto",
+                value: money(base.metrics.netProfit.value),
+                note: "Antes de IRPF/IS del inversor.",
+              },
+              {
+                label: "Beneficio tras IRPF/IS estimado",
+                value: money(base.metrics.netProfitAfterTax.value),
+                note: "Fiscalidad directa estimada con el perfil indicado; no es asesoramiento fiscal.",
+              },
               {
                 label: "ROE / anualizado",
                 value: `${pct(base.metrics.roe.value)} / ${pct(base.metrics.annualizedRoe.value)}`,
+                note: "Antes de IRPF/IS del inversor.",
               },
               { label: "TIR", value: pct(base.metrics.irr.value) },
               { label: "Precio de equilibrio", value: money(base.metrics.breakEvenPrice.value) },

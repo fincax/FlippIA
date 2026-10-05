@@ -14,7 +14,12 @@ import {
   type Overrides,
   type ScenarioSet,
 } from "@/modules/engines/scenario";
-import { issuerLabel, PROFESSIONAL_INPUT_REGISTRY, SOURCE_TYPE_META } from "./registry";
+import {
+  estimateForOptionalKey,
+  issuerLabel,
+  PROFESSIONAL_INPUT_REGISTRY,
+  SOURCE_TYPE_META,
+} from "./registry";
 import { activeInputs, appliesTo, pickProfessionalInput, resolveEffectiveValue } from "./resolve";
 import type { ProfessionalInput } from "./types";
 
@@ -58,6 +63,10 @@ export function provenanceNote(input: ProfessionalInput, estimate: EstimateRecor
       `Neto ${formatMoney(input.netValue)} + margen comercial ${formatMoney(input.marginAmount)} = ${formatMoney(input.value)}, sin impuestos; los impuestos aplicables se calculan aparte.`,
     );
   else parts.push("Importe sin impuestos; los impuestos aplicables se calculan aparte.");
+  if (input.taxMode === "included" && input.enteredAmount !== undefined)
+    parts.push(
+      `Introducido con impuestos incluidos (${formatMoney(input.enteredAmount)}); base ${formatMoney(input.value)}${input.taxRateApplied !== undefined ? ` al ${Math.round(input.taxRateApplied * 100)} %` : ""}.`,
+    );
   if (input.reason) parts.push(input.reason.endsWith(".") ? input.reason : `${input.reason}.`);
   return parts.join(" ");
 }
@@ -81,22 +90,34 @@ export function applyToScenarioSet(
       .filter((i) => appliesTo(i, set.strategyId))
       .map((i) => i.key),
   );
+  const baseResult = set.scenarios.find((x) => x.kind === "base")?.result;
   for (const key of keys) {
     const input = pickProfessionalInput(inputs, key, set.strategyId)!;
+    const def = PROFESSIONAL_INPUT_REGISTRY[key];
     const current = getPath(set.base, key);
-    if (typeof current !== "number") {
+    if (typeof current !== "number" && !def.optional) {
       rejected.push({ input, strategyId: set.strategyId, reason: "La estrategia no utiliza este dato." });
       continue;
     }
+    if (input.taxBreakdownPending) {
+      rejected.push({
+        input,
+        strategyId: set.strategyId,
+        reason: "Impuestos incluidos y desglose pendiente: no se aplica hasta conocer el tratamiento fiscal.",
+      });
+      continue;
+    }
     const assumption = set.assumptions.find((a) => a.path === key);
+    const fallback =
+      typeof current === "number" ? current : baseResult ? estimateForOptionalKey(key, baseResult) : null;
     const estimate: EstimateRecord = assumption
       ? {
-          value: typeof assumption.value === "number" ? assumption.value : current,
+          value: typeof assumption.value === "number" ? assumption.value : (fallback ?? 0),
           source: assumption.source,
           status: assumption.status,
           note: assumption.note,
         }
-      : { value: current, source: "engine", status: "INFERRED" };
+      : { value: fallback ?? 0, source: "engine", status: fallback === null ? "UNKNOWN" : "INFERRED" };
     changes[key] = input.value;
     applied.push({ input, strategyId: set.strategyId, estimate });
   }

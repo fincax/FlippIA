@@ -11,7 +11,8 @@
 - `costLines` con origen (`input | rule | computed`) y referencia a la regla fiscal.
 - `totals`, `financing` (por instrumento), `cashflows` mensuales (inflow, outflow, funding, net, cumulative).
 - `metrics` con **fórmula, explicación e inputs**: coste total, salida de caja, capital necesario (déficit máximo de caja, financiación primero, cierre en el mes de salida), deuda, LTV, LTC, beneficio bruto/neto/neto tras impuestos, margen, ROI, ROE, ROE anualizado, TIR (mensual → anual), cash-on-cash, cap rate, yield bruto/neto, DSCR, precio y renta de equilibrio, duración.
-- `warnings`, `reviewItems` (p. ej. plusvalía municipal no calculable sin valor catastral).
+- `tax` (`TaxSummary`): impuestos separados de los precios. `components[]` (ITP/IVA/AJD, IVA de obra, ICIO, tasa, IBI, IRPF/IS, plusvalía) con base imponible, tipo, importe, recuperable/no recuperable, mecanismo de liquidación, fuente, regla y estado; `concepts[]` (adquisición, obra, honorarios, costes de venta) con base, impuestos, total, recuperable, coste efectivo y caja necesaria; `effectiveProjectCost` (= coste total − IVA recuperable), `cashRequirement` (= coste total) y `vatRecoverability` (nunca asumida: sin dato, `unknown`, tratada como coste y `REVIEW_REQUIRED`). Entradas opcionales: `acquisition.taxableBase`, `acquisition.transferTaxManual`, `tax.vatRecoverabilityRatio`. Beneficio, ROI y precio de equilibrio sobre el coste efectivo, antes de IRPF/IS del inversor; capital necesario sobre la caja. Detalle en `docs/PROFESSIONAL_INPUTS_TAX_IMPLEMENTATION.md`.
+- `warnings`, `reviewItems` (p. ej. plusvalía municipal no calculable sin valor catastral; deducibilidad del IVA no determinada).
 
 ## Reglas fiscales (`src/modules/tax`)
 

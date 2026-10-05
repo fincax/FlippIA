@@ -8,13 +8,18 @@ import {
 } from "@/modules/tax";
 import { buildSchedule, normalizeInstrument, sizeInstrument, type InstrumentSchedule } from "./financing";
 import { irr, monthlyToAnnual } from "./irr";
+import { worstStatus, type EvidenceStatus } from "@/modules/core/evidence-status";
 import type {
   CashflowPoint,
+  ConceptBreakdown,
   CostLine,
   FinancialInputs,
   FinancialResult,
   MetricKey,
   MetricValue,
+  TaxComponent,
+  TaxRecoverability,
+  TaxSummary,
 } from "./types";
 
 export class FinancialEngineError extends Error {
@@ -60,6 +65,31 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
     );
   const transformation = { ...inputs.transformation, worksMonths: worksMonthsEff };
 
+  // ── Tax treatment the engine cannot decide ─────────────────────────────────
+  // Input VAT recoverability is never assumed: absent → UNKNOWN, treated as a
+  // cost and flagged for review. A professional states it (0..1) when known.
+  const vatRatio = inputs.tax?.vatRecoverabilityRatio;
+  const vatRecoverability: TaxRecoverability =
+    vatRatio === undefined ? "unknown" : vatRatio >= 1 ? "full" : vatRatio <= 0 ? "none" : "partial";
+  const vatRecoverStatus: EvidenceStatus = vatRatio === undefined ? "REVIEW_REQUIRED" : "INFERRED";
+  const recoverable = (amount: number) => (vatRatio === undefined ? 0 : round2(amount * vatRatio));
+  const taxComponents: TaxComponent[] = [];
+  const addTax = (
+    c: Omit<TaxComponent, "recoverableAmount" | "nonRecoverableAmount" | "recoverability"> & {
+      recoverable?: boolean;
+    },
+  ) => {
+    const rec = c.recoverable ? recoverable(c.amount) : 0;
+    const { recoverable: _r, ...rest } = c;
+    void _r;
+    taxComponents.push({
+      ...rest,
+      recoverableAmount: rec,
+      nonRecoverableAmount: round2(c.amount - rec),
+      recoverability: c.recoverable ? vatRecoverability : "none",
+    });
+  };
+
   // ── Acquisition ─────────────────────────────────────────────────────────────
   const purchase = acquisition.purchasePrice;
   lines.push({
@@ -69,18 +99,68 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
     amount: purchase,
     origin: "input",
   });
-  const acqTax = computeAcquisitionTaxes(purchase, acquisition.transferTaxMode, rules, {
+  const acqOpts = {
     assetUse: acquisition.assetUse === "residential" ? "residential" : "commercial",
-  });
+  } as const;
+  // Notary and registry scales run on the deed value (the price); the transfer tax on its taxable base,
+  // which is the price unless a professional states otherwise.
+  const acqFees = computeAcquisitionTaxes(purchase, acquisition.transferTaxMode, rules, acqOpts);
+  const taxableBase = acquisition.taxableBase ?? purchase;
+  const acqOnBase =
+    taxableBase === purchase
+      ? acqFees
+      : computeAcquisitionTaxes(taxableBase, acquisition.transferTaxMode, rules, acqOpts);
+  const transferTaxRule = acqOnBase.transferTax;
+  const transferTax = acquisition.transferTaxManual ?? transferTaxRule;
+  const acqTax = {
+    mode: acqOnBase.mode,
+    transferTax,
+    ajd: acqOnBase.ajd,
+    notary: acqFees.notary,
+    registry: acqFees.registry,
+    total: round2(transferTax + acqOnBase.ajd + acqFees.notary + acqFees.registry),
+  };
+  const transferIsVat = acqTax.mode !== "ITP";
   lines.push({
     key: "transfer_tax",
     category: "acquisition_taxes",
-    label: acqTax.mode === "ITP" ? "ITP" : "IVA",
+    label: transferIsVat ? "IVA" : "ITP",
     amount: acqTax.transferTax,
-    origin: "rule",
+    origin: acquisition.transferTaxManual !== undefined ? "input" : "rule",
     ruleRef: rules.id,
+    note:
+      acquisition.transferTaxManual !== undefined
+        ? `Liquidación indicada por un profesional; la regla estimaba ${transferTaxRule}.`
+        : acquisition.taxableBase !== undefined
+          ? `Base imponible ${taxableBase}, distinta del precio.`
+          : undefined,
   });
-  if (acqTax.ajd > 0)
+  addTax({
+    key: "transfer_tax",
+    type: transferIsVat ? "IVA" : "ITP",
+    label: transferIsVat ? "IVA de adquisición" : "ITP",
+    concept: "acquisition",
+    taxableBase,
+    rate:
+      acquisition.transferTaxManual !== undefined
+        ? undefined
+        : transferIsVat
+          ? acqOpts.assetUse === "commercial"
+            ? rules.acquisition.ivaCommercial
+            : rules.acquisition.ivaResidentialNew
+          : rules.acquisition.itpRate,
+    amount: acqTax.transferTax,
+    settlement: "normal",
+    source: acquisition.transferTaxManual !== undefined ? "professional" : "rule",
+    ruleRef: rules.id,
+    status: acquisition.transferTaxManual !== undefined ? "INFERRED" : rules.status,
+    estimatedAmount: acquisition.transferTaxManual !== undefined ? transferTaxRule : undefined,
+    recoverable: transferIsVat,
+    note: transferIsVat
+      ? "IVA soportado en la compra: recuperable solo si procede."
+      : "ITP: nunca recuperable.",
+  });
+  if (acqTax.ajd > 0) {
     lines.push({
       key: "ajd",
       category: "acquisition_taxes",
@@ -89,6 +169,20 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       origin: "rule",
       ruleRef: rules.id,
     });
+    addTax({
+      key: "ajd",
+      type: "AJD",
+      label: "AJD",
+      concept: "acquisition",
+      taxableBase,
+      rate: rules.acquisition.ajdRate,
+      amount: acqTax.ajd,
+      settlement: "normal",
+      source: "rule",
+      ruleRef: rules.id,
+      status: rules.status,
+    });
+  }
   lines.push({
     key: "notary",
     category: "notary",
@@ -131,6 +225,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
   const construction = round2(transformation.renovationBudget * (1 + worksVat));
   const contingency = round2(transformation.renovationBudget * transformation.contingencyRate);
   const worksTax = computeWorksTaxes(transformation.renovationBudget, rules);
+  const constructionVat = round2(construction - transformation.renovationBudget);
   if (transformation.renovationBudget > 0) {
     lines.push({
       key: "construction",
@@ -141,6 +236,47 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       note: transformation.worksVatReduced
         ? "IVA reducido aplicado: requiere cumplir requisitos de rehabilitación."
         : undefined,
+    });
+    addTax({
+      key: "construction_vat",
+      type: "IVA",
+      label: `IVA de obra (${Math.round(worksVat * 100)} %)`,
+      concept: "construction",
+      taxableBase: transformation.renovationBudget,
+      rate: worksVat,
+      amount: constructionVat,
+      settlement: "normal",
+      source: "rule",
+      ruleRef: rules.id,
+      status: transformation.worksVatReduced ? "REVIEW_REQUIRED" : rules.status,
+      recoverable: true,
+      note: "Incluido en la línea de obra; recuperable solo según la deducibilidad indicada.",
+    });
+    addTax({
+      key: "icio",
+      type: "ICIO",
+      label: "ICIO",
+      concept: "construction",
+      taxableBase: transformation.renovationBudget,
+      rate: rules.works.icioRate,
+      amount: worksTax.icio,
+      settlement: "normal",
+      source: "rule",
+      ruleRef: rules.id,
+      status: rules.status,
+    });
+    addTax({
+      key: "licence_fee",
+      type: "TASA",
+      label: "Tasa de licencia",
+      concept: "construction",
+      taxableBase: transformation.renovationBudget,
+      rate: rules.works.licenceFeeRate,
+      amount: worksTax.licenceFee,
+      settlement: "normal",
+      source: "rule",
+      ruleRef: rules.id,
+      status: rules.status,
     });
     lines.push({
       key: "contingency",
@@ -226,7 +362,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       amount: round2(holding.monthlyUtilities * duration),
       origin: "computed",
     });
-  if (holding.annualPropertyTax > 0)
+  if (holding.annualPropertyTax > 0) {
     lines.push({
       key: "ibi",
       category: "taxes",
@@ -234,6 +370,18 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       amount: round2((holding.annualPropertyTax / 12) * duration),
       origin: "computed",
     });
+    addTax({
+      key: "ibi",
+      type: "IBI",
+      label: "IBI",
+      concept: "holding",
+      taxableBase: holding.annualPropertyTax,
+      amount: round2((holding.annualPropertyTax / 12) * duration),
+      settlement: "normal",
+      source: "input",
+      status: "INFERRED",
+    });
+  }
   if (holding.otherMonthly > 0)
     lines.push({
       key: "holding_other",
@@ -296,6 +444,9 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
   let rentNet = 0;
   let plusvaliaUnknown = false;
   const totalProjectCost = round2(costBeforeFinancing + financingTotal);
+  // Economic cost vs cash: recoverable input VAT is financed but not borne.
+  const recoverableTotal = round2(taxComponents.reduce((a, c) => a + c.recoverableAmount, 0));
+  const effectiveProjectCost = round2(totalProjectCost - recoverableTotal);
 
   if (exit.kind === "sale") {
     const agency = round2(exit.salePrice * exit.agencyRate);
@@ -317,11 +468,11 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
         origin: "input",
       });
     grossRevenue = exit.salePrice;
-    const gain = exit.salePrice - saleCosts - totalProjectCost;
+    const gain = exit.salePrice - saleCosts - effectiveProjectCost;
     const exitTax = computeExitTaxes(gain, exit.sellerProfile, rules, exit.plusvaliaMunicipal);
     exitTaxes = exitTax.total;
     plusvaliaUnknown = exit.plusvaliaMunicipal === null;
-    if (exitTax.incomeTax > 0)
+    if (exitTax.incomeTax > 0) {
       lines.push({
         key: "exit_income_tax",
         category: "exit_taxes",
@@ -330,7 +481,22 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
         origin: "rule",
         ruleRef: rules.id,
       });
-    if (exit.plusvaliaMunicipal)
+      addTax({
+        key: "exit_income_tax",
+        type: exit.sellerProfile === "individual" ? "IRPF" : "IS",
+        label: exit.sellerProfile === "individual" ? "IRPF ganancia patrimonial" : "Impuesto de Sociedades",
+        concept: "exit",
+        taxableBase: exitTax.taxableGain,
+        rate: exit.sellerProfile === "company" ? rules.exit.corporateTaxRate : undefined,
+        amount: exitTax.incomeTax,
+        settlement: "normal",
+        source: "rule",
+        ruleRef: rules.id,
+        status: "INFERRED",
+        note: "Fiscalidad directa del inversor: fuera del beneficio del proyecto, estimada con el perfil indicado.",
+      });
+    }
+    if (exit.plusvaliaMunicipal) {
       lines.push({
         key: "plusvalia",
         category: "exit_taxes",
@@ -338,6 +504,18 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
         amount: exit.plusvaliaMunicipal,
         origin: "input",
       });
+      addTax({
+        key: "plusvalia",
+        type: "IIVTNU",
+        label: "Plusvalía municipal",
+        concept: "exit",
+        taxableBase: 0,
+        amount: exit.plusvaliaMunicipal,
+        settlement: "normal",
+        source: "input",
+        status: "INFERRED",
+      });
+    }
     if (plusvaliaUnknown)
       reviewItems.push(
         "Plusvalía municipal (IIVTNU) no calculada: requiere valor catastral del suelo y fecha de adquisición.",
@@ -413,11 +591,14 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
     for (const sm of s.months) push(sm.month, 0, sm.payment);
     if (s.outstandingAtExit > 0) push(duration, 0, s.outstandingAtExit, `Cancelación ${s.instrument.label}`);
   }
+  // Recoverable input VAT comes back at the exit month (prudent: no recovery calendar is modelled),
+  // so the equity requirement is sized on gross cash.
+  if (recoverableTotal > 0) push(duration, recoverableTotal, 0, "Recuperación de IVA");
   // Partner capital comes in at draw and goes back at exit together with the agreed profit share.
   const provisionalNet =
     exit.kind === "sale"
-      ? exit.salePrice - saleCosts - totalProjectCost
-      : rentNet + exit.terminalValue - saleCosts - totalProjectCost;
+      ? exit.salePrice - saleCosts - effectiveProjectCost
+      : rentNet + exit.terminalValue - saleCosts - effectiveProjectCost;
   for (const p of partnerCapital) {
     push(p.f.drawMonth, p.amount, 0, `Aportación ${p.f.label}`, p.amount);
     const share = round2(Math.max(0, provisionalNet) * (p.f.profitShare ?? 0));
@@ -453,12 +634,14 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
   let grossProfit: number;
   let netProfit: number;
   let partnerShare = 0;
+  // Profit is economic: on the effective cost (recoverable VAT excluded), before the investor's own tax.
+  const effectiveCostBeforeFinancing = round2(costBeforeFinancing - recoverableTotal);
   if (exit.kind === "sale") {
-    grossProfit = round2(exit.salePrice - saleCosts - costBeforeFinancing);
-    netProfit = round2(exit.salePrice - saleCosts - totalProjectCost);
+    grossProfit = round2(exit.salePrice - saleCosts - effectiveCostBeforeFinancing);
+    netProfit = round2(exit.salePrice - saleCosts - effectiveProjectCost);
   } else {
-    grossProfit = round2(rentNet + exit.terminalValue - saleCosts - costBeforeFinancing);
-    netProfit = round2(rentNet + exit.terminalValue - saleCosts - totalProjectCost);
+    grossProfit = round2(rentNet + exit.terminalValue - saleCosts - effectiveCostBeforeFinancing);
+    netProfit = round2(rentNet + exit.terminalValue - saleCosts - effectiveProjectCost);
   }
   for (const p of partnerCapital) partnerShare += Math.max(0, netProfit) * (p.f.profitShare ?? 0);
   partnerShare = round2(partnerShare);
@@ -468,7 +651,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
 
   const monthlyIrr = irr(cash.map((c) => c.net));
   const annualIrr = monthlyIrr === null ? null : round4(monthlyToAnnual(monthlyIrr));
-  const roi = totalProjectCost > 0 ? round4(netProfitOwner / totalProjectCost) : null;
+  const roi = effectiveProjectCost > 0 ? round4(netProfitOwner / effectiveProjectCost) : null;
   const roe = ownEquity > 0 ? round4(netProfitOwner / ownEquity) : null;
   const annualizedRoe = roe === null ? null : round4(annualize(roe, duration));
   const margin = exit.kind === "sale" && exit.salePrice > 0 ? round4(netProfitOwner / exit.salePrice) : null;
@@ -499,7 +682,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
 
   const breakEvenPrice =
     exit.kind === "sale"
-      ? round2(totalProjectCost / (1 - exit.agencyRate) + exit.otherSaleCosts / (1 - exit.agencyRate))
+      ? round2(effectiveProjectCost / (1 - exit.agencyRate) + exit.otherSaleCosts / (1 - exit.agencyRate))
       : null;
   const ltv = purchase > 0 ? round4(totalDebt / purchase) : null;
   const ltc = costBeforeFinancing > 0 ? round4(totalDebt / costBeforeFinancing) : null;
@@ -555,17 +738,17 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       "grossProfit",
       grossProfit,
       "currency",
-      "ingresos − costes de venta − coste antes de financiación",
-      "Beneficio antes de financiación e impuestos de salida.",
-      { grossRevenue, saleCosts, costBeforeFinancing },
+      "ingresos − costes de venta − coste efectivo antes de financiación",
+      "Beneficio antes de financiación y antes de la fiscalidad directa del inversor (IRPF/IS).",
+      { grossRevenue, saleCosts, effectiveCostBeforeFinancing },
     ),
     netProfit: metric(
       "netProfit",
       netProfitOwner,
       "currency",
-      "ingresos − costes de venta − coste total − participación de socios",
-      "Beneficio neto antes de impuestos de salida.",
-      { grossRevenue, saleCosts, totalProjectCost, partnerShare },
+      "ingresos − costes de venta − coste efectivo − participación de socios",
+      "Beneficio operativo del proyecto: coste efectivo (IVA recuperable descontado), antes de IRPF/IS del inversor.",
+      { grossRevenue, saleCosts, effectiveProjectCost, partnerShare },
     ),
     netProfitAfterTax: metric(
       "netProfitAfterTax",
@@ -583,16 +766,16 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       "roi",
       roi,
       "ratio",
-      "beneficio neto / coste total",
-      "Retorno sobre el coste total del proyecto.",
-      { netProfitOwner, totalProjectCost },
+      "beneficio neto / coste efectivo",
+      "Retorno sobre el coste económico efectivo del proyecto, antes de IRPF/IS del inversor.",
+      { netProfitOwner, effectiveProjectCost },
     ),
     roe: metric(
       "roe",
       roe,
       "ratio",
       "beneficio neto / capital propio",
-      "Retorno sobre el capital propio aportado.",
+      "Retorno sobre el capital propio aportado, antes de IRPF/IS del inversor.",
       { netProfitOwner, ownEquity },
     ),
     annualizedRoe: metric(
@@ -648,9 +831,9 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       "breakEvenPrice",
       breakEvenPrice,
       "currency",
-      "coste total / (1 − comisión de venta)",
+      "coste efectivo / (1 − comisión de venta)",
       "Precio de venta al que el beneficio neto es cero.",
-      { totalProjectCost },
+      { effectiveProjectCost },
     ),
     breakEvenRent: metric(
       "breakEvenRent",
@@ -668,6 +851,122 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
       "Duración total del proyecto.",
       { duration },
     ),
+    effectiveProjectCost: metric(
+      "effectiveProjectCost",
+      effectiveProjectCost,
+      "currency",
+      "coste total − IVA recuperable",
+      "Coste económico efectivo: lo que el proyecto soporta una vez recuperado el IVA deducible. La caja necesaria sigue siendo el coste total.",
+      { totalProjectCost, recoverableTotal },
+    ),
+    recoverableTax: metric(
+      "recoverableTax",
+      recoverableTotal,
+      "currency",
+      "Σ IVA soportado × deducibilidad",
+      vatRatio === undefined
+        ? "Deducibilidad del IVA no determinada: se trata como coste hasta que un profesional la indique."
+        : `IVA soportado recuperable con una deducibilidad del ${Math.round(vatRatio * 100)} %.`,
+      { recoverableTotal, vatRatio: vatRatio ?? null },
+    ),
+  };
+
+  // ── Taxes separated from prices ─────────────────────────────────────────────
+  const componentsOf = (concept: string) => taxComponents.filter((c) => c.concept === concept);
+  const conceptOf = (
+    key: ConceptBreakdown["key"],
+    label: string,
+    base: number,
+    comps: TaxComponent[],
+    note?: string,
+    unresolved = false,
+  ): ConceptBreakdown => {
+    const taxAmount = round2(comps.reduce((a, c) => a + c.amount, 0));
+    const rec = round2(comps.reduce((a, c) => a + c.recoverableAmount, 0));
+    const gross = round2(base + taxAmount);
+    return {
+      key,
+      label,
+      base: round2(base),
+      taxAmount,
+      gross,
+      recoverableTax: rec,
+      effectiveCost: round2(gross - rec),
+      cashRequirement: gross,
+      taxStatus: unresolved ? "UNKNOWN" : comps.length ? worstStatus(comps.map((c) => c.status)) : "VERIFIED",
+      componentKeys: comps.map((c) => c.key),
+      note,
+    };
+  };
+  const acquisitionComps = componentsOf("acquisition");
+  const constructionComps = componentsOf("construction").filter((c) => c.type === "IVA");
+  const concepts: ConceptBreakdown[] = [
+    conceptOf(
+      "acquisition",
+      "Adquisición (precio e impuestos de transmisión)",
+      purchase,
+      acquisitionComps,
+      "Notaría, registro, agencia y due diligence se muestran como gastos aparte.",
+    ),
+  ];
+  if (transformation.renovationBudget > 0)
+    concepts.push(
+      conceptOf(
+        "construction",
+        "Obra (PEM e IVA)",
+        transformation.renovationBudget,
+        constructionComps,
+        "ICIO y tasa de licencia son tributos propios, aparte de la obra.",
+      ),
+    );
+  if (transformation.professionalFees > 0)
+    concepts.push(
+      conceptOf(
+        "professional_fees",
+        "Honorarios técnicos",
+        transformation.professionalFees,
+        [],
+        "Importe sin IVA; tratamiento fiscal no determinado por el motor.",
+        true,
+      ),
+    );
+  if (saleCosts > 0)
+    concepts.push(
+      conceptOf(
+        "sale_costs",
+        exit.kind === "sale"
+          ? "Costes de venta (comisión sobre el precio de venta y otros)"
+          : "Costes de venta terminal",
+        saleCosts,
+        [],
+        "Comisión calculada sobre su base contractual, sin IVA; tratamiento fiscal no determinado por el motor.",
+        true,
+      ),
+    );
+  const inputVat = taxComponents.filter((c) => c.type === "IVA" && c.concept !== "exit");
+  const inputVatTotal = round2(inputVat.reduce((a, c) => a + c.amount, 0));
+  if (vatRatio === undefined && inputVatTotal > 0)
+    reviewItems.push(
+      `Deducibilidad del IVA soportado (${inputVatTotal} €) no determinada: se trata como coste. Un profesional puede indicarla en Datos profesionales.`,
+    );
+  if (transformation.professionalFees > 0 || saleCosts > 0)
+    reviewItems.push("Honorarios y comisiones: importes sin IVA; su tratamiento fiscal no está determinado.");
+  const tax: TaxSummary = {
+    components: taxComponents,
+    concepts,
+    recoverableTotal,
+    nonRecoverableTotal: round2(taxComponents.reduce((a, c) => a + c.nonRecoverableAmount, 0)),
+    effectiveProjectCost,
+    cashRequirement: totalProjectCost,
+    vatRecoverability: {
+      ratio: vatRatio ?? 0,
+      recoverability: vatRecoverability,
+      status: vatRecoverStatus,
+      note:
+        vatRatio === undefined
+          ? "No determinada: depende del sujeto, la actividad y el destino del inmueble. Tratada como coste."
+          : `Indicada: ${Math.round(vatRatio * 100)} % del IVA soportado se recupera; devolución asumida en el mes de salida.`,
+    },
   };
 
   if (exit.kind === "sale" && exit.salePrice <= (breakEvenPrice ?? 0))
@@ -718,6 +1017,7 @@ export function computeFinancials(inputs: FinancialInputs, rulesOverride?: TaxRu
     },
     cashflows: cash,
     metrics,
+    tax,
     warnings,
     reviewItems,
   };
@@ -761,4 +1061,7 @@ function validate(i: FinancialInputs) {
     throw new FinancialEngineError("durationMonths must be ≥ 1", "INVALID_INPUT");
   if (i.holding.durationMonths > 480)
     throw new FinancialEngineError("durationMonths must be ≤ 480", "INVALID_INPUT");
+  const ratio = i.tax?.vatRecoverabilityRatio;
+  if (ratio !== undefined && (!Number.isFinite(ratio) || ratio < 0 || ratio > 1))
+    throw new FinancialEngineError("tax.vatRecoverabilityRatio must be between 0 and 1", "INVALID_INPUT");
 }

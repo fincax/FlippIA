@@ -60,6 +60,7 @@ export const professionalInputSetSchema = scoped
   .extend({
     value: z.number(),
     marginRate: marginRate.optional(),
+    taxMode: z.enum(["excluded", "included", "not_applicable"]).optional(),
     sourceType: z.enum(PROFESSIONAL_SOURCE_TYPES),
     issuer: issuer.optional(),
     acknowledged: z.literal(true, {
@@ -83,6 +84,10 @@ export const professionalInputSetSchema = scoped
           message: "El desglose (importes netos) debe sumar el valor indicado.",
         });
     }
+    if (v.taxMode === "included" && !def.taxable)
+      ctx.addIssue({ code: "custom", path: ["taxMode"], message: `${def.label} se indica sin impuestos.` });
+    if (v.taxMode && v.taxMode !== "not_applicable" && def.unit !== "currency")
+      ctx.addIssue({ code: "custom", path: ["taxMode"], message: `${def.label} no es un importe.` });
     if (v.issuer?.kind === "technician" && !v.issuer.name)
       ctx.addIssue({
         code: "custom",

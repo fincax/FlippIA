@@ -25,6 +25,7 @@ import {
 import {
   PROFESSIONAL_SOURCE_TYPES,
   type ProfessionalInput,
+  type ProfessionalInputTaxMode,
   type ProfessionalSourceType,
 } from "@/modules/inputs/types";
 import type { ProfessionalInputItemView, ProfessionalInputsView } from "@/server/services/inputs";
@@ -55,8 +56,14 @@ export function ProfessionalInputsPanel({
   const [msg, setMsg] = useState<string | null>(null);
   const works = view.items.filter((i) => i.scope === "strategy");
   const [worksStrategy, setWorksStrategy] = useState(works[0]?.strategyId ?? "");
-  const dealItems = view.items.filter((i) => i.scope === "deal");
-  const worksItem = works.find((i) => i.strategyId === worksStrategy) ?? works[0];
+  const dealItems = view.items.filter((i) => i.group === "price");
+  const taxItems = view.items.filter((i) => i.group === "tax");
+  const currentStrategy =
+    works.find((w) => w.strategyId === worksStrategy)?.strategyId ?? works[0]?.strategyId;
+  const worksItems = works.filter((i) => i.strategyId === currentStrategy);
+  const strategies = works
+    .filter((w) => w.key === "transformation.renovationBudget")
+    .map((w) => ({ id: w.strategyId!, label: w.strategyLabel ?? w.strategyId! }));
   const active = view.items.filter((i) => i.active && !i.error).length;
 
   async function revert(item: ProfessionalInputItemView) {
@@ -116,17 +123,17 @@ export function ProfessionalInputsPanel({
             }
           />
         ))}
-        {worksItem ? (
+        {worksItems.map((item, i) => (
           <Slot
-            key={slotId(worksItem)}
+            key={slotId(item)}
             dealId={dealId}
-            item={worksItem}
+            item={item}
             canEdit={canEdit}
-            editing={editing === slotId(worksItem)}
+            editing={editing === slotId(item)}
             busy={busy}
-            onEdit={() => setEditing(slotId(worksItem))}
+            onEdit={() => setEditing(slotId(item))}
             onCancel={() => setEditing(null)}
-            onRevert={() => revert(worksItem)}
+            onRevert={() => revert(item)}
             onSaved={(text) => {
               setEditing(null);
               setMsg(text);
@@ -134,29 +141,68 @@ export function ProfessionalInputsPanel({
             }}
             setBusy={setBusy}
             selector={
-              works.length > 1 ? (
+              i === 0 && strategies.length > 1 ? (
                 <Select
                   aria-label="Estrategia"
                   className="w-auto h-8 text-[12px]"
-                  value={worksItem.strategyId}
+                  value={item.strategyId}
                   onChange={(e) => {
                     setWorksStrategy(e.target.value);
                     setEditing(null);
                   }}
                 >
-                  {works.map((w) => (
-                    <option key={w.strategyId} value={w.strategyId}>
-                      {w.strategyLabel}
+                  {strategies.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.label}
                     </option>
                   ))}
                 </Select>
               ) : (
-                <span className="text-[12px] text-fg-3">{worksItem.strategyLabel}</span>
+                <span className="text-[12px] text-fg-3">{item.strategyLabel}</span>
               )
             }
           />
-        ) : null}
+        ))}
       </div>
+      {taxItems.length ? (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-[12px] text-fg-2">
+            Fiscalidad: base imponible, liquidación y deducibilidad del IVA
+            {view.taxSummary ? (
+              <span className="text-fg-3">
+                {" "}
+                ·{" "}
+                {view.taxSummary.vatRecoverability.recoverability === "unknown"
+                  ? "IVA tratado como coste"
+                  : `deducibilidad ${Math.round(view.taxSummary.vatRecoverability.ratio * 100)} %`}{" "}
+                · coste efectivo <Money value={view.taxSummary.effectiveProjectCost} /> · caja necesaria{" "}
+                <Money value={view.taxSummary.cashRequirement} />
+              </span>
+            ) : null}
+          </summary>
+          <div className="mt-3 grid gap-4 lg:grid-cols-3">
+            {taxItems.map((item) => (
+              <Slot
+                key={slotId(item)}
+                dealId={dealId}
+                item={item}
+                canEdit={canEdit}
+                editing={editing === slotId(item)}
+                busy={busy}
+                onEdit={() => setEditing(slotId(item))}
+                onCancel={() => setEditing(null)}
+                onRevert={() => revert(item)}
+                onSaved={(text) => {
+                  setEditing(null);
+                  setMsg(text);
+                  router.refresh();
+                }}
+                setBusy={setBusy}
+              />
+            ))}
+          </div>
+        </details>
+      ) : null}
       {msg ? (
         <p className="mt-3 text-[12px] text-fg-2" role="status">
           {msg}
@@ -178,11 +224,19 @@ export function ProfessionalInputsPanel({
   );
 }
 
+/** Currency figures as money; ratios (deducibilidad) as a percentage. */
+function Amount({ item, value }: { item: ProfessionalInputItemView; value: number | null }) {
+  if (item.unit === "ratio")
+    return <span className="num">{value === null ? "n/d" : `${Math.round(value * 100)} %`}</span>;
+  return <Money value={value} />;
+}
+
 function HistoryLine({ input }: { input: ProfessionalInput }) {
   return (
     <>
       {formatDate(input.enteredAt)} · {PROFESSIONAL_INPUT_REGISTRY[input.key].label}
-      {input.strategyId ? ` (${input.strategyId})` : ""}: <Money value={input.value} /> ·{" "}
+      {input.strategyId ? ` (${input.strategyId})` : ""}:{" "}
+      {input.unit === "ratio" ? `${Math.round(input.value * 100)} %` : <Money value={input.value} />} ·{" "}
       {SOURCE_TYPE_META[input.sourceType].label.toLowerCase()} · {input.enteredByName ?? input.enteredBy} ·{" "}
       {input.state === "reverted" ? "revertido" : "sustituido"}
       {input.endedAt ? ` el ${formatDate(input.endedAt)}` : ""}
@@ -225,11 +279,12 @@ function Slot({
         <div className="text-[11px] uppercase tracking-[0.14em] text-fg-3">{item.label}</div>
         {selector}
       </div>
+      <div className="mt-1 text-[11px] text-fg-3">{item.description}</div>
       <div className="mt-3 grid grid-cols-3 gap-3">
         <div>
           <div className="text-[11px] text-fg-3">Estimación</div>
           <div className="num text-lg">
-            <Money value={item.estimate?.value ?? null} />
+            <Amount item={item} value={item.estimate?.value ?? null} />
           </div>
           {item.estimate ? (
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-fg-3">
@@ -241,7 +296,7 @@ function Slot({
         <div>
           <div className="text-[11px] text-fg-3">Profesional</div>
           <div className="num text-lg">
-            {a ? <Money value={a.value} /> : <span className="text-fg-3">—</span>}
+            {a ? <Amount item={item} value={a.value} /> : <span className="text-fg-3">—</span>}
           </div>
           {a ? (
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-fg-3">
@@ -257,6 +312,14 @@ function Slot({
             <div className="mt-1 text-[11px] text-fg-3">
               Neto <Money value={a.netValue} /> + margen comercial <Money value={a.marginAmount} /> (sin
               impuestos)
+            </div>
+          ) : null}
+          {a?.taxMode === "included" && a.enteredAmount !== undefined ? (
+            <div className="mt-1 text-[11px] text-fg-3">
+              Introducido <Money value={a.enteredAmount} /> impuestos incluidos
+              {a.taxBreakdownPending
+                ? " — desglose pendiente"
+                : ` → base ${formatMoney(a.value)}${a.taxRateApplied !== undefined ? ` (${Math.round(a.taxRateApplied * 100)} %)` : ""}`}
             </div>
           ) : null}
           {a?.reason ? <div className="mt-1 text-[11px] text-fg-2">{a.reason}</div> : null}
@@ -276,7 +339,7 @@ function Slot({
         <div>
           <div className="text-[11px] text-accent">Usando en el análisis</div>
           <div className="num text-lg text-fg">
-            <Money value={item.effective.value} />
+            <Amount item={item} value={item.effective.value} />
           </div>
           <div className="mt-1 text-[11px] text-fg-3">
             {item.effective.source === "professional"
@@ -286,13 +349,44 @@ function Slot({
                 : item.effective.source === "estimate"
                   ? "Estimación FlippIA"
                   : "Sin dato"}
-            {item.effective.value !== null ? " · sin impuestos" : ""}
+            {item.effective.value !== null && item.unit === "currency" ? " · sin impuestos" : ""}
           </div>
-          {item.tax ? (
-            <div className="mt-1 text-[11px] text-fg-3">
-              {item.tax.label} aparte: <Money value={item.tax.amount} /> · con impuestos{" "}
-              <Money value={item.tax.totalWithTax} />
-            </div>
+          {item.tax && item.unit === "currency" ? (
+            <details className="mt-1 text-[11px] text-fg-3">
+              <summary className="cursor-pointer">
+                {item.tax.taxStatus === "UNKNOWN" ? (
+                  <>
+                    <Money value={item.tax.base} /> + impuestos (sin determinar)
+                  </>
+                ) : (
+                  <>
+                    Impuestos <Money value={item.tax.taxAmount} /> · total <Money value={item.tax.gross} />
+                  </>
+                )}
+              </summary>
+              <ul className="mt-1 space-y-0.5">
+                <li>
+                  Base: <Money value={item.tax.base} />
+                </li>
+                <li>
+                  Impuestos:{" "}
+                  {item.tax.taxStatus === "UNKNOWN" ? "sin determinar" : <Money value={item.tax.taxAmount} />}
+                </li>
+                <li>
+                  Total: <Money value={item.tax.gross} />
+                </li>
+                <li>
+                  Recuperable: <Money value={item.tax.recoverableTax} />
+                </li>
+                <li>
+                  Coste efectivo: <Money value={item.tax.effectiveCost} />
+                </li>
+                <li>
+                  Caja necesaria: <Money value={item.tax.cashRequirement} />
+                </li>
+                {item.tax.note ? <li>{item.tax.note}</li> : null}
+              </ul>
+            </details>
           ) : null}
         </div>
       </div>
@@ -345,10 +439,22 @@ function InputForm({
 }) {
   const a = item.active;
   const isWorks = item.key === "transformation.renovationBudget";
+  const isRatio = item.unit === "ratio";
   const line = (label: string) => a?.breakdown?.find((l) => l.label === label);
   const pct = (l?: { marginRate?: number }) =>
     l?.marginRate !== undefined ? String(l.marginRate * 100) : "";
-  const [value, setValue] = useState(a ? String(a.netValue) : "");
+  const [value, setValue] = useState(
+    a
+      ? String(
+          isRatio
+            ? a.value * 100
+            : a.taxMode === "included" && a.enteredAmount !== undefined
+              ? a.enteredAmount
+              : a.netValue,
+        )
+      : "",
+  );
+  const [taxMode, setTaxMode] = useState<ProfessionalInputTaxMode>(a?.taxMode ?? "excluded");
   const [margin, setMargin] = useState(a?.marginRate !== undefined ? String(a.marginRate * 100) : "");
   const [sourceType, setSourceType] = useState<ProfessionalSourceType>(
     a?.sourceType ?? "professional_confirmed",
@@ -381,8 +487,9 @@ function InputForm({
         .map(([label, amount, marginRate]) => ({ label, amount, marginRate }))
     : [];
   const sum = breakdown.length ? breakdown.reduce((s, l) => s + l.amount, 0) : undefined;
-  const netValue = sum ?? num(value);
-  const marginRate = rate(margin);
+  const typed = num(value);
+  const netValue = isRatio ? (typed === undefined ? undefined : typed / 100) : (sum ?? typed);
+  const marginRate = isRatio ? undefined : rate(margin);
   const gross =
     netValue === undefined
       ? undefined
@@ -414,6 +521,7 @@ function InputForm({
           strategyId: item.strategyId,
           value: netValue,
           marginRate,
+          taxMode: isRatio ? "not_applicable" : item.taxable ? taxMode : "excluded",
           sourceType,
           issuer: { kind: issuerKind, name: issuerName.trim() || undefined },
           acknowledged,
@@ -461,33 +569,66 @@ function InputForm({
         </div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field
-          label={isWorks ? "Total obra neto (PEM + GG/BI, sin IVA)" : "Importe neto (€, sin impuestos)"}
-          hint={sum !== undefined ? "Suma del desglose." : undefined}
-        >
-          <Input
-            inputMode="decimal"
-            value={sum !== undefined ? String(sum) : value}
-            disabled={sum !== undefined}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="p. ej. 218000"
-          />
-        </Field>
-        <Field
-          label="Margen comercial (%)"
-          hint={
-            gross !== undefined && netValue !== undefined && gross !== netValue
-              ? `En el análisis: ${formatMoney(Math.round(gross))} sin impuestos`
-              : "Sobre el neto, sin impuestos; cada partida puede fijar el suyo. El IVA o ITP se calcula aparte."
-          }
-        >
-          <Input
-            inputMode="decimal"
-            value={margin}
-            onChange={(e) => setMargin(e.target.value)}
-            placeholder="0"
-          />
-        </Field>
+        {isRatio ? (
+          <Field
+            label="Deducibilidad del IVA soportado (%)"
+            hint="0 = nada recuperable; 100 = todo recuperable."
+          >
+            <Input
+              inputMode="decimal"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="p. ej. 100"
+            />
+          </Field>
+        ) : (
+          <Field
+            label={
+              isWorks
+                ? taxMode === "included"
+                  ? "Total obra con IVA incluido"
+                  : "Total obra neto (PEM + GG/BI, sin IVA)"
+                : "Importe neto (€, sin impuestos)"
+            }
+            hint={sum !== undefined ? "Suma del desglose." : undefined}
+          >
+            <Input
+              inputMode="decimal"
+              value={sum !== undefined ? String(sum) : value}
+              disabled={sum !== undefined}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="p. ej. 218000"
+            />
+          </Field>
+        )}
+        {item.taxable ? (
+          <Field
+            label="El importe introducido"
+            hint="Con IVA incluido se normaliza a su base con el tipo vigente."
+          >
+            <Select value={taxMode} onChange={(e) => setTaxMode(e.target.value as ProfessionalInputTaxMode)}>
+              <option value="excluded">No incluye impuestos</option>
+              <option value="included">Incluye el IVA</option>
+            </Select>
+          </Field>
+        ) : null}
+        {!isRatio ? (
+          <Field
+            label="Margen comercial (%)"
+            hint={
+              gross !== undefined && netValue !== undefined && gross !== netValue
+                ? `En el análisis: ${formatMoney(Math.round(gross))} sin impuestos`
+                : "Sobre el neto, sin impuestos; cada partida puede fijar el suyo. El IVA o ITP se calcula aparte."
+            }
+          >
+            <Input
+              inputMode="decimal"
+              value={margin}
+              onChange={(e) => setMargin(e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        ) : null}
         <Field label="Tipo de dato">
           <Select
             value={sourceType}

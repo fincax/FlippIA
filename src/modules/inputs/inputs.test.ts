@@ -137,13 +137,14 @@ describe("lifecycle — set, supersede, revert (no data loss)", () => {
   });
 });
 
+const ok = {
+  key: "acquisition.purchasePrice",
+  value: 218_000,
+  sourceType: "professional_confirmed",
+  acknowledged: true,
+};
+
 describe("validation", () => {
-  const ok = {
-    key: "acquisition.purchasePrice",
-    value: 218_000,
-    sourceType: "professional_confirmed",
-    acknowledged: true,
-  };
   it("accepts a well-formed input and rejects type, range, precision, scope and breakdown errors", () => {
     expect(professionalInputSetSchema.safeParse(ok).success).toBe(true);
     // The figure is only accepted under the responsibility of the person entering it.
@@ -243,6 +244,148 @@ describe("commercial margin and responsibility", () => {
       "los impuestos aplicables se calculan aparte",
     );
   });
+});
+
+describe("tax modes and tax keys", () => {
+  it("normalises a VAT-included budget to its base and never applies a pending one", () => {
+    const included = newProfessionalInput(
+      {
+        key: "transformation.renovationBudget",
+        strategyId: "flip_integral",
+        value: 72_600,
+        taxMode: "included",
+        taxRate: 0.21,
+        sourceType: "contractor_quote",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    expect(included).toMatchObject({
+      value: 60_000,
+      netValue: 60_000,
+      enteredAmount: 72_600,
+      taxRateApplied: 0.21,
+    });
+    expect(included.taxBreakdownPending).toBeUndefined();
+    const withMarginInside = newProfessionalInput(
+      {
+        key: "transformation.renovationBudget",
+        strategyId: "flip_integral",
+        value: 72_600,
+        taxMode: "included",
+        taxRate: 0.21,
+        marginRate: 0.2,
+        sourceType: "contractor_quote",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    expect(withMarginInside).toMatchObject({ value: 60_000, netValue: 50_000, marginAmount: 10_000 });
+    const pending = newProfessionalInput(
+      {
+        key: "transformation.renovationBudget",
+        strategyId: "flip_integral",
+        value: 72_600,
+        taxMode: "included",
+        sourceType: "contractor_quote",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    expect(pending.taxBreakdownPending).toBe(true);
+    expect(pending.value).toBe(72_600);
+    expect(provenanceNote(included, { value: 80_000, source: "engine", status: "INFERRED" })).toContain(
+      "impuestos incluidos",
+    );
+    expect(professionalInputSetSchema.safeParse({ ...ok, taxMode: "included" }).success).toBe(false);
+    expect(
+      professionalInputSetSchema.safeParse({ ...ok, key: "tax.vatRecoverabilityRatio", value: 0.5 }).success,
+    ).toBe(true);
+    expect(
+      professionalInputSetSchema.safeParse({ ...ok, key: "tax.vatRecoverabilityRatio", value: 1.5 }).success,
+    ).toBe(false);
+  });
+
+  it("deducibility, taxable base and a settled transfer tax reach the engine; a pending budget is rejected, not guessed", async () => {
+    const analysis = await analysisP;
+    const id = topOf(analysis).id;
+    const before = baseOf(analysis, id);
+    const ratio = newProfessionalInput(
+      { key: "tax.vatRecoverabilityRatio", value: 1, sourceType: "document_verified", enteredBy: "u" },
+      ENTERED_AT,
+    );
+    const { result: eff, applied } = applyToAnalysis(analysis, [ratio]);
+    expect(applied.length).toBe(analysis.strategies.length);
+    expect(applied[0]!.estimate.status).toBe("UNKNOWN");
+    const after = baseOf(eff, id);
+    expect(after.tax.vatRecoverability.recoverability).toBe("full");
+    expect(after.tax.effectiveProjectCost).toBeLessThan(after.totals.totalProjectCost);
+    expect(after.tax.cashRequirement).toBe(after.totals.totalProjectCost);
+    expect(after.metrics.netProfit.value!).toBeGreaterThan(before.metrics.netProfit.value!);
+    expect(after.metrics.equityRequired.value).toBe(before.metrics.equityRequired.value);
+    // ITP never recovers, whatever the deducibility.
+    expect(after.tax.components.find((c) => c.key === "transfer_tax")!.recoverableAmount).toBe(0);
+    expect(analysis.strategies.find((s) => s.id === id)!.scenarioSet.base.tax).toBeUndefined();
+
+    const taxable = newProfessionalInput(
+      {
+        key: "acquisition.taxableBase",
+        value: 300_000,
+        sourceType: "professional_confirmed",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    const withBase = baseOf(applyToAnalysis(analysis, [taxable]).result, id);
+    expect(withBase.inputs.acquisition.purchasePrice).toBe(285_000);
+    expect(withBase.tax.components.find((c) => c.key === "transfer_tax")!.taxableBase).toBe(300_000);
+    expect(withBase.costLines.find((l) => l.key === "transfer_tax")!.amount).toBe(21_000);
+
+    const settled = newProfessionalInput(
+      {
+        key: "acquisition.transferTaxManual",
+        value: 18_000,
+        sourceType: "document_verified",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    const r2 = applyToAnalysis(analysis, [settled]);
+    const ruleTax = before.costLines.find((l) => l.key === "transfer_tax")!.amount;
+    expect(r2.applied[0]!.estimate.value).toBe(ruleTax);
+    const withSettled = baseOf(r2.result, id);
+    expect(withSettled.costLines.find((l) => l.key === "transfer_tax")!.amount).toBe(18_000);
+    expect(withSettled.tax.components.find((c) => c.key === "transfer_tax")!.estimatedAmount).toBe(ruleTax);
+
+    const pending = newProfessionalInput(
+      {
+        key: "transformation.renovationBudget",
+        strategyId: id,
+        value: 72_600,
+        taxMode: "included",
+        sourceType: "contractor_quote",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    const r3 = applyToAnalysis(analysis, [pending]);
+    expect(r3.result).toBe(analysis);
+    expect(r3.rejected[0]!.reason).toContain("desglose pendiente");
+
+    const fees = newProfessionalInput(
+      {
+        key: "transformation.professionalFees",
+        strategyId: id,
+        value: 5_000,
+        sourceType: "accepted_quote",
+        enteredBy: "u",
+      },
+      ENTERED_AT,
+    );
+    expect(baseOf(applyToAnalysis(analysis, [fees]).result, id).inputs.transformation.professionalFees).toBe(
+      5_000,
+    );
+  }, 30_000);
 });
 
 describe("applyToAnalysis — purchase price (TEST 1, 3, 4, 7, 8)", () => {
@@ -469,6 +612,7 @@ describe("LIA — attributes professional data to the professional (TEST 11)", (
     expect(max.text).toContain("218.000");
     expect(max.text).toContain("que has indicado");
     expect(max.text).toContain("bajo tu responsabilidad");
+    expect(max.text).toContain("impuestos aplicables se muestran por separado");
     expect(max.text).toContain("no una estimación mía");
     const general = await askProperty(effective, "Resume la operación");
     expect(general.text).toContain("dato que has introducido");

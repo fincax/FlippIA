@@ -1,3 +1,4 @@
+import type { EvidenceStatus } from "@/modules/core/evidence-status";
 import type { TransferTaxMode } from "@/modules/tax";
 
 export type AssetUse = "residential" | "commercial" | "office" | "industrial" | "land" | "other";
@@ -11,6 +12,26 @@ export interface AcquisitionInputs {
   agencyFee: number;
   /** Technical inspection, legal due diligence, valuation. */
   dueDiligence: number;
+  /**
+   * Taxable base of the transfer tax when it is not the price (reference
+   * value, professional settlement). Absent → the price.
+   */
+  taxableBase?: number;
+  /**
+   * Transfer tax (ITP or IVA) settled or confirmed by a professional. Replaces
+   * the rule-based amount; the rule-based estimate stays in the tax component.
+   */
+  transferTaxManual?: number;
+}
+
+/**
+ * Tax treatment the engine cannot decide by itself. Absent fields mean
+ * UNKNOWN: input VAT is then treated as a cost and flagged for review, never
+ * assumed recoverable.
+ */
+export interface TaxInputs {
+  /** Share of input VAT (works, new-build purchase) the project recovers: 0..1. */
+  vatRecoverabilityRatio?: number;
 }
 
 export interface TransformationInputs {
@@ -95,6 +116,7 @@ export interface FinancialInputs {
   holding: HoldingInputs;
   financing: FinancingInstrument[];
   exit: ExitInputs;
+  tax?: TaxInputs;
   /** Analysis date, used to resolve tax rules. */
   analysisDate: string;
   jurisdiction: { country: string; region?: string; municipalityCode?: string };
@@ -165,7 +187,74 @@ export type MetricKey =
   | "dscr"
   | "breakEvenPrice"
   | "breakEvenRent"
-  | "durationMonths";
+  | "durationMonths"
+  | "effectiveProjectCost"
+  | "recoverableTax";
+
+export type TaxComponentType = "ITP" | "IVA" | "AJD" | "ICIO" | "TASA" | "IBI" | "IRPF" | "IS" | "IIVTNU";
+export type TaxSettlement =
+  "normal" | "reverse_charge" | "exempt" | "not_subject" | "manual_review" | "unknown";
+export type TaxRecoverability = "full" | "partial" | "none" | "unknown";
+
+/** One tax, with its base, rule, recoverability and provenance. Never hidden inside a price. */
+export interface TaxComponent {
+  key: string;
+  type: TaxComponentType;
+  label: string;
+  /** Concept the tax belongs to (`acquisition`, `construction`, `exit`…). */
+  concept: string;
+  taxableBase: number;
+  rate?: number;
+  amount: number;
+  recoverableAmount: number;
+  nonRecoverableAmount: number;
+  recoverability: TaxRecoverability;
+  settlement: TaxSettlement;
+  source: "rule" | "professional" | "input";
+  ruleRef?: string;
+  status: EvidenceStatus;
+  /** Rule-based amount when a professional figure replaced it. */
+  estimatedAmount?: number;
+  note?: string;
+}
+
+/**
+ * A concept of the project seen four ways: base (before indirect taxes),
+ * gross (what is invoiced or paid), effective cost (what the project really
+ * bears) and cash requirement (what has to be financed).
+ */
+export interface ConceptBreakdown {
+  key: "acquisition" | "construction" | "professional_fees" | "sale_costs";
+  label: string;
+  base: number;
+  taxAmount: number;
+  gross: number;
+  recoverableTax: number;
+  effectiveCost: number;
+  cashRequirement: number;
+  /** Worst status among the concept's tax components; UNKNOWN when none is resolved. */
+  taxStatus: EvidenceStatus;
+  componentKeys: string[];
+  note?: string;
+}
+
+export interface TaxSummary {
+  components: TaxComponent[];
+  concepts: ConceptBreakdown[];
+  /** Input VAT the project recovers (works, new-build purchase) under the stated recoverability. */
+  recoverableTotal: number;
+  nonRecoverableTotal: number;
+  /** totalProjectCost − recoverableTotal. */
+  effectiveProjectCost: number;
+  /** Gross cash the project must fund before any recovery: totalProjectCost. */
+  cashRequirement: number;
+  vatRecoverability: {
+    ratio: number;
+    recoverability: TaxRecoverability;
+    status: EvidenceStatus;
+    note: string;
+  };
+}
 
 export interface CashflowPoint {
   month: number;
@@ -211,6 +300,8 @@ export interface FinancialResult {
   financing: FinancingSummary;
   cashflows: CashflowPoint[];
   metrics: Record<MetricKey, MetricValue>;
+  /** Taxes separated from prices: components, concepts, recoverable VAT, effective cost vs cash. */
+  tax: TaxSummary;
   warnings: string[];
   /** Items that need a human/professional check to become VERIFIED. */
   reviewItems: string[];
