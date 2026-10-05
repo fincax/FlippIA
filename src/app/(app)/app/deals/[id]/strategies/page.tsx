@@ -130,6 +130,10 @@ export default async function StrategiesPage({ params }: { params: Promise<{ id:
                         >
                           Usuario
                         </Badge>
+                      ) : a.source === "professional" ? (
+                        <Badge tone="accent" title={a.note}>
+                          Profesional
+                        </Badge>
                       ) : a.source === "demo" ? (
                         <Badge tone="warning">DEMO</Badge>
                       ) : (

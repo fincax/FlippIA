@@ -14,6 +14,7 @@ import type { AnalysisResult } from "@/modules/analysis/types";
 import type { AgentRunRecord } from "@/modules/agents/runtime/types";
 import type { Evidence } from "@/modules/evidence/types";
 import type { ScenarioSet } from "@/modules/engines/scenario/types";
+import type { ProfessionalInput } from "@/modules/inputs/types";
 import type { InvestorDNA } from "@/modules/investor/types";
 import type { IntakeRequest } from "@/modules/property/intake";
 import type { Property } from "@/modules/property/types";
@@ -83,6 +84,8 @@ export const deals = pgTable(
     intake: jsonb("intake").$type<IntakeRequest>().notNull(),
     latestAnalysisId: text("latest_analysis_id"),
     summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default({}),
+    /** Professional inputs with history (active, superseded, reverted); laid over the analysis at read time. */
+    professionalInputs: jsonb("professional_inputs").$type<ProfessionalInput[]>().notNull().default([]),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     demo: boolean("demo").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

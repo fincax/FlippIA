@@ -65,6 +65,7 @@ Flujo: `parseIntake` → `runAnalysis` (plan de agentes) → `persistAnalysis` �
 - **Norma**: entrada en `src/modules/regulatory/registry.ts` con versión, fechas, boletín (número y fecha), `sourceUrl` en dominio oficial y `verificationStatus`; `VERIFIED` solo con `verifiedAt` tras cotejar el boletín; `pending` para lo aprobado sin publicar (se lista, no se aplica). El test de integridad del registro lo comprueba.
 - **Palabras de proyecto → estrategia (Radar)**: `STRATEGY_KEYWORDS` en `src/modules/radar/brief.ts`. Una estrategia registrada en `STRATEGY_PLUGINS` ya se evalúa en el Radar sin más cambios.
 - **Listados propios**: `POST /api/radar/listings` o `pnpm listings:import` (CSV); nunca scraping.
+- **Dato profesional editable** (precio negociado, presupuesto de obra…): clave en `PROFESSIONAL_INPUT_KEYS` + entrada en `PROFESSIONAL_INPUT_REGISTRY` (`src/modules/inputs`). La estimación nunca se sustituye: el valor efectivo se resuelve en lectura (`docs/MANUAL_INPUT_IMPLEMENTATION.md`).
 
 ## Comandos
 

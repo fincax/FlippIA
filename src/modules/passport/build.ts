@@ -1,5 +1,6 @@
 import type { AnalysisResult, StrategyResult } from "@/modules/analysis/types";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { PROFESSIONAL_INPUT_DISCLAIMER } from "@/modules/inputs/registry";
 
 export interface PassportSection {
   key: string;
@@ -43,6 +44,11 @@ export function buildPassport(
   const base = top?.scenarioSet.scenarios.find((s) => s.kind === "base")?.result ?? null;
   const money = (v: number | null | undefined) => (v === null || v === undefined ? "n/d" : formatMoney(v));
   const pct = (v: number | null | undefined) => (v === null || v === undefined ? "n/d" : formatPercent(v));
+  // A professional value in use (negotiated price, contractor budget) is shown with its provenance, never as an estimate.
+  const professional = (path: string) =>
+    top?.scenarioSet.assumptions.find((a) => a.path === path && a.source === "professional");
+  const professionalPrice = professional("acquisition.purchasePrice");
+  const professionalWorks = professional("transformation.renovationBudget");
   const sections: PassportSection[] = [
     {
       key: "asset",
@@ -77,7 +83,17 @@ export function buildPassport(
               ? "Estimado: no se indicó precio"
               : `Fuente: ${p.askingPriceSource}`,
         },
+        ...(professionalPrice && typeof professionalPrice.value === "number"
+          ? [
+              {
+                label: "Precio de compra en uso",
+                value: money(professionalPrice.value),
+                note: `Dato profesional. ${professionalPrice.note ?? ""}`.trim(),
+              },
+            ]
+          : []),
       ],
+      bullets: professionalPrice || professionalWorks ? [PROFESSIONAL_INPUT_DISCLAIMER] : undefined,
     },
     {
       key: "market",
@@ -158,6 +174,15 @@ export function buildPassport(
             key: "finance",
             title: `Finanzas — ${top.label} (escenario base)`,
             rows: [
+              ...(professionalWorks && typeof professionalWorks.value === "number"
+                ? [
+                    {
+                      label: "Presupuesto de obra en uso",
+                      value: money(professionalWorks.value),
+                      note: `Dato profesional. ${professionalWorks.note ?? ""}`.trim(),
+                    },
+                  ]
+                : []),
               { label: "Coste total", value: money(base.totals.totalProjectCost) },
               { label: "Capital necesario", value: money(base.metrics.equityRequired.value) },
               {

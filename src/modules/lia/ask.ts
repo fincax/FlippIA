@@ -35,6 +35,23 @@ export interface LiaAnswer {
 const top = (a: AnalysisResult): StrategyResult | undefined =>
   a.strategies.find((s) => s.rank === 1) ?? a.strategies[0];
 
+const PROFESSIONAL_LABEL: Record<string, string> = {
+  "acquisition.purchasePrice": "precio de compra",
+  "transformation.renovationBudget": "presupuesto de obra",
+};
+
+/** Values a professional entered are theirs, not LIA's estimates: say so whenever they drive the answer. */
+function professionalNote(strategy: StrategyResult | undefined): string {
+  const used = (strategy?.scenarioSet.assumptions ?? []).filter(
+    (a) => a.source === "professional" && typeof a.value === "number",
+  );
+  if (!used.length) return "";
+  const parts = used.map(
+    (a) => `${formatMoney(a.value as number)} como ${PROFESSIONAL_LABEL[a.path] ?? a.label.toLowerCase()}`,
+  );
+  return ` Utilizo ${parts.join(" y ")}: ${used.length > 1 ? "son datos que has introducido" : "es un dato que has introducido"} bajo tu responsabilidad, no una estimación mía.`;
+}
+
 /**
  * "Ask this property": deterministic routing of the question to the deal's
  * own data and engines. The model, when configured, only rephrases the
@@ -103,7 +120,7 @@ export async function askProperty(
       const dp = (r.result.metrics.netProfit.value ?? 0) - (base.metrics.netProfit.value ?? 0);
       answer = {
         kind: "what_if",
-        text: `${wi.description}: el beneficio neto pasaría de ${formatMoney(base.metrics.netProfit.value ?? 0)} a ${formatMoney(r.result.metrics.netProfit.value ?? 0)} (${formatMoney(dp, { signed: true })}); ROE ${formatPercent(base.metrics.roe.value ?? 0)} → ${formatPercent(r.result.metrics.roe.value ?? 0)}; capital ${formatMoney(base.metrics.equityRequired.value ?? 0)} → ${formatMoney(r.result.metrics.equityRequired.value ?? 0)}. Es una simulación temporal: el escenario base no cambia hasta que lo confirmes.`,
+        text: `${wi.description}: el beneficio neto pasaría de ${formatMoney(base.metrics.netProfit.value ?? 0)} a ${formatMoney(r.result.metrics.netProfit.value ?? 0)} (${formatMoney(dp, { signed: true })}); ROE ${formatPercent(base.metrics.roe.value ?? 0)} → ${formatPercent(r.result.metrics.roe.value ?? 0)}; capital ${formatMoney(base.metrics.equityRequired.value ?? 0)} → ${formatMoney(r.result.metrics.equityRequired.value ?? 0)}. Es una simulación temporal: el escenario base no cambia hasta que lo confirmes.${professionalNote(t)}`,
         data: { overrides: wi.overrides, metrics: r.result.metrics },
         source: "engine",
         citations: [],
@@ -161,7 +178,7 @@ export async function askProperty(
     const r = computeMaximumAcquisitionPrice(base, constraints);
     answer = {
       kind: "max_price",
-      text: `Para ${t.label}, el precio máximo que mantiene tus objetivos (${describeConstraints(constraints)}) es ${formatMoney(r.maximumPrice)}; el límite lo marca ${labelConstraint(r.bindingConstraint)}. Frente a los ${formatMoney(r.askingPrice)} solicitados, ${r.headroom >= 0 ? `hay ${formatMoney(r.headroom)} de margen` : `habría que negociar ${formatMoney(-r.headroom)} a la baja`}.`,
+      text: `Para ${t.label}, el precio máximo que mantiene tus objetivos (${describeConstraints(constraints)}) es ${formatMoney(r.maximumPrice)}; el límite lo marca ${labelConstraint(r.bindingConstraint)}. Frente a los ${formatMoney(r.askingPrice)} ${t.scenarioSet.assumptions.some((a) => a.path === "acquisition.purchasePrice" && a.source === "professional") ? "que has indicado" : "solicitados"}, ${r.headroom >= 0 ? `hay ${formatMoney(r.headroom)} de margen` : `habría que negociar ${formatMoney(-r.headroom)} a la baja`}.${professionalNote(t)}`,
       data: { result: r, constraints },
       source: "engine",
       citations: [],
@@ -193,7 +210,7 @@ export async function askProperty(
   } else {
     answer = {
       kind: "general",
-      text: `${analysis.synthesis.headline} ${analysis.synthesis.thesis}`,
+      text: `${analysis.synthesis.headline} ${analysis.synthesis.thesis}${professionalNote(t)}`,
       source: "template",
       citations: [],
     };

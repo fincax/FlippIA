@@ -13,6 +13,7 @@ export type DomainEventName =
   | "MarketAssessmentCompleted"
   | "ArchitectureAssessmentCompleted"
   | "ScenarioUpdated"
+  | "DealInputUpdated"
   | "RiskDetected"
   | "AnalysisCompleted"
   | "DealCreated"
