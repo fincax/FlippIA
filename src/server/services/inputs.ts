@@ -220,9 +220,11 @@ export async function setProfessionalInput(
     key: data.key,
     strategyId: data.strategyId,
     value: data.value,
+    marginRate: data.marginRate,
     sourceType: data.sourceType,
     enteredBy: ctx.userId,
     enteredByName: await userName(ctx),
+    issuer: data.issuer,
     reason: data.reason,
     note: data.note,
     breakdown: data.breakdown,
@@ -245,7 +247,15 @@ export async function setProfessionalInput(
         : estimate
           ? { value: estimate.value, source: estimate.source }
           : null,
-      after: { value: input.value, sourceType: input.sourceType, status: input.status },
+      after: {
+        value: input.value,
+        netValue: input.netValue,
+        marginAmount: input.marginAmount,
+        sourceType: input.sourceType,
+        status: input.status,
+        issuer: input.issuer,
+        responsibilityAcknowledgedAt: input.responsibilityAcknowledgedAt,
+      },
       reason: input.reason ?? null,
       applied,
       rejected: rejected.map((r) => ({ strategyId: r.strategyId ?? null, reason: r.reason })),

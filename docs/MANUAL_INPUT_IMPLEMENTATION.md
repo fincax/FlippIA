@@ -24,6 +24,11 @@ Almacén a nivel de deal que sobreviva al reanálisis; procedencia y tipos de da
 - Tipos de fuente (`SOURCE_TYPE_META`, con rango y estado de evidencia): `professional_confirmed` (INFERRED), `contractor_quote` (INFERRED), `accepted_quote` (VERIFIED), `document_verified` (VERIFIED), `actual` (VERIFIED). Una hipótesis "¿y si compro por 205.000?" **no** es un dato profesional: sigue siendo un escenario (what-if / custom).
 - Ciclo de vida sin borrado: `setProfessionalInput` supersede la entrada activa anterior; `revertProfessionalInput` la marca `reverted`. El historial completo vive en el deal (`asking → negociado → firmado`).
 
+### Responsabilidad y margen comercial
+
+- Cada dato lleva `issuer` (quién lo emite: el propio profesional o usuario, o un técnico o empresa con su nombre) y `responsibilityAcknowledgedAt`: la API solo acepta el dato con `acknowledged: true`, y el formulario exige marcar la confirmación. El texto es único (`PROFESSIONAL_INPUT_DISCLAIMER`) y aparece en el panel, en el formulario, en el Passport cuando hay datos profesionales en uso y en la nota de procedencia de cada hipótesis; LIA dice «bajo tu responsabilidad» cuando usa el dato. FlippIA estima el mercado; el presupuesto final es del técnico que lo emite.
+- Margen comercial por partida: el dato se introduce **neto** (`value`) con un `marginRate` opcional (0..1) a nivel de dato y, en el desglose de obra, por línea (`breakdown[].marginRate`, que prevalece sobre el del dato). El servidor calcula el bruto (`withMargin`): el análisis usa `value` (neto + margen), y `netValue`, `marginRate` y `marginAmount` quedan registrados. Sin margen, bruto = neto (sin cambios).
+
 ### Precedencia (una sola vez: `resolveEffectiveValue`)
 
 ```
@@ -55,18 +60,18 @@ Cada valor conserva `sourceType`, `status`, `enteredBy(+Name)`, `enteredAt`, `re
 
 ### Auditoría y eventos
 
-`activities`: `input.professional_set` / `input.professional_reverted` con `before` (valor y fuente o entrada anterior), `after`, `reason`, `inputId`, `applied`, `rejected`. Evento `DealInputUpdated` en el bus existente. Un dato que no puede aplicarse (p. ej. estrategia ausente) se devuelve como `rejected`, se muestra en la UI («No se ha podido aplicar este dato al análisis») y se registra con `logger.warn`.
+`activities`: `input.professional_set` / `input.professional_reverted` con `before` (valor y fuente o entrada anterior), `after` (bruto, neto, margen, tipo, emisor, fecha de aceptación de responsabilidad), `reason`, `inputId`, `applied`, `rejected`. Evento `DealInputUpdated` en el bus existente. Un dato que no puede aplicarse (p. ej. estrategia ausente) se devuelve como `rejected`, se muestra en la UI («No se ha podido aplicar este dato al análisis») y se registra con `logger.warn`.
 
 ### UI
 
-- Finanzas: panel **Datos profesionales** (`ProfessionalInputsPanel`): por concepto, _Estimación_ (con semáforo y origen) · _Profesional_ (badge por tipo, quién, cuándo, motivo, desglose) · _Usando en el análisis_. Acciones: Introducir / Editar, Volver a estimación; formulario con tipo de dato, motivo y nota; para obra, Materiales / Mano de obra / Otros (el total es la suma). Comparación con el precio máximo FlippIA (resultado independiente). Historial plegable. Solo lectura para `viewer`.
+- Finanzas: panel **Datos profesionales** (`ProfessionalInputsPanel`) con el aviso de responsabilidad: por concepto, _Estimación_ (con semáforo y origen) · _Profesional_ (badge por tipo, quién, cuándo, emisor, neto + margen, motivo, desglose) · _Usando en el análisis_. Acciones: Introducir / Editar, Volver a estimación; formulario con importe neto, margen comercial, tipo de dato, quién emite el dato (yo mismo / técnico o empresa), motivo, nota y confirmación obligatoria de responsabilidad; para obra, Materiales / Mano de obra / Otros con margen por partida (el total es la suma). Comparación con el precio máximo FlippIA (resultado independiente). Historial plegable. Solo lectura para `viewer`.
 - Estrategias: badge «Profesional» en la hipótesis (con la nota de procedencia).
 - Passport: filas «Precio de compra en uso» y «Presupuesto de obra en uso» con procedencia; «Precio solicitado» sigue mostrando el precio de partida.
 - LIA: cuando un dato profesional dirige la respuesta (precio máximo, what-if, resumen) lo atribuye al usuario: «Utilizo 218.000 € como precio de compra: es un dato que has introducido, no una estimación mía.» Sin cambios en el prompt del modelo.
 
 ## Tests
 
-Unit (`src/modules/inputs/inputs.test.ts`, 12 tests): precedencia y rango de fuentes; ciclo de vida sin pérdida; validación; TEST 1 (218.000 € en todas las estrategias, 285.000 € intacto); TEST 2 (sin inputs, mismo objeto); TEST 3 (líneas de coste, totales, capital, beneficio, ROE, headline, estrés, precio máximo con `askingPrice` = precio en uso, diferencial, ranking); TEST 4 (propiedad, mercado, urbanismo, arquitectura, normativa, financiación, evidencia y hallazgos: mismas referencias); TEST 5 (obra 65.000 € solo en su estrategia, estrés +20 % sobre 65.000 €); TEST 6 (escenario custom a 205.000 € conserva su valor con base a 218.000 €; dato profesional gana a hipótesis del twin); TEST 7/8 (procedencia y conservación); rechazo explícito; idempotencia; TEST 11 (LIA atribuye).
+Unit (`src/modules/inputs/inputs.test.ts`, 13 tests; incluye margen por dato y por partida, emisor, confirmación de responsabilidad obligatoria): precedencia y rango de fuentes; ciclo de vida sin pérdida; validación; TEST 1 (218.000 € en todas las estrategias, 285.000 € intacto); TEST 2 (sin inputs, mismo objeto); TEST 3 (líneas de coste, totales, capital, beneficio, ROE, headline, estrés, precio máximo con `askingPrice` = precio en uso, diferencial, ranking); TEST 4 (propiedad, mercado, urbanismo, arquitectura, normativa, financiación, evidencia y hallazgos: mismas referencias); TEST 5 (obra 65.000 € solo en su estrategia, estrés +20 % sobre 65.000 €); TEST 6 (escenario custom a 205.000 € conserva su valor con base a 218.000 €; dato profesional gana a hipótesis del twin); TEST 7/8 (procedencia y conservación); rechazo explícito; idempotencia; TEST 11 (LIA atribuye).
 
 Integration (`src/server/inputs.integration.test.ts`, contra `DATABASE_URL_TEST`): TEST 9 (recarga: efectivo 218.000 €, almacenado 245.000 €, `asking_price` intacto, `summary` efectivo); TEST 10 (viewer → `ForbiddenError` al introducir y al revertir); twin efectivo vs almacenado; `update_base` rechazado en ruta gobernada y permitido en otras; vista para la UI; obra por estrategia con desglose y estrategia inexistente → `NotFoundError`; reanálisis conserva y reaplica los inputs; supersede con historial; revertir devuelve 245.000 € y deja la obra; rastro de auditoría (antes/después/quién/motivo); aislamiento entre tenants.
 

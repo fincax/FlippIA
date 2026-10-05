@@ -14,7 +14,7 @@ import {
   type Overrides,
   type ScenarioSet,
 } from "@/modules/engines/scenario";
-import { PROFESSIONAL_INPUT_REGISTRY, SOURCE_TYPE_META } from "./registry";
+import { issuerLabel, PROFESSIONAL_INPUT_REGISTRY, SOURCE_TYPE_META } from "./registry";
 import { activeInputs, appliesTo, pickProfessionalInput, resolveEffectiveValue } from "./resolve";
 import type { ProfessionalInput } from "./types";
 
@@ -51,8 +51,12 @@ export function provenanceNote(input: ProfessionalInput, estimate: EstimateRecor
   const who = input.enteredByName ?? input.enteredBy;
   const parts = [
     `Estimación FlippIA: ${formatMoney(estimate.value)}.`,
-    `${meta.label} introducido por ${who} el ${formatDate(input.enteredAt)}.`,
+    `${meta.label} introducido por ${who} el ${formatDate(input.enteredAt)} (${issuerLabel(input.issuer)}), bajo su responsabilidad.`,
   ];
+  if (input.marginAmount > 0)
+    parts.push(
+      `Neto ${formatMoney(input.netValue)} + margen comercial ${formatMoney(input.marginAmount)} = ${formatMoney(input.value)}.`,
+    );
   if (input.reason) parts.push(input.reason.endsWith(".") ? input.reason : `${input.reason}.`);
   return parts.join(" ");
 }

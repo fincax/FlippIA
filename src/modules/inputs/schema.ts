@@ -21,9 +21,17 @@ function checkValue(unit: ProfessionalInputUnit, value: number): string | null {
   }
 }
 
+const marginRate = z.number().finite().min(0).max(1);
+
 const breakdownLine = z.object({
   label: z.string().trim().min(1).max(60),
   amount: z.number().finite().min(0).max(MAX_CURRENCY),
+  marginRate: marginRate.optional(),
+});
+
+const issuer = z.object({
+  kind: z.enum(["self", "technician"]),
+  name: z.string().trim().max(120).optional(),
 });
 
 const scoped = z.object({
@@ -42,11 +50,21 @@ function checkScope(
     ctx.addIssue({ code: "custom", path: ["strategyId"], message: `${def.label} aplica a todo el deal.` });
 }
 
-/** Body of `set`: validated against the key's unit and scope. No arbitrary real-estate ranges. */
+/**
+ * Body of `set`: validated against the key's unit and scope. No arbitrary
+ * real-estate ranges. `value` is the net figure; the commercial margin is
+ * added on top. The figure is accepted only under the responsibility of the
+ * person entering it (`acknowledged`).
+ */
 export const professionalInputSetSchema = scoped
   .extend({
     value: z.number(),
+    marginRate: marginRate.optional(),
     sourceType: z.enum(PROFESSIONAL_SOURCE_TYPES),
+    issuer: issuer.optional(),
+    acknowledged: z.literal(true, {
+      error: "Debes confirmar que el dato se aporta bajo tu responsabilidad.",
+    }),
     reason: z.string().trim().max(500).optional(),
     note: z.string().trim().max(1000).optional(),
     breakdown: z.array(breakdownLine).max(20).optional(),
@@ -62,9 +80,15 @@ export const professionalInputSetSchema = scoped
         ctx.addIssue({
           code: "custom",
           path: ["breakdown"],
-          message: "El desglose debe sumar el valor indicado.",
+          message: "El desglose (importes netos) debe sumar el valor indicado.",
         });
     }
+    if (v.issuer?.kind === "technician" && !v.issuer.name)
+      ctx.addIssue({
+        code: "custom",
+        path: ["issuer", "name"],
+        message: "Indica el técnico o la empresa que emite el dato.",
+      });
   });
 
 export const professionalInputRevertSchema = scoped

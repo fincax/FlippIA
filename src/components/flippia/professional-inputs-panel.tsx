@@ -15,8 +15,13 @@ import {
   Textarea,
 } from "@/components/ds";
 import { api } from "@/lib/client";
-import { formatDate } from "@/lib/format";
-import { PROFESSIONAL_INPUT_REGISTRY, SOURCE_TYPE_META } from "@/modules/inputs/registry";
+import { formatDate, formatMoney } from "@/lib/format";
+import {
+  issuerLabel,
+  PROFESSIONAL_INPUT_DISCLAIMER,
+  PROFESSIONAL_INPUT_REGISTRY,
+  SOURCE_TYPE_META,
+} from "@/modules/inputs/registry";
 import {
   PROFESSIONAL_SOURCE_TYPES,
   type ProfessionalInput,
@@ -76,10 +81,11 @@ export function ProfessionalInputsPanel({
       >
         Estimar cuando no sabemos; usar el dato real cuando existe
       </SectionTitle>
-      <p className="text-[13px] text-fg-2 max-w-3xl mb-4">
+      <p className="text-[13px] text-fg-2 max-w-3xl">
         Un precio negociado o un presupuesto de obra real sustituyen a la estimación en todos los cálculos
         dependientes. La estimación se conserva y se puede volver a ella en cualquier momento.
       </p>
+      <p className="text-[12px] text-fg-3 max-w-3xl mt-2 mb-4">{PROFESSIONAL_INPUT_DISCLAIMER}</p>
       <div className="grid gap-4 lg:grid-cols-2">
         {dealItems.map((item) => (
           <Slot
@@ -243,8 +249,13 @@ function Slot({
                 {SOURCE_TYPE_META[a.sourceType].badge}
               </Badge>
               <span>
-                {a.enteredByName ?? a.enteredBy} · {formatDate(a.enteredAt)}
+                {a.enteredByName ?? a.enteredBy} · {formatDate(a.enteredAt)} · {issuerLabel(a.issuer)}
               </span>
+            </div>
+          ) : null}
+          {a && a.marginAmount > 0 ? (
+            <div className="mt-1 text-[11px] text-fg-3">
+              Neto <Money value={a.netValue} /> + margen comercial <Money value={a.marginAmount} />
             </div>
           ) : null}
           {a?.reason ? <div className="mt-1 text-[11px] text-fg-2">{a.reason}</div> : null}
@@ -253,6 +264,9 @@ function Slot({
               {a.breakdown.map((l) => (
                 <li key={l.label}>
                   {l.label}: <Money value={l.amount} />
+                  {(l.marginRate ?? a.marginRate)
+                    ? ` + ${Math.round((l.marginRate ?? a.marginRate ?? 0) * 100)} % de margen`
+                    : ""}
                 </li>
               ))}
             </ul>
@@ -323,37 +337,62 @@ function InputForm({
 }) {
   const a = item.active;
   const isWorks = item.key === "transformation.renovationBudget";
-  const [value, setValue] = useState(a ? String(a.value) : "");
+  const line = (label: string) => a?.breakdown?.find((l) => l.label === label);
+  const pct = (l?: { marginRate?: number }) =>
+    l?.marginRate !== undefined ? String(l.marginRate * 100) : "";
+  const [value, setValue] = useState(a ? String(a.netValue) : "");
+  const [margin, setMargin] = useState(a?.marginRate !== undefined ? String(a.marginRate * 100) : "");
   const [sourceType, setSourceType] = useState<ProfessionalSourceType>(
     a?.sourceType ?? "professional_confirmed",
   );
+  const [issuerKind, setIssuerKind] = useState<"self" | "technician">(a?.issuer?.kind ?? "self");
+  const [issuerName, setIssuerName] = useState(a?.issuer?.name ?? "");
   const [reason, setReason] = useState(a?.reason ?? "");
   const [note, setNote] = useState(a?.note ?? "");
-  const [materials, setMaterials] = useState(
-    String(a?.breakdown?.find((l) => l.label === "Materiales")?.amount ?? ""),
-  );
-  const [labour, setLabour] = useState(
-    String(a?.breakdown?.find((l) => l.label === "Mano de obra")?.amount ?? ""),
-  );
-  const [other, setOther] = useState(String(a?.breakdown?.find((l) => l.label === "Otros")?.amount ?? ""));
+  const [materials, setMaterials] = useState(String(line("Materiales")?.amount ?? ""));
+  const [labour, setLabour] = useState(String(line("Mano de obra")?.amount ?? ""));
+  const [other, setOther] = useState(String(line("Otros")?.amount ?? ""));
+  const [materialsMargin, setMaterialsMargin] = useState(pct(line("Materiales")));
+  const [labourMargin, setLabourMargin] = useState(pct(line("Mano de obra")));
+  const [otherMargin, setOtherMargin] = useState(pct(line("Otros")));
+  const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rate = (s: string) => {
+    const v = num(s);
+    return v === undefined ? undefined : v / 100;
+  };
   const breakdown = isWorks
     ? (
         [
-          ["Materiales", num(materials)],
-          ["Mano de obra", num(labour)],
-          ["Otros", num(other)],
-        ] as Array<[string, number | undefined]>
+          ["Materiales", num(materials), rate(materialsMargin)],
+          ["Mano de obra", num(labour), rate(labourMargin)],
+          ["Otros", num(other), rate(otherMargin)],
+        ] as Array<[string, number | undefined, number | undefined]>
       )
-        .filter((l): l is [string, number] => l[1] !== undefined)
-        .map(([label, amount]) => ({ label, amount }))
+        .filter((l): l is [string, number, number | undefined] => l[1] !== undefined)
+        .map(([label, amount, marginRate]) => ({ label, amount, marginRate }))
     : [];
   const sum = breakdown.length ? breakdown.reduce((s, l) => s + l.amount, 0) : undefined;
-  const effectiveValue = sum ?? num(value);
+  const netValue = sum ?? num(value);
+  const marginRate = rate(margin);
+  const gross =
+    netValue === undefined
+      ? undefined
+      : breakdown.length
+        ? breakdown.reduce((s, l) => s + l.amount * (1 + (l.marginRate ?? marginRate ?? 0)), 0)
+        : netValue * (1 + (marginRate ?? 0));
 
   async function save() {
-    if (effectiveValue === undefined) {
+    if (netValue === undefined) {
       setError("Indica un importe.");
+      return;
+    }
+    if (issuerKind === "technician" && !issuerName.trim()) {
+      setError("Indica el técnico o la empresa que emite el dato.");
+      return;
+    }
+    if (!acknowledged) {
+      setError("Confirma que el dato se aporta bajo tu responsabilidad.");
       return;
     }
     setBusy(true);
@@ -365,8 +404,11 @@ function InputForm({
           action: "set",
           key: item.key,
           strategyId: item.strategyId,
-          value: effectiveValue,
+          value: netValue,
+          marginRate,
           sourceType,
+          issuer: { kind: issuerKind, name: issuerName.trim() || undefined },
+          acknowledged,
           reason: reason || undefined,
           note: note || undefined,
           breakdown: breakdown.length ? breakdown : undefined,
@@ -383,24 +425,36 @@ function InputForm({
     } else setError(r.error?.message ?? "No hemos podido guardar el dato.");
   }
 
+  const lines: Array<[string, string, (v: string) => void, string, (v: string) => void]> = [
+    ["Materiales", materials, setMaterials, materialsMargin, setMaterialsMargin],
+    ["Mano de obra", labour, setLabour, labourMargin, setLabourMargin],
+    ["Otros", other, setOther, otherMargin, setOtherMargin],
+  ];
+
   return (
     <div className="mt-3 grid gap-3 border-t border-line pt-3 anim-rise">
       {isWorks ? (
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Materiales (€)">
-            <Input inputMode="decimal" value={materials} onChange={(e) => setMaterials(e.target.value)} />
-          </Field>
-          <Field label="Mano de obra (€)">
-            <Input inputMode="decimal" value={labour} onChange={(e) => setLabour(e.target.value)} />
-          </Field>
-          <Field label="Otros (€)">
-            <Input inputMode="decimal" value={other} onChange={(e) => setOther(e.target.value)} />
-          </Field>
+          {lines.map(([label, amount, setAmount, m, setM]) => (
+            <div key={label} className="grid gap-2">
+              <Field label={`${label} (€, neto)`}>
+                <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </Field>
+              <Field label="Margen de la partida (%)">
+                <Input
+                  inputMode="decimal"
+                  value={m}
+                  onChange={(e) => setM(e.target.value)}
+                  placeholder="opcional"
+                />
+              </Field>
+            </div>
+          ))}
         </div>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Field
-          label={isWorks ? "Total obra (PEM + GG/BI, sin IVA)" : "Importe (€)"}
+          label={isWorks ? "Total obra neto (PEM + GG/BI, sin IVA)" : "Importe neto (€)"}
           hint={sum !== undefined ? "Suma del desglose." : undefined}
         >
           <Input
@@ -409,6 +463,21 @@ function InputForm({
             disabled={sum !== undefined}
             onChange={(e) => setValue(e.target.value)}
             placeholder="p. ej. 218000"
+          />
+        </Field>
+        <Field
+          label="Margen comercial (%)"
+          hint={
+            gross !== undefined && netValue !== undefined && gross !== netValue
+              ? `En el análisis: ${formatMoney(Math.round(gross))}`
+              : "Sobre el neto; cada partida puede fijar el suyo."
+          }
+        >
+          <Input
+            inputMode="decimal"
+            value={margin}
+            onChange={(e) => setMargin(e.target.value)}
+            placeholder="0"
           />
         </Field>
         <Field label="Tipo de dato">
@@ -424,6 +493,17 @@ function InputForm({
           </Select>
         </Field>
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Quién emite el dato">
+          <Select value={issuerKind} onChange={(e) => setIssuerKind(e.target.value as "self" | "technician")}>
+            <option value="self">Yo mismo (profesional o usuario)</option>
+            <option value="technician">Un técnico o empresa (presupuesto)</option>
+          </Select>
+        </Field>
+        <Field label={issuerKind === "technician" ? "Técnico o empresa" : "Nombre (opcional)"}>
+          <Input value={issuerName} onChange={(e) => setIssuerName(e.target.value)} maxLength={120} />
+        </Field>
+      </div>
       <Field label="Motivo (opcional)">
         <Input
           value={reason}
@@ -435,13 +515,22 @@ function InputForm({
       <Field label="Nota (opcional)">
         <Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
       </Field>
+      <label className="flex items-start gap-2 text-[12px] text-fg-2">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={acknowledged}
+          onChange={(e) => setAcknowledged(e.target.checked)}
+        />
+        <span>{PROFESSIONAL_INPUT_DISCLAIMER} Confirmo que este dato se aporta bajo mi responsabilidad.</span>
+      </label>
       {error ? (
         <p role="alert" className="text-[12px] text-danger">
           {error}
         </p>
       ) : null}
       <div className="flex gap-2">
-        <Button size="sm" variant="accent" onClick={save} loading={busy}>
+        <Button size="sm" variant="accent" onClick={save} loading={busy} disabled={!acknowledged}>
           Guardar
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>

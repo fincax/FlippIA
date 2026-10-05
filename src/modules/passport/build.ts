@@ -1,5 +1,6 @@
 import type { AnalysisResult, StrategyResult } from "@/modules/analysis/types";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { PROFESSIONAL_INPUT_DISCLAIMER } from "@/modules/inputs/registry";
 
 export interface PassportSection {
   key: string;
@@ -92,6 +93,7 @@ export function buildPassport(
             ]
           : []),
       ],
+      bullets: professionalPrice || professionalWorks ? [PROFESSIONAL_INPUT_DISCLAIMER] : undefined,
     },
     {
       key: "market",

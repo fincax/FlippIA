@@ -69,3 +69,15 @@ export const SOURCE_TYPE_META: Record<
     description: "Importe efectivamente firmado o pagado.",
   },
 };
+
+/**
+ * Shown wherever a professional figure is entered or used. One text, one
+ * place: panel, Passport and LIA quote it.
+ */
+export const PROFESSIONAL_INPUT_DISCLAIMER =
+  "Los datos introducidos por el profesional o el usuario se aportan bajo su responsabilidad y determinan el resultado final. FlippIA realiza estimaciones de mercado; los presupuestos finales, si se contrata a nuestros técnicos o a otros, son responsabilidad de los técnicos que los emiten.";
+
+export function issuerLabel(issuer: { kind: "self" | "technician"; name?: string }): string {
+  if (issuer.kind === "technician") return issuer.name ? `técnico: ${issuer.name}` : "técnico";
+  return issuer.name ? `aportado por ${issuer.name}` : "aportado por el usuario";
+}

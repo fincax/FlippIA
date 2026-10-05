@@ -1,6 +1,33 @@
 import { newId } from "@/modules/core/ids";
+import { round2 } from "@/modules/core/math";
 import { PROFESSIONAL_INPUT_REGISTRY, SOURCE_TYPE_META } from "./registry";
-import type { ProfessionalInput, ProfessionalInputKey, ProfessionalSourceType } from "./types";
+import type {
+  ProfessionalInput,
+  ProfessionalInputBreakdownLine,
+  ProfessionalInputIssuer,
+  ProfessionalInputKey,
+  ProfessionalSourceType,
+} from "./types";
+
+/**
+ * Commercial margin per line or per input: the analysis uses the gross figure,
+ * the net figure stays recorded. Lines fall back to the input's margin.
+ */
+export function withMargin(
+  netValue: number,
+  marginRate: number | undefined,
+  breakdown?: readonly ProfessionalInputBreakdownLine[],
+): { value: number; netValue: number; marginAmount: number } {
+  if (breakdown?.length) {
+    const net = round2(breakdown.reduce((a, l) => a + l.amount, 0));
+    const gross = round2(
+      breakdown.reduce((a, l) => a + l.amount * (1 + (l.marginRate ?? marginRate ?? 0)), 0),
+    );
+    return { value: gross, netValue: net, marginAmount: round2(gross - net) };
+  }
+  const gross = round2(netValue * (1 + (marginRate ?? 0)));
+  return { value: gross, netValue: round2(netValue), marginAmount: round2(gross - netValue) };
+}
 
 export function activeInputs(inputs: readonly ProfessionalInput[]): ProfessionalInput[] {
   return inputs.filter((i) => i.state === "active");
@@ -64,10 +91,13 @@ export function resolveEffectiveValue(params: {
 export interface ProfessionalInputDraft {
   key: ProfessionalInputKey;
   strategyId?: string;
+  /** Net figure as entered; the margin is added on top. */
   value: number;
+  marginRate?: number;
   sourceType: ProfessionalSourceType;
   enteredBy: string;
   enteredByName?: string;
+  issuer?: ProfessionalInputIssuer;
   reason?: string;
   note?: string;
   breakdown?: ProfessionalInput["breakdown"];
@@ -76,20 +106,27 @@ export interface ProfessionalInputDraft {
 
 export function newProfessionalInput(draft: ProfessionalInputDraft, now = new Date()): ProfessionalInput {
   const def = PROFESSIONAL_INPUT_REGISTRY[draft.key];
+  const breakdown = draft.breakdown?.length ? draft.breakdown : undefined;
+  const money = withMargin(draft.value, draft.marginRate, breakdown);
   return {
     id: newId("pin"),
     key: draft.key,
     strategyId: def.scope === "strategy" ? draft.strategyId : undefined,
-    value: draft.value,
+    value: money.value,
+    netValue: money.netValue,
+    marginRate: draft.marginRate,
+    marginAmount: money.marginAmount,
     unit: def.unit,
     sourceType: draft.sourceType,
     status: SOURCE_TYPE_META[draft.sourceType].status,
     enteredBy: draft.enteredBy,
     enteredByName: draft.enteredByName,
     enteredAt: now.toISOString(),
+    issuer: draft.issuer ?? { kind: "self" },
+    responsibilityAcknowledgedAt: now.toISOString(),
     reason: draft.reason || undefined,
     note: draft.note || undefined,
-    breakdown: draft.breakdown?.length ? draft.breakdown : undefined,
+    breakdown,
     estimateAtEntry: draft.estimateAtEntry,
     state: "active",
   };

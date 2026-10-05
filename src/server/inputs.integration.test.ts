@@ -58,6 +58,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
         key: "acquisition.purchasePrice",
         value: 218_000,
         sourceType: "professional_confirmed",
+        acknowledged: true,
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
 
@@ -66,6 +67,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       key: "acquisition.purchasePrice",
       value: 218_000,
       sourceType: "professional_confirmed",
+      acknowledged: true,
       reason: "Precio negociado directamente con el vendedor",
     });
     expect(change.estimate).toEqual({ value: 245_000, source: "user" });
@@ -121,6 +123,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
         strategyId: "no_such",
         value: 65_000,
         sourceType: "contractor_quote",
+        acknowledged: true,
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
     await setProfessionalInput(ctx, deal.id, {
@@ -128,6 +131,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       strategyId: top,
       value: 65_000,
       sourceType: "contractor_quote",
+      acknowledged: true,
       breakdown: [
         { label: "Materiales", amount: 37_000 },
         { label: "Mano de obra", amount: 28_000 },
@@ -137,6 +141,32 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     expect(both.strategies.find((s) => s.id === top)!.scenarioSet.base.transformation.renovationBudget).toBe(
       65_000,
     );
+    // A technician's budget with a commercial margin: the analysis uses the gross figure, the net stays recorded.
+    const margined = await setProfessionalInput(ctx, deal.id, {
+      key: "transformation.renovationBudget",
+      strategyId: top,
+      value: 60_000,
+      marginRate: 0.1,
+      sourceType: "accepted_quote",
+      issuer: { kind: "technician", name: "Estudio Arquitectura Triana" },
+      acknowledged: true,
+    });
+    expect(margined.input).toMatchObject({ netValue: 60_000, marginAmount: 6_000, value: 66_000 });
+    expect(margined.input.responsibilityAcknowledgedAt).toBeTruthy();
+    expect(
+      (await getLatestAnalysis(ctx, deal.id))!.strategies.find((s) => s.id === top)!.scenarioSet.base
+        .transformation.renovationBudget,
+    ).toBe(66_000);
+    await expect(
+      setProfessionalInput(ctx, deal.id, {
+        key: "transformation.renovationBudget",
+        strategyId: top,
+        value: 60_000,
+        sourceType: "accepted_quote",
+        issuer: { kind: "technician" },
+        acknowledged: true,
+      }),
+    ).rejects.toThrow();
 
     // Re-analysis: scenario sets are rebuilt, the professional inputs stay and apply again.
     const analysisId2 = await markAnalyzing(ctx, deal.id);
@@ -162,6 +192,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
       key: "acquisition.purchasePrice",
       value: 215_000,
       sourceType: "document_verified",
+      acknowledged: true,
       reason: "Arras firmadas",
     });
     const list = (await getDeal(ctx, deal.id)).professionalInputs;
@@ -187,9 +218,9 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     );
     expect(
       reverted.strategies.find((s) => s.id === top)!.scenarioSet.base.transformation.renovationBudget,
-    ).toBe(65_000);
+    ).toBe(66_000);
     const history = (await getDeal(ctx, deal.id)).professionalInputs;
-    expect(history).toHaveLength(3);
+    expect(history).toHaveLength(4);
     expect(history.filter((i) => i.state === "reverted")).toHaveLength(1);
     await expect(
       revertProfessionalInput(ctx, deal.id, { key: "acquisition.purchasePrice" }),
@@ -199,7 +230,7 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     const trail = await d().select().from(activities).where(eq(activities.dealId, deal.id));
     const sets = trail.filter((t) => t.kind === "input.professional_set");
     const reverts = trail.filter((t) => t.kind === "input.professional_reverted");
-    expect(sets).toHaveLength(3);
+    expect(sets).toHaveLength(4);
     expect(reverts).toHaveLength(1);
     const first = sets.find(
       (t) => (t.payload as { key: string; before: { value: number } }).before.value === 245_000,
@@ -220,9 +251,10 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
         key: "acquisition.purchasePrice",
         value: 1_000,
         sourceType: "actual",
+        acknowledged: true,
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
     const [rowB] = await d().select().from(deals).where(eq(deals.id, deal.id));
-    expect(rowB!.professionalInputs).toHaveLength(3);
+    expect(rowB!.professionalInputs).toHaveLength(4);
   }, 120_000);
 });

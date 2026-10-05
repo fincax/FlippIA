@@ -16,6 +16,7 @@ import {
   resolveEffectiveValue,
   revertProfessionalInput,
   setProfessionalInput,
+  withMargin,
   type ProfessionalInput,
 } from "./index";
 
@@ -137,9 +138,28 @@ describe("lifecycle — set, supersede, revert (no data loss)", () => {
 });
 
 describe("validation", () => {
-  const ok = { key: "acquisition.purchasePrice", value: 218_000, sourceType: "professional_confirmed" };
+  const ok = {
+    key: "acquisition.purchasePrice",
+    value: 218_000,
+    sourceType: "professional_confirmed",
+    acknowledged: true,
+  };
   it("accepts a well-formed input and rejects type, range, precision, scope and breakdown errors", () => {
     expect(professionalInputSetSchema.safeParse(ok).success).toBe(true);
+    // The figure is only accepted under the responsibility of the person entering it.
+    expect(professionalInputSetSchema.safeParse({ ...ok, acknowledged: false }).success).toBe(false);
+    expect(professionalInputSetSchema.safeParse({ ...ok, acknowledged: undefined }).success).toBe(false);
+    expect(professionalInputSetSchema.safeParse({ ...ok, marginRate: 0.15 }).success).toBe(true);
+    expect(professionalInputSetSchema.safeParse({ ...ok, marginRate: 1.5 }).success).toBe(false);
+    expect(professionalInputSetSchema.safeParse({ ...ok, marginRate: -0.1 }).success).toBe(false);
+    expect(professionalInputSetSchema.safeParse({ ...ok, issuer: { kind: "self" } }).success).toBe(true);
+    expect(professionalInputSetSchema.safeParse({ ...ok, issuer: { kind: "technician" } }).success).toBe(
+      false,
+    );
+    expect(
+      professionalInputSetSchema.safeParse({ ...ok, issuer: { kind: "technician", name: "Estudio X" } })
+        .success,
+    ).toBe(true);
     expect(professionalInputSetSchema.safeParse({ ...ok, value: -1 }).success).toBe(false);
     expect(professionalInputSetSchema.safeParse({ ...ok, value: Number.NaN }).success).toBe(false);
     expect(professionalInputSetSchema.safeParse({ ...ok, value: "218000" }).success).toBe(false);
@@ -148,7 +168,12 @@ describe("validation", () => {
     expect(professionalInputSetSchema.safeParse({ ...ok, key: "exit.salePrice" }).success).toBe(false);
     expect(professionalInputSetSchema.safeParse({ ...ok, sourceType: "guess" }).success).toBe(false);
     expect(professionalInputSetSchema.safeParse({ ...ok, strategyId: "flip_light" }).success).toBe(false);
-    const works = { key: "transformation.renovationBudget", value: 65_500, sourceType: "contractor_quote" };
+    const works = {
+      key: "transformation.renovationBudget",
+      value: 65_500,
+      sourceType: "contractor_quote",
+      acknowledged: true,
+    };
     expect(professionalInputSetSchema.safeParse(works).success).toBe(false);
     expect(professionalInputSetSchema.safeParse({ ...works, strategyId: "flip_integral" }).success).toBe(
       true,
@@ -174,6 +199,45 @@ describe("validation", () => {
     expect(professionalInputRevertSchema.safeParse({ key: "transformation.renovationBudget" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("commercial margin and responsibility", () => {
+  it("adds the margin on top of the net figure, per input or per line, and records who answers for it", () => {
+    expect(withMargin(60_000, 0.1)).toEqual({ value: 66_000, netValue: 60_000, marginAmount: 6_000 });
+    expect(withMargin(60_000, undefined)).toEqual({ value: 60_000, netValue: 60_000, marginAmount: 0 });
+    expect(
+      withMargin(65_000, 0.1, [
+        { label: "Materiales", amount: 37_000, marginRate: 0.2 },
+        { label: "Mano de obra", amount: 28_000 },
+      ]),
+    ).toEqual({ value: 37_000 * 1.2 + 28_000 * 1.1, netValue: 65_000, marginAmount: 7_400 + 2_800 });
+    const input = newProfessionalInput(
+      {
+        key: "transformation.renovationBudget",
+        strategyId: "flip_integral",
+        value: 60_000,
+        marginRate: 0.1,
+        sourceType: "accepted_quote",
+        enteredBy: "usr_arch",
+        issuer: { kind: "technician", name: "Estudio Triana" },
+      },
+      ENTERED_AT,
+    );
+    expect(input).toMatchObject({
+      value: 66_000,
+      netValue: 60_000,
+      marginRate: 0.1,
+      marginAmount: 6_000,
+      issuer: { kind: "technician", name: "Estudio Triana" },
+      responsibilityAcknowledgedAt: ENTERED_AT.toISOString(),
+    });
+    expect(negotiated().issuer).toEqual({ kind: "self" });
+    const note = provenanceNote(input, { value: 80_000, source: "engine", status: "INFERRED" });
+    expect(note).toContain("técnico: Estudio Triana");
+    expect(note).toContain("bajo su responsabilidad");
+    expect(note).toContain("margen comercial");
+    expect(note).toContain("66.000");
   });
 });
 
@@ -400,6 +464,7 @@ describe("LIA — attributes professional data to the professional (TEST 11)", (
     expect(max.kind).toBe("max_price");
     expect(max.text).toContain("218.000");
     expect(max.text).toContain("que has indicado");
+    expect(max.text).toContain("bajo tu responsabilidad");
     expect(max.text).toContain("no una estimación mía");
     const general = await askProperty(effective, "Resume la operación");
     expect(general.text).toContain("dato que has introducido");
