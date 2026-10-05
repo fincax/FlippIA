@@ -75,7 +75,7 @@ export const SOURCE_TYPE_META: Record<
  * place: panel, Passport and LIA quote it.
  */
 export const PROFESSIONAL_INPUT_DISCLAIMER =
-  "Los datos introducidos por el profesional o el usuario se aportan bajo su responsabilidad y determinan el resultado final. FlippIA realiza estimaciones de mercado; los presupuestos finales, si se contrata a nuestros técnicos o a otros, son responsabilidad de los técnicos que los emiten.";
+  "Los datos introducidos por el profesional o el usuario se aportan bajo su responsabilidad y determinan el resultado final. FlippIA realiza estimaciones de mercado; los presupuestos finales, si se contrata a nuestros técnicos o a otros, son responsabilidad de los técnicos que los emiten. Los importes y el margen comercial se indican sin impuestos; los impuestos aplicables se calculan aparte.";
 
 export function issuerLabel(issuer: { kind: "self" | "technician"; name?: string }): string {
   if (issuer.kind === "technician") return issuer.name ? `técnico: ${issuer.name}` : "técnico";

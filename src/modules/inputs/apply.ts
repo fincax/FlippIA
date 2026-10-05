@@ -55,8 +55,9 @@ export function provenanceNote(input: ProfessionalInput, estimate: EstimateRecor
   ];
   if (input.marginAmount > 0)
     parts.push(
-      `Neto ${formatMoney(input.netValue)} + margen comercial ${formatMoney(input.marginAmount)} = ${formatMoney(input.value)}.`,
+      `Neto ${formatMoney(input.netValue)} + margen comercial ${formatMoney(input.marginAmount)} = ${formatMoney(input.value)}, sin impuestos; los impuestos aplicables se calculan aparte.`,
     );
+  else parts.push("Importe sin impuestos; los impuestos aplicables se calculan aparte.");
   if (input.reason) parts.push(input.reason.endsWith(".") ? input.reason : `${input.reason}.`);
   return parts.join(" ");
 }

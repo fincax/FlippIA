@@ -31,7 +31,7 @@ export type ProfessionalInputScope = "deal" | "strategy";
 
 export interface ProfessionalInputBreakdownLine {
   label: string;
-  /** Net amount of the line, before commercial margin. */
+  /** Net amount of the line, before commercial margin and before taxes. */
   amount: number;
   /** Commercial margin applied to this line (0..1). Falls back to the input's margin. */
   marginRate?: number;
@@ -52,9 +52,14 @@ export interface ProfessionalInput {
   key: ProfessionalInputKey;
   /** Required for strategy-scoped keys; absent for deal-wide keys. */
   strategyId?: string;
-  /** The figure the analysis uses: net value plus commercial margin. */
+  /**
+   * The figure the analysis uses: net value plus commercial margin, always
+   * before taxes. The engine applies the taxes that correspond (works VAT,
+   * ITP or IVA + AJD) on top, from the tax rules in force; the margin never
+   * includes them.
+   */
   value: number;
-  /** As entered, before commercial margin. */
+  /** As entered, before commercial margin and before taxes. */
   netValue: number;
   /** Commercial margin applied by default to the input (0..1); lines may override it. */
   marginRate?: number;

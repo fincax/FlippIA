@@ -112,9 +112,16 @@ describe("professional inputs — persistence, precedence, audit, permissions", 
     expect(price.active?.value).toBe(218_000);
     expect(price.effective).toEqual({ value: 218_000, source: "professional" });
     expect(view.maxPrice?.headroom).toBe(view.maxPrice!.maximumPrice - 218_000);
+    // Taxes are the engine's, on top of the figure in use, never inside the margin.
+    expect(price.tax?.label).toBe("ITP");
+    expect(price.tax!.amount).toBeGreaterThan(0);
+    expect(price.tax!.totalWithTax).toBe(218_000 + price.tax!.amount);
     const works = view.items.filter((i) => i.key === "transformation.renovationBudget");
     expect(works.length).toBe(pristine.strategies.length);
     expect(works.every((w) => w.effective.source === "estimate")).toBe(true);
+    const withWorks = works.find((w) => (w.effective.value ?? 0) > 0)!;
+    expect(withWorks.tax?.label).toMatch(/^IVA/);
+    expect(withWorks.tax!.totalWithTax).toBeCloseTo(withWorks.effective.value! + withWorks.tax!.amount, 0);
 
     // Strategy-scoped works budget; unknown strategy refused.
     await expect(
